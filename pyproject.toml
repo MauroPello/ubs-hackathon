@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ubs-hackathon"
+version = "0.1.0"
+description = "MCP-powered assistant for schema search and safe analytics queries"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "UBS Hackathon Team" }]
+dependencies = [
+  "mcp>=1.9.0",
+  "PyYAML>=6.0.1",
+]
+
+[project.scripts]
+ubs-mcp-server = "ubs_hackathon.server:main"
+ubs-build-catalog = "ubs_hackathon.builder:main"
+ubs-seed-demo = "ubs_hackathon.demo_seed:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+addopts = "-q"

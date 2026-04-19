@@ -1,0 +1,7 @@
+catalog:
+  db_path: data/catalog.db
+
+data_sources:
+  - name: demo_sqlite
+    type: sqlite
+    connection: data/demo_business.db
