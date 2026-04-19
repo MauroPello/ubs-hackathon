@@ -11,12 +11,16 @@ from .config import load_config
 from .datasource import build_data_source
 
 
-def create_server(config_path: str | None = None) -> FastMCP:
+def create_server(
+    config_path: str | None = None,
+    host: str = "127.0.0.1",
+    port: int = 8000,
+) -> FastMCP:
     sources, catalog_path, _ = load_config(config_path)
     source_map = {cfg.name: build_data_source(cfg) for cfg in sources}
     catalog = SchemaCatalog(Path(catalog_path))
 
-    mcp = FastMCP("ubs-hackathon-assistant")
+    mcp = FastMCP("ubs-hackathon-assistant", host=host, port=port)
 
     @mcp.tool()
     def list_data_sources() -> list[dict]:
@@ -63,11 +67,11 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
 
-    mcp = create_server(args.config)
+    mcp = create_server(args.config, host=args.host, port=args.port)
     if args.transport == "stdio":
         mcp.run(transport="stdio")
     else:
-        mcp.run(transport="sse", host=args.host, port=args.port)
+        mcp.run(transport="sse")
 
 
 if __name__ == "__main__":

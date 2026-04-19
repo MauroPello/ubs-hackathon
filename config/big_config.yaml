@@ -1,0 +1,7 @@
+catalog:
+  db_path: data/big_catalog.db
+data_sources:
+  - name: big_demo_sqlite
+    type: sqlite
+    connection: data/big_demo.db
+schema_docs_path: config/big_schema_docs.json

@@ -1,0 +1,2660 @@
+{
+  "big_demo_sqlite": {
+    "tables": {
+      "dim_region": {
+        "description": "Reference table for reporting regions.",
+        "columns": {
+          "region_id": "Unique region identifier.",
+          "region_name": "Region label used in reporting."
+        }
+      },
+      "dim_product": {
+        "description": "Reference table for product categories.",
+        "columns": {
+          "product_id": "Unique product identifier.",
+          "product_name": "Product family label."
+        }
+      },
+      "fact_business_001": {
+        "description": "Synthetic business fact table 001 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_002": {
+        "description": "Synthetic business fact table 002 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_003": {
+        "description": "Synthetic business fact table 003 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_004": {
+        "description": "Synthetic business fact table 004 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_005": {
+        "description": "Synthetic business fact table 005 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_006": {
+        "description": "Synthetic business fact table 006 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_007": {
+        "description": "Synthetic business fact table 007 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_008": {
+        "description": "Synthetic business fact table 008 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_009": {
+        "description": "Synthetic business fact table 009 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_010": {
+        "description": "Synthetic business fact table 010 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_011": {
+        "description": "Synthetic business fact table 011 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_012": {
+        "description": "Synthetic business fact table 012 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_013": {
+        "description": "Synthetic business fact table 013 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_014": {
+        "description": "Synthetic business fact table 014 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_015": {
+        "description": "Synthetic business fact table 015 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_016": {
+        "description": "Synthetic business fact table 016 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_017": {
+        "description": "Synthetic business fact table 017 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_018": {
+        "description": "Synthetic business fact table 018 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_019": {
+        "description": "Synthetic business fact table 019 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_020": {
+        "description": "Synthetic business fact table 020 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_021": {
+        "description": "Synthetic business fact table 021 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_022": {
+        "description": "Synthetic business fact table 022 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_023": {
+        "description": "Synthetic business fact table 023 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_024": {
+        "description": "Synthetic business fact table 024 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_025": {
+        "description": "Synthetic business fact table 025 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_026": {
+        "description": "Synthetic business fact table 026 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_027": {
+        "description": "Synthetic business fact table 027 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_028": {
+        "description": "Synthetic business fact table 028 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_029": {
+        "description": "Synthetic business fact table 029 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_030": {
+        "description": "Synthetic business fact table 030 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_031": {
+        "description": "Synthetic business fact table 031 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_032": {
+        "description": "Synthetic business fact table 032 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_033": {
+        "description": "Synthetic business fact table 033 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_034": {
+        "description": "Synthetic business fact table 034 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_035": {
+        "description": "Synthetic business fact table 035 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_036": {
+        "description": "Synthetic business fact table 036 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_037": {
+        "description": "Synthetic business fact table 037 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_038": {
+        "description": "Synthetic business fact table 038 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_039": {
+        "description": "Synthetic business fact table 039 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_040": {
+        "description": "Synthetic business fact table 040 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_041": {
+        "description": "Synthetic business fact table 041 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_042": {
+        "description": "Synthetic business fact table 042 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_043": {
+        "description": "Synthetic business fact table 043 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_044": {
+        "description": "Synthetic business fact table 044 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_045": {
+        "description": "Synthetic business fact table 045 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_046": {
+        "description": "Synthetic business fact table 046 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_047": {
+        "description": "Synthetic business fact table 047 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_048": {
+        "description": "Synthetic business fact table 048 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_049": {
+        "description": "Synthetic business fact table 049 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_050": {
+        "description": "Synthetic business fact table 050 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_051": {
+        "description": "Synthetic business fact table 051 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_052": {
+        "description": "Synthetic business fact table 052 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_053": {
+        "description": "Synthetic business fact table 053 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_054": {
+        "description": "Synthetic business fact table 054 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_055": {
+        "description": "Synthetic business fact table 055 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_056": {
+        "description": "Synthetic business fact table 056 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_057": {
+        "description": "Synthetic business fact table 057 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_058": {
+        "description": "Synthetic business fact table 058 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_059": {
+        "description": "Synthetic business fact table 059 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_060": {
+        "description": "Synthetic business fact table 060 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_061": {
+        "description": "Synthetic business fact table 061 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_062": {
+        "description": "Synthetic business fact table 062 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_063": {
+        "description": "Synthetic business fact table 063 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_064": {
+        "description": "Synthetic business fact table 064 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_065": {
+        "description": "Synthetic business fact table 065 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_066": {
+        "description": "Synthetic business fact table 066 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_067": {
+        "description": "Synthetic business fact table 067 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_068": {
+        "description": "Synthetic business fact table 068 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_069": {
+        "description": "Synthetic business fact table 069 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_070": {
+        "description": "Synthetic business fact table 070 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_071": {
+        "description": "Synthetic business fact table 071 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_072": {
+        "description": "Synthetic business fact table 072 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_073": {
+        "description": "Synthetic business fact table 073 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_074": {
+        "description": "Synthetic business fact table 074 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_075": {
+        "description": "Synthetic business fact table 075 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_076": {
+        "description": "Synthetic business fact table 076 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_077": {
+        "description": "Synthetic business fact table 077 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_078": {
+        "description": "Synthetic business fact table 078 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_079": {
+        "description": "Synthetic business fact table 079 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_080": {
+        "description": "Synthetic business fact table 080 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_081": {
+        "description": "Synthetic business fact table 081 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_082": {
+        "description": "Synthetic business fact table 082 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_083": {
+        "description": "Synthetic business fact table 083 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_084": {
+        "description": "Synthetic business fact table 084 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_085": {
+        "description": "Synthetic business fact table 085 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_086": {
+        "description": "Synthetic business fact table 086 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_087": {
+        "description": "Synthetic business fact table 087 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_088": {
+        "description": "Synthetic business fact table 088 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_089": {
+        "description": "Synthetic business fact table 089 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_090": {
+        "description": "Synthetic business fact table 090 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_091": {
+        "description": "Synthetic business fact table 091 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_092": {
+        "description": "Synthetic business fact table 092 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_093": {
+        "description": "Synthetic business fact table 093 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_094": {
+        "description": "Synthetic business fact table 094 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_095": {
+        "description": "Synthetic business fact table 095 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_096": {
+        "description": "Synthetic business fact table 096 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_097": {
+        "description": "Synthetic business fact table 097 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_098": {
+        "description": "Synthetic business fact table 098 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_099": {
+        "description": "Synthetic business fact table 099 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_100": {
+        "description": "Synthetic business fact table 100 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_101": {
+        "description": "Synthetic business fact table 101 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_102": {
+        "description": "Synthetic business fact table 102 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_103": {
+        "description": "Synthetic business fact table 103 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_104": {
+        "description": "Synthetic business fact table 104 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_105": {
+        "description": "Synthetic business fact table 105 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_106": {
+        "description": "Synthetic business fact table 106 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_107": {
+        "description": "Synthetic business fact table 107 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_108": {
+        "description": "Synthetic business fact table 108 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_109": {
+        "description": "Synthetic business fact table 109 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_110": {
+        "description": "Synthetic business fact table 110 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_111": {
+        "description": "Synthetic business fact table 111 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_112": {
+        "description": "Synthetic business fact table 112 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_113": {
+        "description": "Synthetic business fact table 113 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_114": {
+        "description": "Synthetic business fact table 114 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_115": {
+        "description": "Synthetic business fact table 115 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_116": {
+        "description": "Synthetic business fact table 116 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_117": {
+        "description": "Synthetic business fact table 117 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_118": {
+        "description": "Synthetic business fact table 118 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_119": {
+        "description": "Synthetic business fact table 119 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_120": {
+        "description": "Synthetic business fact table 120 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_121": {
+        "description": "Synthetic business fact table 121 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_122": {
+        "description": "Synthetic business fact table 122 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_123": {
+        "description": "Synthetic business fact table 123 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_124": {
+        "description": "Synthetic business fact table 124 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_125": {
+        "description": "Synthetic business fact table 125 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_126": {
+        "description": "Synthetic business fact table 126 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_127": {
+        "description": "Synthetic business fact table 127 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_128": {
+        "description": "Synthetic business fact table 128 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_129": {
+        "description": "Synthetic business fact table 129 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_130": {
+        "description": "Synthetic business fact table 130 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_131": {
+        "description": "Synthetic business fact table 131 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_132": {
+        "description": "Synthetic business fact table 132 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_133": {
+        "description": "Synthetic business fact table 133 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_134": {
+        "description": "Synthetic business fact table 134 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_135": {
+        "description": "Synthetic business fact table 135 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_136": {
+        "description": "Synthetic business fact table 136 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_137": {
+        "description": "Synthetic business fact table 137 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_138": {
+        "description": "Synthetic business fact table 138 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_139": {
+        "description": "Synthetic business fact table 139 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_140": {
+        "description": "Synthetic business fact table 140 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_141": {
+        "description": "Synthetic business fact table 141 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_142": {
+        "description": "Synthetic business fact table 142 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_143": {
+        "description": "Synthetic business fact table 143 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_144": {
+        "description": "Synthetic business fact table 144 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_145": {
+        "description": "Synthetic business fact table 145 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_146": {
+        "description": "Synthetic business fact table 146 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_147": {
+        "description": "Synthetic business fact table 147 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_148": {
+        "description": "Synthetic business fact table 148 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_149": {
+        "description": "Synthetic business fact table 149 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_150": {
+        "description": "Synthetic business fact table 150 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_151": {
+        "description": "Synthetic business fact table 151 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_152": {
+        "description": "Synthetic business fact table 152 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_153": {
+        "description": "Synthetic business fact table 153 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_154": {
+        "description": "Synthetic business fact table 154 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_155": {
+        "description": "Synthetic business fact table 155 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_156": {
+        "description": "Synthetic business fact table 156 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_157": {
+        "description": "Synthetic business fact table 157 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_158": {
+        "description": "Synthetic business fact table 158 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_159": {
+        "description": "Synthetic business fact table 159 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_160": {
+        "description": "Synthetic business fact table 160 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_161": {
+        "description": "Synthetic business fact table 161 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_162": {
+        "description": "Synthetic business fact table 162 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_163": {
+        "description": "Synthetic business fact table 163 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_164": {
+        "description": "Synthetic business fact table 164 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_165": {
+        "description": "Synthetic business fact table 165 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_166": {
+        "description": "Synthetic business fact table 166 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_167": {
+        "description": "Synthetic business fact table 167 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_168": {
+        "description": "Synthetic business fact table 168 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_169": {
+        "description": "Synthetic business fact table 169 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_170": {
+        "description": "Synthetic business fact table 170 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_171": {
+        "description": "Synthetic business fact table 171 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_172": {
+        "description": "Synthetic business fact table 172 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_173": {
+        "description": "Synthetic business fact table 173 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_174": {
+        "description": "Synthetic business fact table 174 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_175": {
+        "description": "Synthetic business fact table 175 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_176": {
+        "description": "Synthetic business fact table 176 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_177": {
+        "description": "Synthetic business fact table 177 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_178": {
+        "description": "Synthetic business fact table 178 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_179": {
+        "description": "Synthetic business fact table 179 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_180": {
+        "description": "Synthetic business fact table 180 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_181": {
+        "description": "Synthetic business fact table 181 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_182": {
+        "description": "Synthetic business fact table 182 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_183": {
+        "description": "Synthetic business fact table 183 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_184": {
+        "description": "Synthetic business fact table 184 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_185": {
+        "description": "Synthetic business fact table 185 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_186": {
+        "description": "Synthetic business fact table 186 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_187": {
+        "description": "Synthetic business fact table 187 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_188": {
+        "description": "Synthetic business fact table 188 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_189": {
+        "description": "Synthetic business fact table 189 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_190": {
+        "description": "Synthetic business fact table 190 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_191": {
+        "description": "Synthetic business fact table 191 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_192": {
+        "description": "Synthetic business fact table 192 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_193": {
+        "description": "Synthetic business fact table 193 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_194": {
+        "description": "Synthetic business fact table 194 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_195": {
+        "description": "Synthetic business fact table 195 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_196": {
+        "description": "Synthetic business fact table 196 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_197": {
+        "description": "Synthetic business fact table 197 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_198": {
+        "description": "Synthetic business fact table 198 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_199": {
+        "description": "Synthetic business fact table 199 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_200": {
+        "description": "Synthetic business fact table 200 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_201": {
+        "description": "Synthetic business fact table 201 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_202": {
+        "description": "Synthetic business fact table 202 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_203": {
+        "description": "Synthetic business fact table 203 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_204": {
+        "description": "Synthetic business fact table 204 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_205": {
+        "description": "Synthetic business fact table 205 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_206": {
+        "description": "Synthetic business fact table 206 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_207": {
+        "description": "Synthetic business fact table 207 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_208": {
+        "description": "Synthetic business fact table 208 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_209": {
+        "description": "Synthetic business fact table 209 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_210": {
+        "description": "Synthetic business fact table 210 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_211": {
+        "description": "Synthetic business fact table 211 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_212": {
+        "description": "Synthetic business fact table 212 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_213": {
+        "description": "Synthetic business fact table 213 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_214": {
+        "description": "Synthetic business fact table 214 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_215": {
+        "description": "Synthetic business fact table 215 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_216": {
+        "description": "Synthetic business fact table 216 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_217": {
+        "description": "Synthetic business fact table 217 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_218": {
+        "description": "Synthetic business fact table 218 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_219": {
+        "description": "Synthetic business fact table 219 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      },
+      "fact_business_220": {
+        "description": "Synthetic business fact table 220 for analytics retrieval testing.",
+        "columns": {
+          "event_id": "Primary key for each business event.",
+          "event_date": "Event booking date in YYYY-MM-DD format.",
+          "region_id": "Foreign key to dim_region.",
+          "product_id": "Foreign key to dim_product.",
+          "customer_segment": "Segment bucket (Institutional, Corporate, Retail).",
+          "revenue": "Revenue amount in base currency.",
+          "trade_count": "Number of trades aggregated in the event record."
+        }
+      }
+    }
+  }
+}
