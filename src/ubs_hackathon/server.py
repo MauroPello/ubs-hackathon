@@ -44,6 +44,42 @@ def create_server(
             raise ValueError(f"Unknown data source: {data_source}")
         return source.execute_read_only(sql=sql, limit=limit)
 
+    @mcp.tool()
+    def list_temporary_views(
+        data_source: str, session_id: str | None = None
+    ) -> list[dict]:
+        """List temporary views created in the current server session."""
+        source = source_map.get(data_source)
+        if source is None:
+            raise ValueError(f"Unknown data source: {data_source}")
+        return source.list_temporary_views(session_id=session_id)
+
+    @mcp.tool()
+    def create_temporary_view(
+        data_source: str,
+        sql: str,
+        view_name: str | None = None,
+        ttl_seconds: int = 3600,
+        session_id: str | None = None,
+    ) -> dict:
+        """Create a session-local temporary view for iterative analysis."""
+        source = source_map.get(data_source)
+        if source is None:
+            raise ValueError(f"Unknown data source: {data_source}")
+        return source.create_temporary_view(
+            sql=sql, view_name=view_name, ttl_seconds=ttl_seconds, session_id=session_id
+        )
+
+    @mcp.tool()
+    def drop_temporary_view(
+        data_source: str, view_name: str, session_id: str | None = None
+    ) -> dict:
+        """Drop a temporary view created by this server session."""
+        source = source_map.get(data_source)
+        if source is None:
+            raise ValueError(f"Unknown data source: {data_source}")
+        return source.drop_temporary_view(view_name=view_name, session_id=session_id)
+
     return mcp
 
 
