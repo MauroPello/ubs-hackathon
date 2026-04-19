@@ -80,7 +80,9 @@ class DataSource(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def execute_read_only(self, sql: str, limit: int = 200) -> dict[str, Any]:
+    def execute_read_only(
+        self, sql: str, limit: int = 200, session_id: str | None = None
+    ) -> dict[str, Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -310,7 +312,9 @@ class SQLAlchemyDataSource(DataSource):
                 foreign_keys=fks,
             )
 
-    def execute_read_only(self, sql: str, limit: int = 200) -> dict[str, Any]:
+    def execute_read_only(
+        self, sql: str, limit: int = 200, session_id: str | None = None
+    ) -> dict[str, Any]:
         statement = self._validate_select_sql(sql)
 
         with self._lock:
