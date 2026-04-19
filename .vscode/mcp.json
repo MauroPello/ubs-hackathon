@@ -1,0 +1,16 @@
+{
+  "servers": {
+    "ubs-hackathon": {
+      "type": "stdio",
+      "command": "/home/mpello/.conda/envs/ubs-hackathon/bin/python",
+      "args": [
+        "-m",
+        "ubs_hackathon.server",
+        "--config",
+        "${workspaceFolder}/config/config.yaml",
+        "--transport",
+        "stdio"
+      ]
+    }
+  }
+}

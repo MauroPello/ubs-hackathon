@@ -73,6 +73,46 @@ You can pass documentation either:
 - inline in `config/config.yaml` under `schema_docs`, or
 - via `schema_docs_path` pointing to a YAML/JSON file.
 
+## VS Code / Copilot Chat setup
+
+To connect the local MCP server to GitHub Copilot Chat in VS Code, this repository includes a workspace MCP configuration at `.vscode/mcp.json`.
+
+1. Open the workspace in VS Code.
+2. Open Chat and make sure Copilot Chat is available in your account.
+3. VS Code will discover the `ubs-hackathon` MCP server from `.vscode/mcp.json` and prompt you to trust it the first time.
+4. The default config points at the Conda environment created from `environment.yml`: `/home/mpello/.conda/envs/ubs-hackathon/bin/python`.
+5. If you recreate the environment elsewhere, update the `command` in `.vscode/mcp.json` to the new Python executable.
+
+The server runs in stdio mode and uses the installed package from the Conda environment, so VS Code does not need a separate `PYTHONPATH` override.
+
+Useful checks:
+
+- Run `MCP: List Servers` from the Command Palette to confirm the server is registered.
+- Use the Chat tools picker to verify that `list_data_sources`, `search_schema`, `describe_table`, and `execute_query` are available.
+- If the server fails to start, open the MCP output log from the Chat error indicator or the server list.
+
+### Test prompts for Copilot
+
+Use these prompts in Copilot Chat to verify that the MCP server is wired up correctly:
+
+1. `List the data sources available through this MCP server.`
+   - Expected tool: `list_data_sources`
+   - What to check: Copilot should name the configured source(s) and not invent extra ones.
+2. `Search the schema for revenue by region and product, and show me the top 5 matching tables.`
+   - Expected tool: `search_schema`
+   - What to check: Copilot should surface the most relevant tables and explain why they match.
+3. `Describe the table fact_business_001 in big_demo_sqlite.`
+   - Expected tool: `describe_table`
+   - What to check: Copilot should return columns, relationships, and any other table metadata.
+4. `Write a read-only SQL query that totals revenue by region and product for fact_business_001, then run it.`
+   - Expected tool: `execute_query`
+   - What to check: Copilot should generate a SELECT-only query and return aggregated results.
+5. `Before answering, search the schema for the best tables to answer: what was revenue in Q1 by region? Then explain the result.`
+   - Expected tools: `search_schema` followed by `execute_query`
+   - What to check: Copilot should use retrieval first, then query only the relevant tables.
+
+If you want a quick smoke test, start with prompts 1 and 2. If those work, the server connection is good and the remaining prompts test table inspection and SQL execution.
+
 ## Full free end-to-end test (220 tables + docs)
 
 Use this flow to test the full setup with a realistic large schema (200+ tables) and included documentation.
