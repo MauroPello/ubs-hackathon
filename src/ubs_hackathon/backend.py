@@ -220,6 +220,7 @@ class DocUpdate(BaseModel):
 
 
 def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
+    """Map stored doc entries to the schema-doc structure consumed by catalog enrichment."""
     source_payload: dict = {"tables": {}}
     for doc in docs:
         doc_type = doc.get("doc_type", "").lower()

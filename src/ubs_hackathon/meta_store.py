@@ -3,11 +3,16 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from .models import DataSourceRegistration, DocEntry
 
-_UNSET = object()
+
+class _UnsetType:
+    pass
+
+
+_UNSET = _UnsetType()
+UpdateField = str | None | _UnsetType
 
 
 META_SCHEMA = """
@@ -157,9 +162,9 @@ class MetaStore:
         self,
         data_source: str,
         doc_id: int,
-        doc_type: Any = _UNSET,
-        target: Any = _UNSET,
-        content: Any = _UNSET,
+        doc_type: UpdateField = _UNSET,
+        target: UpdateField = _UNSET,
+        content: UpdateField = _UNSET,
     ) -> DocEntry | None:
         current = self.get_doc(data_source, doc_id)
         if current is None:
