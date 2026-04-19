@@ -12,7 +12,7 @@ from .datasource import build_data_source
 
 
 def create_server(config_path: str | None = None) -> FastMCP:
-    sources, catalog_path = load_config(config_path)
+    sources, catalog_path, _ = load_config(config_path)
     source_map = {cfg.name: build_data_source(cfg) for cfg in sources}
     catalog = SchemaCatalog(Path(catalog_path))
 
@@ -56,7 +56,7 @@ def main() -> None:
     parser.add_argument(
         "--transport",
         choices=["stdio", "sse"],
-        default="stdio",
+        default="sse",
         help="MCP transport",
     )
     parser.add_argument("--host", default="127.0.0.1")

@@ -104,4 +104,4 @@ class SchemaCatalog:
             scored.append((score, doc))
 
         scored.sort(key=lambda s: s[0], reverse=True)
-        return [item[1] for item in scored[: max(top_k, 1)]]
+        return [item[1] for item in scored[: max(top_k, 0)]]

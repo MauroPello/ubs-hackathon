@@ -65,8 +65,8 @@ class SQLiteDataSource(DataSource):
     def _sample_values(self, conn: sqlite3.Connection, table: str, column: str) -> list[str]:
         query = (
             f"SELECT DISTINCT \"{column}\" AS val FROM \"{table}\" "
-            "WHERE \"{column}\" IS NOT NULL LIMIT 5"
-        ).replace("{column}", column)
+            f"WHERE \"{column}\" IS NOT NULL LIMIT 5"
+        )
         try:
             rows = conn.execute(query).fetchall()
         except sqlite3.Error:

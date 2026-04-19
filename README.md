@@ -8,12 +8,12 @@ Design a conversational **AI assistant** that helps employees answer business qu
 
 This repository now includes a working Python MCP server prototype with:
 
-- **DB-agnostic architecture** via data source adapters (SQLite implemented, extensible to more DBMSes)
-- **Schema catalog builder** that introspects source databases and stores table documentation
+- **DB-agnostic architecture** via data source adapters and MCP tool surface (SQLite implemented for demo, ready to extend to other DBMSes)
+- **Schema catalog builder** that introspects source databases and merges **existing company schema docs**
 - **Semantic schema search** using local embeddings for table/column retrieval
 - **Read-only SQL execution** safeguards for conversational analytics
 - **MCP tool surface** for `list_data_sources`, `search_schema`, `describe_table`, and `execute_query`
-- **Stdio + SSE transport options** for local and hosted integrations
+- **SSE/HTTP-first hosting** for multi-user deployments, plus stdio support for local clients
 
 ## Project structure
 
@@ -44,17 +44,24 @@ ubs-seed-demo --db-path data/demo_business.db
 ubs-build-catalog --config config/config.yaml
 ```
 
-### 4) Run MCP server (Claude Desktop / stdio)
+### 4) Run MCP server for multi-user HTTP hosting (SSE)
+
+```bash
+ubs-mcp-server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000
+```
+
+### 5) Optional: run MCP server for local client integrations (stdio)
 
 ```bash
 ubs-mcp-server --config config/config.yaml --transport stdio
 ```
 
-### 5) Run MCP server (hosted / SSE)
+### 6) Provide existing schema docs
 
-```bash
-ubs-mcp-server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000
-```
+You can pass documentation either:
+
+- inline in `config/config.yaml` under `schema_docs`, or
+- via `schema_docs_path` pointing to a YAML/JSON file.
 
 ## Available MCP tools
 
@@ -77,7 +84,7 @@ ubs-mcp-server --config config/config.yaml --transport sse --host 0.0.0.0 --port
 - Assistant generates SQL and calls `execute_query(...)`
 - Assistant formats results as a business answer
 
-## Claude Desktop integration snippet
+## Claude Desktop integration snippet (optional local use)
 
 Add a server entry to your Claude Desktop MCP configuration:
 
