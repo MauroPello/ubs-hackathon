@@ -53,9 +53,7 @@ def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
             table_meta = source_payload["tables"].setdefault(target, {})
             table_meta["description"] = content
             continue
-        if doc_type == "column" and target and "." in target:
-            if target.count(".") != 1:
-                continue
+        if doc_type == "column" and target and target.count(".") == 1:
             table_name, column_name = target.split(".", 1)
             table_meta = source_payload["tables"].setdefault(table_name, {})
             column_meta = table_meta.setdefault("columns", {})
@@ -75,7 +73,10 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
     @app.post("/data-sources", status_code=status.HTTP_201_CREATED)
     def create_data_source(payload: DataSourceCreate) -> dict:
         if store.get_data_source(payload.name):
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Data source already exists")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Data source '{payload.name}' already exists",
+            )
         created = store.create_data_source(payload.name, payload.type, payload.connection)
         return created.to_dict()
 
