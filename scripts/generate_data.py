@@ -4,7 +4,7 @@ import argparse
 import json
 import random
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +12,7 @@ DEFAULT_TABLE_COUNT = 260
 DEFAULT_ROWS_PER_TABLE = 2000
 DEFAULT_SEED = 42
 DATA_SOURCE_NAME = "big_demo_sqlite"
+MAX_SETTLEMENT_LAG_DAYS = 5
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -34,8 +35,10 @@ def _drop_existing_tables(cur: sqlite3.Cursor) -> None:
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
     ).fetchall()
     names = [row[0] for row in table_rows]
+    cur.execute("PRAGMA foreign_keys = OFF")
     for name in names:
         cur.execute(f'DROP TABLE IF EXISTS "{name}"')
+    cur.execute("PRAGMA foreign_keys = ON")
 
 
 def _create_dimension_tables(cur: sqlite3.Cursor) -> None:
@@ -208,7 +211,7 @@ def _table_docs() -> dict[str, dict[str, Any]]:
             "columns": {
                 "country_id": "Surrogate key for country.",
                 "region_id": "Foreign key to dim_region.",
-                "iso_code": "ISO-3166 alpha country code.",
+                "iso_code": "ISO-3166 alpha-2 country code (two-letter format).",
                 "country_name": "Full country name.",
             },
         },
@@ -421,7 +424,8 @@ def _seed_dimensions(cur: sqlite3.Cursor, rng: random.Random, start_dt: date, da
             bridge_id += 1
 
     calendar_rows = []
-    for offset in range(day_span):
+    # +1 keeps the upper bound inclusive for trade dates near the last day plus max settlement lag.
+    for offset in range(day_span + MAX_SETTLEMENT_LAG_DAYS + 1):
         current = start_dt + timedelta(days=offset)
         next_day = current + timedelta(days=1)
         calendar_rows.append(
@@ -551,7 +555,7 @@ def _seed_fact_tables(
     start_dt: date,
 ) -> list[str]:
     scenarios = ["baseline", "stressed", "risk_on", "risk_off", "flash_event"]
-    date_keys = [int((start_dt + timedelta(days=d)).strftime("%Y%m%d")) for d in range(day_span)]
+    trade_dates = [start_dt + timedelta(days=d) for d in range(day_span)]
     created_tables: list[str] = []
 
     for i in range(1, table_count + 1):
@@ -561,13 +565,11 @@ def _seed_fact_tables(
 
         rows = []
         for event_id in range(1, rows_per_table + 1):
-            date_key = rng.choice(date_keys)
-            settle_shift = rng.randint(0, 5)
-            settle_date = datetime.strptime(str(date_key), "%Y%m%d").date()
-            settle_date = settle_date + timedelta(days=settle_shift)
+            trade_date = rng.choice(trade_dates)
+            date_key = int(trade_date.strftime("%Y%m%d"))
+            settle_shift = rng.randint(0, MAX_SETTLEMENT_LAG_DAYS)
+            settle_date = trade_date + timedelta(days=settle_shift)
             settlement_date_key = int(settle_date.strftime("%Y%m%d"))
-            if settlement_date_key > date_keys[-1]:
-                settlement_date_key = date_keys[-1]
 
             product_id = rng.randint(1, 10)
             customer_id = rng.randint(1, 600)

@@ -209,7 +209,23 @@ Then run these tool calls in the inspector:
    - Expect top matches among `fact_business_*`, `dim_product`, `dim_country`, `dim_region`, and `dim_desk`.
 3. `describe_table("big_demo_sqlite", "fact_business_001")`
    - Expect full column metadata and foreign keys.
-4. `execute_query("big_demo_sqlite", "SELECT r.region_name, p.product_name, ROUND(SUM(f.revenue_usd),2) AS total_revenue_usd, ROUND(SUM(f.pnl_usd),2) AS total_pnl_usd FROM fact_business_001 f JOIN dim_country c ON f.country_id = c.country_id JOIN dim_region r ON c.region_id = r.region_id JOIN dim_product p ON f.product_id = p.product_id GROUP BY r.region_name, p.product_name ORDER BY total_revenue_usd DESC", 50)`
+4. 
+   ```text
+   execute_query(
+     "big_demo_sqlite",
+     "SELECT r.region_name,
+             p.product_name,
+             ROUND(SUM(f.revenue_usd),2) AS total_revenue_usd,
+             ROUND(SUM(f.pnl_usd),2) AS total_pnl_usd
+      FROM fact_business_001 f
+      JOIN dim_country c ON f.country_id = c.country_id
+      JOIN dim_region r ON c.region_id = r.region_id
+      JOIN dim_product p ON f.product_id = p.product_id
+      GROUP BY r.region_name, p.product_name
+      ORDER BY total_revenue_usd DESC",
+     50
+   )
+   ```
    - Expect aggregated results.
 
 If all four succeed, the setup is validated end-to-end: schema ingestion, documentation merge, semantic retrieval, table introspection, and read-only SQL execution.
