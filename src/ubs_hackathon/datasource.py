@@ -35,7 +35,9 @@ class DataSource(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def execute_read_only(self, sql: str, limit: int = 200) -> dict[str, Any]:
+    def execute_read_only(
+        self, sql: str, limit: int = 200, session_id: str | None = None
+    ) -> dict[str, Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -160,6 +162,39 @@ class SQLiteDataSource(DataSource):
             raise ValueError("Potentially mutating SQL is not allowed")
         return statement
 
+    def _ensure_session_views_on_connection_locked(
+        self, conn: sqlite3.Connection, session_id: str | None
+    ) -> None:
+        if session_id is None:
+            return
+
+        normalized = self._normalize_session_id(session_id)
+        session_views = sorted(
+            [
+                item
+                for item in self._temp_views.values()
+                if item.get("session_id") == normalized
+            ],
+            key=lambda item: (float(item["created_at"]), str(item["name"])),
+        )
+        if not session_views:
+            return
+
+        existing = {
+            row["name"]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_temp_master WHERE type='view'"
+            ).fetchall()
+        }
+
+        for view in session_views:
+            if view["name"] in existing:
+                continue
+            conn.execute(f'CREATE TEMP VIEW "{view["name"]}" AS {view["sql"]}')
+            existing.add(view["name"])
+
+        conn.commit()
+
     def list_tables(self) -> list[str]:
         with self._lock:
             self._purge_expired_temp_views_locked()
@@ -237,7 +272,9 @@ class SQLiteDataSource(DataSource):
                 foreign_keys=fks,
             )
 
-    def execute_read_only(self, sql: str, limit: int = 200) -> dict[str, Any]:
+    def execute_read_only(
+        self, sql: str, limit: int = 200, session_id: str | None = None
+    ) -> dict[str, Any]:
         statement = self._validate_select_sql(sql)
 
         wrapped = f"SELECT * FROM ({statement.rstrip(';')}) AS subq LIMIT ?"
@@ -245,6 +282,7 @@ class SQLiteDataSource(DataSource):
         with self._lock:
             self._purge_expired_temp_views_locked()
             conn = self._connection()
+            self._ensure_session_views_on_connection_locked(conn, session_id=session_id)
             rows = conn.execute(wrapped, (limit + 1,)).fetchall()
 
         truncated = len(rows) > limit

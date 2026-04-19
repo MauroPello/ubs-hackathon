@@ -37,12 +37,17 @@ def create_server(
         return catalog.describe_table(data_source=data_source, table=table)
 
     @mcp.tool()
-    def execute_query(data_source: str, sql: str, limit: int = 200) -> dict:
+    def execute_query(
+        data_source: str,
+        sql: str,
+        limit: int = 200,
+        session_id: str | None = None,
+    ) -> dict:
         """Execute a read-only query against a configured source."""
         source = source_map.get(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
-        return source.execute_read_only(sql=sql, limit=limit)
+        return source.execute_read_only(sql=sql, limit=limit, session_id=session_id)
 
     @mcp.tool()
     def list_temporary_views(
