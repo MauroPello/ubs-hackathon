@@ -231,15 +231,17 @@ If all four succeed, the setup is validated end-to-end: schema ingestion, docume
 
 ## Prompt pack to stress-test MCP data retrieval effectiveness
 
+To make sure your Copilot agent doesn't cheat while trying to answer remove his possibility to read files.
+
 Use these prompts in Copilot Chat (or any conversational AI connected to this MCP server):
 
 1. `Find the best tables to analyze execution quality deterioration in stressed scenarios, then explain your table choices before querying.`
-2. `Using big_demo_sqlite, show top 10 country + product pairs by pnl_usd in Q1 2026 and include total trade_count and fail rate.`
+2. `Show top 10 country + product pairs by pnl_usd in Q1 2026 and include total trade_count and fail rate.`
 3. `Identify desks with the largest gap between revenue_usd and cost_usd, grouped by scenario and quarter.`
 4. `Correlate market_daily_signal volatility_index and spread_bps with fail_flag in fact_business_001; summarize high-risk regimes.`
 5. `For counterparties marked systemic_flag = 1, show their customer segments, total notional_usd, and average slippage_bps.`
 6. `Return only the SQL first for: monthly pnl trend by region and product family, then run it and summarize anomalies.`
-7. `Do a two-step workflow: first use search_schema for "customer-counterparty network concentration", then run a read-only query and explain concentration risk.`
+7. `Do a two-step workflow: first find the most relevant table for customer-counterparty network concentration, then run a read-only query and explain concentration risk.`
 
 What good behavior looks like:
 

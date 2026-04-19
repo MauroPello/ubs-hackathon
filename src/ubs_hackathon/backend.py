@@ -240,6 +240,25 @@ def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
     return {data_source: source_payload}
 
 
+def _rebuild_catalog_for_data_source(store: MetaStore, catalog: SchemaCatalog, name: str) -> int:
+    registration = store.get_data_source(name)
+    if not registration:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
+
+    source = build_data_source(
+        DataSourceConfig(name=registration.name, type=registration.type, connection=registration.connection)
+    )
+    docs_map = _docs_to_schema_map(name, [row.to_dict() for row in store.list_docs(name)])
+
+    total_tables = 0
+    for table in source.list_tables():
+        doc = source.table_doc(table)
+        _apply_schema_docs(doc, docs_map)
+        catalog.upsert_table_doc(doc)
+        total_tables += 1
+    return total_tables
+
+
 def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Path = "data/catalog.db") -> FastAPI:
     app = FastAPI(title="UBS Hackathon Data Source Backend")
     store = MetaStore(Path(meta_db_path))
@@ -294,6 +313,7 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
         if not store.get_data_source(name):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
         created = store.create_doc(name, payload.doc_type, payload.target, payload.content)
+        _rebuild_catalog_for_data_source(store, catalog, name)
         return created.to_dict()
 
     @app.get("/data-sources/{name}/docs/{doc_id}")
@@ -314,6 +334,7 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
         if not updated:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found")
+        _rebuild_catalog_for_data_source(store, catalog, name)
         return updated.to_dict()
 
     @app.delete("/data-sources/{name}/docs/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -321,22 +342,11 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
         deleted = store.delete_doc(name, doc_id)
         if not deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found")
+        _rebuild_catalog_for_data_source(store, catalog, name)
 
     @app.post("/data-sources/{name}/sync")
     def sync_data_source(name: str) -> dict:
-        registration = store.get_data_source(name)
-        if not registration:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
-        source = build_data_source(
-            DataSourceConfig(name=registration.name, type=registration.type, connection=registration.connection)
-        )
-        docs_map = _docs_to_schema_map(name, [row.to_dict() for row in store.list_docs(name)])
-        total_tables = 0
-        for table in source.list_tables():
-            doc = source.table_doc(table)
-            _apply_schema_docs(doc, docs_map)
-            catalog.upsert_table_doc(doc)
-            total_tables += 1
+        total_tables = _rebuild_catalog_for_data_source(store, catalog, name)
         return {"data_source": name, "indexed_tables": total_tables}
 
     return app

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from ubs_hackathon.catalog import SchemaCatalog
 from ubs_hackathon.backend import create_app
 
 
@@ -65,9 +66,11 @@ def test_data_sources_crud(tmp_path: Path) -> None:
 def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
     source_db = tmp_path / "source.db"
     meta_db = tmp_path / "meta.db"
+    catalog_db = tmp_path / "catalog.db"
     _seed_sqlite_source(source_db)
-    app = create_app(meta_db_path=meta_db, catalog_path=tmp_path / "catalog.db")
+    app = create_app(meta_db_path=meta_db, catalog_path=catalog_db)
     client = TestClient(app)
+    catalog = SchemaCatalog(catalog_db)
 
     payload = {"name": "demo_sqlite", "type": "sqlite", "connection": str(source_db)}
     assert client.post("/data-sources", json=payload).status_code == 201
@@ -78,6 +81,7 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
     )
     assert first_doc.status_code == 201
     first_doc_id = first_doc.json()["id"]
+    assert catalog.describe_table("demo_sqlite", "orders")["description"] == "Orders table doc"
 
     second_doc = client.post(
         "/data-sources/demo_sqlite/docs",
@@ -85,6 +89,7 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
     )
     assert second_doc.status_code == 201
     second_doc_id = second_doc.json()["id"]
+    assert catalog.describe_table("demo_sqlite", "orders")["columns"][1]["description"] == "Revenue in USD"
 
     listed = client.get("/data-sources/demo_sqlite/docs")
     assert listed.status_code == 200
@@ -101,10 +106,12 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
     assert updated.status_code == 200
     assert updated.json()["content"] == "Orders table documentation"
     assert updated.json()["target"] is None
+    assert catalog.describe_table("demo_sqlite", "orders")["description"] == "Orders table documentation"
 
     deleted_doc = client.delete(f"/data-sources/demo_sqlite/docs/{second_doc_id}")
     assert deleted_doc.status_code == 204
     assert len(client.get("/data-sources/demo_sqlite/docs").json()) == 1
+    assert catalog.describe_table("demo_sqlite", "orders")["columns"][1]["description"] is None
 
     third_doc = client.post(
         "/data-sources/demo_sqlite/docs",
@@ -119,6 +126,7 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
     )
     assert partial_update.status_code == 200
     assert partial_update.json()["target"] == "orders.revenue"
+    assert catalog.describe_table("demo_sqlite", "orders")["columns"][1]["description"] == "Revenue amount in USD"
 
     invalid_update = client.put(
         f"/data-sources/demo_sqlite/docs/{third_doc_id}",
