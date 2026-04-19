@@ -4,12 +4,104 @@
 
 Design a conversational **AI assistant** that helps employees answer business questions by intelligently selecting the most relevant tables and columns from a complex underlying database schema.
 
-## Solution
+## Implemented solution
 
-MCP server that can connect to a company's knowledge base and internal storage system (mainly BIG data DBs with many many tables (horizontally big too)). The purpose is to enable a conversational AI to answer business questions to company's employees.
+This repository now includes a working Python MCP server prototype with:
 
-To query the DBs we want to find an already made MCP server that can query efficiently all popular DBs or integrate many different MCP servers, each for a different DBMS. The former would be better as we want an agnostic solution to the specific technologies/platforms used by companies. We also want our solution to be potentially easily expandable later to other type of knowledge bases like notion, google workspace, slack, etc...
+- **DB-agnostic architecture** via data source adapters and MCP tool surface (SQLite implemented for demo, ready to extend to other DBMSes)
+- **Schema catalog builder** that introspects source databases and merges **existing company schema docs**
+- **Semantic schema search** using local embeddings for table/column retrieval
+- **Read-only SQL execution** safeguards for conversational analytics
+- **MCP tool surface** for `list_data_sources`, `search_schema`, `describe_table`, and `execute_query`
+- **SSE/HTTP-first hosting** for multi-user deployments, plus stdio support for local clients
 
-We decided for the MCP server solution because we think it's a great way to make it plug and play, have the resources to host a model yourself? perfect add MCP server support and you are ready. have an anthropic subscription? just add your mcp server to your claude!
+## Project structure
 
-The crucial part for which maybe we will need to do some tinkering is that we are talking about Big Data DBs here, so we could have 200+ tables to navigate through, each will have it's own detailed documentation but the issue is that we cannot load on the model's context all of the docs for all of the tables. So find a way around this, I heard about some MCP servers doing this catalog and search pattern, look into it, we might implement all of this with something like an MCP portal.
+- `/src/ubs_hackathon/server.py` — MCP server and tool definitions
+- `/src/ubs_hackathon/builder.py` — schema catalog indexing pipeline
+- `/src/ubs_hackathon/datasource.py` — data source abstraction and read-only query execution
+- `/src/ubs_hackathon/catalog.py` — catalog persistence and semantic search
+- `/src/ubs_hackathon/demo_seed.py` — demo database generator
+- `/config/config.yaml` — sample configuration
+
+## Quickstart
+
+### 1) Install dependencies
+
+```bash
+pip install -e .
+```
+
+### 2) Create demo database
+
+```bash
+ubs-seed-demo --db-path data/demo_business.db
+```
+
+### 3) Build schema catalog
+
+```bash
+ubs-build-catalog --config config/config.yaml
+```
+
+### 4) Run MCP server for multi-user HTTP hosting (SSE)
+
+```bash
+ubs-mcp-server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000
+```
+
+### 5) Optional: run MCP server for local client integrations (stdio)
+
+```bash
+ubs-mcp-server --config config/config.yaml --transport stdio
+```
+
+### 6) Provide existing schema docs
+
+You can pass documentation either:
+
+- inline in `config/config.yaml` under `schema_docs`, or
+- via `schema_docs_path` pointing to a YAML/JSON file.
+
+## Available MCP tools
+
+1. `list_data_sources()`
+   - Lists configured data sources and types.
+2. `search_schema(query, top_k=5)`
+   - Returns the most relevant tables for a natural-language question.
+3. `describe_table(data_source, table)`
+   - Returns complete table metadata (columns, foreign keys, row estimates).
+4. `execute_query(data_source, sql, limit=200)`
+   - Executes read-only SQL with row limits and mutation blocking.
+5. `rebuild_catalog()`
+   - Re-indexes schemas from configured sources.
+
+## Example prompt flow
+
+- User asks: **"What was total revenue by region in Q1?"**
+- Assistant calls `search_schema("revenue region q1")`
+- Assistant receives `orders`, `customers`, `regions`
+- Assistant generates SQL and calls `execute_query(...)`
+- Assistant formats results as a business answer
+
+## Claude Desktop integration snippet (optional local use)
+
+Add a server entry to your Claude Desktop MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "ubs-hackathon": {
+      "command": "ubs-mcp-server",
+      "args": ["--config", "/absolute/path/to/config/config.yaml", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+## Next steps
+
+- Add production adapters (Snowflake, BigQuery, Postgres, Oracle)
+- Replace local embedding model with managed embeddings and vector DB
+- Add enterprise security features (RBAC, row-level controls, masking)
+- Extend retrieval to non-SQL sources (Notion, Slack, Google Workspace)

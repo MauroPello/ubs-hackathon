@@ -1,0 +1,34 @@
+catalog:
+  db_path: data/catalog.db
+
+# Optional: point to a YAML or JSON file with existing schema documentation.
+# If omitted, inline `schema_docs` below will be used.
+# schema_docs_path: config/schema_docs.yaml
+
+data_sources:
+  - name: demo_sqlite
+    type: sqlite
+    connection: data/demo_business.db
+
+schema_docs:
+  demo_sqlite:
+    tables:
+      regions:
+        description: "Region reference dimension for customer geography."
+        columns:
+          region_id: "Unique region identifier."
+          region_name: "Business reporting region label."
+      customers:
+        description: "Customer master with regional assignment."
+        columns:
+          customer_id: "Unique customer identifier."
+          customer_name: "Legal customer name."
+          region_id: "Foreign key to regions."
+      orders:
+        description: "Order facts with booked revenue and reporting quarter."
+        columns:
+          order_id: "Unique order identifier."
+          customer_id: "Foreign key to customers."
+          order_date: "Order booking date."
+          revenue: "Booked revenue amount for the order."
+          quarter: "Reporting quarter (for example Q1, Q2)."
