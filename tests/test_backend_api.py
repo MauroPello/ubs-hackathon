@@ -96,6 +96,20 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
     assert deleted_doc.status_code == 204
     assert len(client.get("/data-sources/demo_sqlite/docs").json()) == 1
 
+    third_doc = client.post(
+        "/data-sources/demo_sqlite/docs",
+        json={"doc_type": "column", "target": "orders.revenue", "content": "Revenue amount"},
+    )
+    assert third_doc.status_code == 201
+    third_doc_id = third_doc.json()["id"]
+
+    partial_update = client.put(
+        f"/data-sources/demo_sqlite/docs/{third_doc_id}",
+        json={"content": "Revenue amount in USD"},
+    )
+    assert partial_update.status_code == 200
+    assert partial_update.json()["target"] == "orders.revenue"
+
     deleted_source = client.delete("/data-sources/demo_sqlite")
     assert deleted_source.status_code == 204
 

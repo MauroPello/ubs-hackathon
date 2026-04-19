@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from .builder import _apply_schema_docs
 from .catalog import SchemaCatalog
 from .datasource import build_data_source
-from .meta_store import MetaStore, _UNSET
+from .meta_store import MetaStore
 from .models import DataSourceConfig
 
 
@@ -124,13 +124,7 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
         if not store.get_data_source(name):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
         updates = payload.model_dump(exclude_unset=True)
-        updated = store.update_doc(
-            name,
-            doc_id,
-            doc_type=updates.get("doc_type", _UNSET),
-            target=updates.get("target", _UNSET),
-            content=updates.get("content", _UNSET),
-        )
+        updated = store.update_doc(name, doc_id, **updates)
         if not updated:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found")
         return updated.to_dict()
