@@ -182,8 +182,6 @@ If all four succeed, the setup is validated end-to-end: schema ingestion, docume
    - Returns complete table metadata (columns, foreign keys, row estimates).
 4. `execute_query(data_source, sql, limit=200)`
    - Executes read-only SQL with row limits and mutation blocking.
-5. `rebuild_catalog()`
-   - Re-indexes schemas from configured sources.
 
 ## Example prompt flow
 

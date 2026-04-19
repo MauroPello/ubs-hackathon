@@ -5,7 +5,6 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from .builder import build_catalog
 from .catalog import SchemaCatalog
 from .config import load_config
 from .datasource import build_data_source
@@ -44,12 +43,6 @@ def create_server(
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
         return source.execute_read_only(sql=sql, limit=limit)
-
-    @mcp.tool()
-    def rebuild_catalog() -> dict:
-        """Re-index schema docs from source systems."""
-        count = build_catalog(config_path)
-        return {"indexed_tables": count}
 
     return mcp
 
