@@ -166,6 +166,10 @@ class MetaStore:
         target: UpdateField = _UNSET,
         content: UpdateField = _UNSET,
     ) -> DocEntry | None:
+        if doc_type is None:
+            raise ValueError("doc_type cannot be null")
+        if content is None:
+            raise ValueError("content cannot be null")
         current = self.get_doc(data_source, doc_id)
         if current is None:
             return None

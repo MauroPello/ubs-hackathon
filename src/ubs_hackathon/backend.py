@@ -308,7 +308,10 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
         if not store.get_data_source(name):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
         updates = payload.model_dump(exclude_unset=True)
-        updated = store.update_doc(name, doc_id, **updates)
+        try:
+            updated = store.update_doc(name, doc_id, **updates)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
         if not updated:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found")
         return updated.to_dict()
