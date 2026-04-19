@@ -41,7 +41,7 @@ class DocUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict:
+def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
     source_payload: dict = {"tables": {}}
     for doc in docs:
         doc_type = doc.get("doc_type", "").lower()

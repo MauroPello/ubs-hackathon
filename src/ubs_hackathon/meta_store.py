@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from .models import DataSourceRegistration, DocEntry
 
@@ -156,9 +157,9 @@ class MetaStore:
         self,
         data_source: str,
         doc_id: int,
-        doc_type: str | None | object = _UNSET,
-        target: str | None | object = _UNSET,
-        content: str | None | object = _UNSET,
+        doc_type: Any = _UNSET,
+        target: Any = _UNSET,
+        content: Any = _UNSET,
     ) -> DocEntry | None:
         current = self.get_doc(data_source, doc_id)
         if current is None:
