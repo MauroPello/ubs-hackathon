@@ -5,10 +5,41 @@ catalog:
 # If omitted, inline `schema_docs` below will be used.
 # schema_docs_path: config/schema_docs.yaml
 
+# ---------------------------------------------------------------------------
+# Data sources
+# ---------------------------------------------------------------------------
+# The `connection` field accepts any SQLAlchemy database URL.
+# Legacy SQLite entries that use a bare file path are auto-promoted to a
+# sqlite:/// URL so existing configs keep working without modification.
+#
+# Common URL formats:
+#   SQLite    : sqlite:///path/to/file.db
+#   PostgreSQL: postgresql+psycopg2://user:password@host:5432/dbname
+#   MySQL     : mysql+pymysql://user:password@host:3306/dbname
+#   SQL Server: mssql+pyodbc://user:password@host/dbname?driver=ODBC+Driver+18+for+SQL+Server
+#   Oracle    : oracle+oracledb://user:password@host:1521/?service_name=svcname
+#   Snowflake : snowflake://user:password@account/database/schema
+#   BigQuery  : bigquery://project/dataset
+#   DuckDB    : duckdb:///path/to/file.duckdb
+#
+# Install the matching dialect driver before using a non-SQLite source:
+#   pip install "ubs-hackathon[postgres]"   # psycopg2-binary
+#   pip install "ubs-hackathon[mysql]"      # pymysql
+#   pip install "ubs-hackathon[mssql]"      # pyodbc
+#   pip install "ubs-hackathon[oracle]"     # oracledb
+#   pip install "ubs-hackathon[snowflake]"  # snowflake-sqlalchemy
+#   pip install "ubs-hackathon[bigquery]"   # sqlalchemy-bigquery
+#   pip install "ubs-hackathon[duckdb]"     # duckdb-engine
+# ---------------------------------------------------------------------------
+
 data_sources:
   - name: demo_sqlite
     type: sqlite
     connection: data/demo_business.db
+  # Uncomment and fill in to add a second source alongside the SQLite demo:
+  # - name: prod_postgres
+  #   type: postgresql
+  #   connection: postgresql+psycopg2://user:password@localhost:5432/mydb
 
 schema_docs:
   demo_sqlite:

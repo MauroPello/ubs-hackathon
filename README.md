@@ -8,7 +8,7 @@ Design a conversational **AI assistant** that helps employees answer business qu
 
 This repository now includes a working Python MCP server prototype with:
 
-- **DB-agnostic architecture** via data source adapters and MCP tool surface (SQLite implemented for demo, ready to extend to other DBMSes)
+- **Multi-DBMS support via SQLAlchemy** — connects to any SQLAlchemy-supported database (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Snowflake, BigQuery, DuckDB, and more) using standard connection URLs; no custom code required per DBMS
 - **Schema catalog builder** that introspects source databases and merges **existing company schema docs**
 - **Semantic schema search** using local embeddings for table/column retrieval
 - **Read-only SQL execution** safeguards for conversational analytics
@@ -25,6 +25,28 @@ This repository now includes a working Python MCP server prototype with:
 - `/src/ubs_hackathon/demo_seed.py` — demo database generator
 - `/environment.yml` — Conda environment for local development and CLI usage
 - `/config/config.yaml` — sample configuration
+
+## Supported data sources
+
+All data sources are powered by **[SQLAlchemy](https://www.sqlalchemy.org/)**, which means any database that has a SQLAlchemy dialect works out of the box — no custom adapter code required.
+
+| Database | URL scheme | Extra install |
+|---|---|---|
+| SQLite (default) | `sqlite:///path/to/file.db` | *(stdlib, nothing to install)* |
+| PostgreSQL | `postgresql+psycopg2://user:pw@host/db` | `pip install "ubs-hackathon[postgres]"` |
+| MySQL / MariaDB | `mysql+pymysql://user:pw@host/db` | `pip install "ubs-hackathon[mysql]"` |
+| SQL Server | `mssql+pyodbc://user:pw@host/db?driver=…` | `pip install "ubs-hackathon[mssql]"` |
+| Oracle | `oracle+oracledb://user:pw@host/?service_name=s` | `pip install "ubs-hackathon[oracle]"` |
+| Snowflake | `snowflake://user:pw@account/db/schema` | `pip install "ubs-hackathon[snowflake]"` |
+| BigQuery | `bigquery://project/dataset` | `pip install "ubs-hackathon[bigquery]"` |
+| DuckDB | `duckdb:///path/to/file.duckdb` | `pip install "ubs-hackathon[duckdb]"` |
+
+Simply set the `connection` field in `config/config.yaml` to the appropriate URL.  Legacy entries that use `type: sqlite` with a bare file path continue to work unchanged.
+
+For **non-SQL sources** (graph databases, vector stores, document stores) we recommend delegating to a purpose-built MCP server alongside this one:
+
+- **Neo4j / Cypher** — [`mcp-neo4j-cypher`](https://github.com/neo4j-contrib/mcp-neo4j)
+- **Vector stores** (Chroma, Weaviate, Pinecone) — their respective MCP servers or the SQLAlchemy `pgvector` dialect for PostgreSQL+pgvector
 
 ## Quickstart
 
@@ -110,7 +132,7 @@ Useful checks:
 
 ## Dataset choice for large-scale testing
 
-The MCP server in this repo currently supports **SQLite** sources only, so attaching a truly large open dataset requires a full ingestion pipeline plus careful footprint management.
+The MCP server supports any SQLAlchemy-connected database, so you can point it at existing data warehouses (Snowflake, BigQuery, Redshift, etc.) or load a local dataset into SQLite, PostgreSQL, DuckDB, or any other supported engine.
 
 For a real-world option with public documentation, the best fit is:
 
@@ -286,7 +308,7 @@ Add a server entry to your Claude Desktop MCP configuration:
 
 ## Next steps
 
-- Add production adapters or show that we could (e.g. Snowflake, BigQuery, Postgres, Oracle)
+- Add support for non-SQL sources (graph databases such as Neo4j via `mcp-neo4j-cypher`, vector stores such as Chroma or Weaviate via their MCP servers, or document stores via dedicated adapters)
 - Replace local embedding model with managed embeddings and vector DB, or show that we could
 - Add enterprise security features, or show that we could (RBAC, row-level controls, masking)
 - Extend retrieval to non-SQL sources, or show that we could (Notion, Slack, Google Workspace)
