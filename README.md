@@ -108,9 +108,25 @@ Useful checks:
 - Use the Chat tools picker to verify that `list_data_sources`, `search_schema`, `describe_table`, and `execute_query` are available.
 - If the server fails to start, open the MCP output log from the Chat error indicator or the server list.
 
-### Test prompts for Copilot
+## Dataset choice for large-scale testing
 
-Use these prompts in Copilot Chat to verify that the MCP server is wired up correctly:
+The MCP server in this repo currently supports **SQLite** sources only, so attaching a truly large open dataset requires a full ingestion pipeline plus careful footprint management.
+
+For a real-world option with public documentation, the best fit is:
+
+- **NYC TLC Trip Record Data** (official open dataset, strong data dictionary/docs, rich joins across trip/vendor/location dimensions)
+- Documentation: https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+
+For this hackathon repo, the practical default is to use the upgraded synthetic generator (`scripts/generate_data.py`) because it gives:
+
+- large local data volume without external download dependencies,
+- deterministic generation with configurable size,
+- many interconnected dimensions and fact tables,
+- complete schema documentation shipped as JSON for MCP retrieval.
+
+### Base test prompts for Copilot
+
+Use these prompts in Copilot Chat to verify that the MCP server is wired correctly:
 
 1. `List the data sources available through this MCP server.`
    - Expected tool: `list_data_sources`
@@ -130,7 +146,7 @@ Use these prompts in Copilot Chat to verify that the MCP server is wired up corr
 
 If you want a quick smoke test, start with prompts 1 and 2. If those work, the server connection is good and the remaining prompts test table inspection and SQL execution.
 
-## Full free end-to-end test (220 tables + docs)
+## Full free end-to-end test (interconnected large schema + docs)
 
 Use this flow to test the full setup with a realistic large schema (200+ tables) and included documentation.
 
@@ -147,7 +163,7 @@ If you are using a plain virtual environment instead of Conda, the existing pip 
 pip install -e .
 ```
 
-### 2) Generate a synthetic SQLite dataset with 220 fact tables
+### 2) Generate the large synthetic SQLite dataset
 
 ```bash
 python scripts/generate_data.py
@@ -159,7 +175,16 @@ python scripts/generate_data.py
 ubs-build-catalog --config config/big_config.yaml
 ```
 
-Expected output includes `Indexed ... tables into data/big_catalog.db` (should be `222` tables: 220 fact + 2 dimension tables).
+You can increase scale if needed:
+
+```bash
+python scripts/generate_data.py --table-count 320 --rows-per-table 3000 --day-span 1095 --seed 42
+```
+
+Expected output includes `Indexed ... tables into data/big_catalog.db` with:
+
+- many dimension/bridge/signal tables, and
+- `fact_business_*` tables (default: `260` fact tables).
 
 ### 4) Run the MCP server
 
@@ -180,14 +205,33 @@ Then run these tool calls in the inspector:
 
 1. `list_data_sources()`
    - Expect one source: `big_demo_sqlite`.
-2. `search_schema("revenue by region and product", 5)`
-   - Expect top matches among `fact_business_*` and dimension tables.
+2. `search_schema("pnl by region, product, desk and scenario", 5)`
+   - Expect top matches among `fact_business_*`, `dim_product`, `dim_country`, `dim_region`, and `dim_desk`.
 3. `describe_table("big_demo_sqlite", "fact_business_001")`
    - Expect full column metadata and foreign keys.
-4. `execute_query("big_demo_sqlite", "SELECT r.region_name, p.product_name, ROUND(SUM(f.revenue),2) AS total_revenue FROM fact_business_001 f JOIN dim_region r ON f.region_id = r.region_id JOIN dim_product p ON f.product_id = p.product_id GROUP BY r.region_name, p.product_name ORDER BY total_revenue DESC", 50)`
+4. `execute_query("big_demo_sqlite", "SELECT r.region_name, p.product_name, ROUND(SUM(f.revenue_usd),2) AS total_revenue_usd, ROUND(SUM(f.pnl_usd),2) AS total_pnl_usd FROM fact_business_001 f JOIN dim_country c ON f.country_id = c.country_id JOIN dim_region r ON c.region_id = r.region_id JOIN dim_product p ON f.product_id = p.product_id GROUP BY r.region_name, p.product_name ORDER BY total_revenue_usd DESC", 50)`
    - Expect aggregated results.
 
 If all four succeed, the setup is validated end-to-end: schema ingestion, documentation merge, semantic retrieval, table introspection, and read-only SQL execution.
+
+## Prompt pack to stress-test MCP data retrieval effectiveness
+
+Use these prompts in Copilot Chat (or any conversational AI connected to this MCP server):
+
+1. `Find the best tables to analyze execution quality deterioration in stressed scenarios, then explain your table choices before querying.`
+2. `Using big_demo_sqlite, show top 10 country + product pairs by pnl_usd in Q1 2026 and include total trade_count and fail rate.`
+3. `Identify desks with the largest gap between revenue_usd and cost_usd, grouped by scenario and quarter.`
+4. `Correlate market_daily_signal volatility_index and spread_bps with fail_flag in fact_business_001; summarize high-risk regimes.`
+5. `For counterparties marked systemic_flag = 1, show their customer segments, total notional_usd, and average slippage_bps.`
+6. `Return only the SQL first for: monthly pnl trend by region and product family, then run it and summarize anomalies.`
+7. `Do a two-step workflow: first use search_schema for "customer-counterparty network concentration", then run a read-only query and explain concentration risk.`
+
+What good behavior looks like:
+
+- the assistant calls `search_schema` before writing SQL on non-trivial questions,
+- joins follow FK paths across dimensions/bridge tables,
+- results reference real columns (for example `revenue_usd`, `pnl_usd`, `fail_flag`, `volatility_index`),
+- SQL remains read-only.
 
 ## Available MCP tools
 
