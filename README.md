@@ -209,8 +209,7 @@ Then run these tool calls in the inspector:
    - Expect top matches among `fact_business_*`, `dim_product`, `dim_country`, `dim_region`, and `dim_desk`.
 3. `describe_table("big_demo_sqlite", "fact_business_001")`
    - Expect full column metadata and foreign keys.
-4. 
-   ```text
+4. ```text
    execute_query(
      "big_demo_sqlite",
      "SELECT r.region_name,

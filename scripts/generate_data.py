@@ -211,7 +211,7 @@ def _table_docs() -> dict[str, dict[str, Any]]:
             "columns": {
                 "country_id": "Surrogate key for country.",
                 "region_id": "Foreign key to dim_region.",
-                "iso_code": "ISO-3166 alpha-2 country code (two-letter format).",
+                "iso_code": "ISO 3166-1 alpha-2 country code (two-letter format).",
                 "country_name": "Full country name.",
             },
         },
