@@ -7,12 +7,12 @@ from pathlib import Path
 from .models import DataSourceRegistration, DocEntry
 
 
-class _UnsetType:
+class _Unset:
     pass
 
 
-_UNSET = _UnsetType()
-UpdateField = str | None | _UnsetType
+_UNSET = _Unset()
+UpdateField = str | None | _Unset
 
 
 META_SCHEMA = """

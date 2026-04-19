@@ -125,6 +125,7 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
         json={"content": None},
     )
     assert invalid_update.status_code == 422
+    assert "content cannot be null" in invalid_update.json()["detail"]
 
     deleted_source = client.delete("/data-sources/demo_sqlite")
     assert deleted_source.status_code == 204
