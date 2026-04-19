@@ -12,12 +12,15 @@ authors = [{ name = "UBS Hackathon Team" }]
 dependencies = [
   "mcp>=1.9.0",
   "PyYAML>=6.0.1",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
 ]
 
 [project.scripts]
 ubs-mcp-server = "ubs_hackathon.server:main"
 ubs-build-catalog = "ubs_hackathon.builder:main"
 ubs-seed-demo = "ubs_hackathon.demo_seed:main"
+ubs-backend = "ubs_hackathon.backend:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

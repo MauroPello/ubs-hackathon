@@ -14,6 +14,7 @@ This repository now includes a working Python MCP server prototype with:
 - **Read-only SQL execution** safeguards for conversational analytics
 - **MCP tool surface** for `list_data_sources`, `search_schema`, `describe_table`, and `execute_query`
 - **SSE/HTTP-first hosting** for multi-user deployments, plus stdio support for local clients
+- **REST backend for metadata management** (data-source and documentation CRUD)
 
 ## Project structure
 
@@ -65,6 +66,22 @@ ubs-mcp-server --config config/config.yaml --transport sse --host 0.0.0.0 --port
 ```bash
 ubs-mcp-server --config config/config.yaml --transport stdio
 ```
+
+### 6b) Run metadata backend (REST API)
+
+```bash
+ubs-backend --meta-db data/meta.db --catalog data/catalog.db --host 127.0.0.1 --port 8080
+```
+
+Then open `http://127.0.0.1:8080/` for a small built-in UI to manage data sources, docs, and sync.
+
+Available endpoints include:
+
+- `GET/POST /data-sources`
+- `GET/PUT/DELETE /data-sources/{name}`
+- `GET/POST /data-sources/{name}/docs`
+- `GET/PUT/DELETE /data-sources/{name}/docs/{id}`
+- `POST /data-sources/{name}/sync`
 
 ### 7) Provide existing schema docs
 

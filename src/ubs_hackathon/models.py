@@ -40,3 +40,29 @@ class TableDoc:
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         return payload
+
+
+@dataclass(slots=True)
+class DataSourceRegistration:
+    name: str
+    type: str
+    connection: str
+    created_at: str
+    updated_at: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class DocEntry:
+    id: int
+    data_source: str
+    doc_type: str
+    target: str | None
+    content: str
+    created_at: str
+    updated_at: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
