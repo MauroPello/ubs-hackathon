@@ -286,7 +286,7 @@ Add a server entry to your Claude Desktop MCP configuration:
 
 ## Next steps
 
-- Add production adapters (Snowflake, BigQuery, Postgres, Oracle)
-- Replace local embedding model with managed embeddings and vector DB
-- Add enterprise security features (RBAC, row-level controls, masking)
-- Extend retrieval to non-SQL sources (Notion, Slack, Google Workspace)
+- Add production adapters or show that we could (e.g. Snowflake, BigQuery, Postgres, Oracle)
+- Replace local embedding model with managed embeddings and vector DB, or show that we could
+- Add enterprise security features, or show that we could (RBAC, row-level controls, masking)
+- Extend retrieval to non-SQL sources, or show that we could (Notion, Slack, Google Workspace)
