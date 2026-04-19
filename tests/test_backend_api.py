@@ -22,6 +22,16 @@ def _seed_sqlite_source(path: Path) -> None:
         conn.execute("INSERT INTO orders (order_id, revenue) VALUES (1, 100.0)")
 
 
+def test_frontend_homepage(tmp_path: Path) -> None:
+    app = create_app(meta_db_path=tmp_path / "meta.db", catalog_path=tmp_path / "catalog.db")
+    client = TestClient(app)
+
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Data Source Manager" in response.text
+
+
 def test_data_sources_crud(tmp_path: Path) -> None:
     source_db = tmp_path / "source.db"
     _seed_sqlite_source(source_db)

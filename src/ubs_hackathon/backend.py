@@ -5,6 +5,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict
 
 from .builder import _apply_schema_docs
@@ -12,6 +13,183 @@ from .catalog import SchemaCatalog
 from .datasource import build_data_source
 from .meta_store import MetaStore
 from .models import DataSourceConfig
+
+FRONTEND_HTML = """
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UBS Data Sources</title>
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e2e8f0; --accent:#6366f1; --danger:#ef4444; --ok:#22c55e; }
+    * { box-sizing:border-box; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    body { margin:0; background:linear-gradient(120deg,#0f172a,#1e293b); color:var(--text); }
+    .container { max-width:1100px; margin:24px auto; padding:0 16px; }
+    h1 { margin:0 0 8px; font-size:1.6rem; }
+    p { color:var(--muted); margin:0 0 16px; }
+    .grid { display:grid; gap:16px; grid-template-columns:1fr 1fr; }
+    .card { background:rgba(17,24,39,.92); border:1px solid #334155; border-radius:14px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+    input, select, textarea { width:100%; background:#0b1220; border:1px solid #334155; color:var(--text); padding:8px 10px; border-radius:8px; }
+    textarea { min-height:80px; resize:vertical; }
+    button { border:0; border-radius:8px; padding:8px 10px; color:white; background:var(--accent); cursor:pointer; font-weight:600; }
+    button.secondary { background:#334155; }
+    button.danger { background:var(--danger); }
+    button.ok { background:var(--ok); color:#052e16; }
+    ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+    li { border:1px solid #334155; border-radius:10px; padding:10px; background:#0b1220; }
+    .small { font-size:.85rem; color:var(--muted); }
+    .pill { display:inline-block; font-size:.75rem; padding:2px 6px; border-radius:999px; background:#1f2937; border:1px solid #374151; }
+    #message { margin:10px 0; min-height:20px; color:#cbd5e1; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Data Source Manager</h1>
+    <p>Small hackathon UI for managing sources, docs, and catalog sync.</p>
+    <div id="message"></div>
+    <div class="grid">
+      <section class="card">
+        <h3>Data Sources</h3>
+        <div class="row">
+          <input id="src-name" placeholder="name (e.g. demo_sqlite)" />
+          <input id="src-type" placeholder="type (e.g. sqlite)" />
+          <input id="src-conn" placeholder="connection (db path or URI)" />
+          <button onclick="addSource()">Add source</button>
+        </div>
+        <ul id="sources"></ul>
+      </section>
+      <section class="card">
+        <h3>Documentation <span id="selected" class="pill">none selected</span></h3>
+        <div class="row">
+          <select id="doc-type">
+            <option value="general">general</option>
+            <option value="table">table</option>
+            <option value="column">column</option>
+          </select>
+          <input id="doc-target" placeholder="target (table or table.column)" />
+          <textarea id="doc-content" placeholder="content"></textarea>
+          <button onclick="addDoc()">Add doc</button>
+        </div>
+        <ul id="docs"></ul>
+      </section>
+    </div>
+  </div>
+  <script>
+    let selectedSource = null;
+    const msg = (text, isErr=false) => {
+      const el = document.getElementById("message");
+      el.textContent = text;
+      el.style.color = isErr ? "#fca5a5" : "#cbd5e1";
+    };
+    const req = async (url, opts={}) => {
+      const r = await fetch(url, {headers: {"Content-Type":"application/json"}, ...opts});
+      if (r.status === 204) return null;
+      let data = null;
+      try { data = await r.json(); } catch {}
+      if (!r.ok) throw new Error(data?.detail || "Request failed");
+      return data;
+    };
+    const refreshSources = async () => {
+      const list = await req("/data-sources");
+      const container = document.getElementById("sources");
+      container.innerHTML = "";
+      for (const s of list) {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <div><strong>${s.name}</strong> <span class="pill">${s.type}</span></div>
+          <div class="small">${s.connection}</div>
+          <div class="row">
+            <button class="secondary" data-action="select">Select</button>
+            <button class="ok" data-action="sync">Sync</button>
+            <button class="danger" data-action="delete">Delete</button>
+          </div>
+        `;
+        li.querySelector('[data-action="select"]').onclick = () => selectSource(s.name);
+        li.querySelector('[data-action="sync"]').onclick = async () => {
+          try {
+            const out = await req(`/data-sources/${encodeURIComponent(s.name)}/sync`, {method:"POST"});
+            msg(`Synced ${out.indexed_tables} tables for ${s.name}`);
+          } catch (e) { msg(e.message, true); }
+        };
+        li.querySelector('[data-action="delete"]').onclick = async () => {
+          try {
+            await req(`/data-sources/${encodeURIComponent(s.name)}`, {method:"DELETE"});
+            if (selectedSource === s.name) selectSource(null);
+            await refreshSources();
+            msg(`Deleted ${s.name}`);
+          } catch (e) { msg(e.message, true); }
+        };
+        container.appendChild(li);
+      }
+    };
+    const selectSource = async (name) => {
+      selectedSource = name;
+      document.getElementById("selected").textContent = name || "none selected";
+      await refreshDocs();
+    };
+    const addSource = async () => {
+      const name = document.getElementById("src-name").value.trim();
+      const type = document.getElementById("src-type").value.trim();
+      const connection = document.getElementById("src-conn").value.trim();
+      if (!name || !type || !connection) return msg("Please fill all source fields", true);
+      try {
+        await req("/data-sources", {method:"POST", body: JSON.stringify({name, type, connection})});
+        document.getElementById("src-name").value = "";
+        document.getElementById("src-type").value = "";
+        document.getElementById("src-conn").value = "";
+        await refreshSources();
+        msg(`Added ${name}`);
+      } catch (e) { msg(e.message, true); }
+    };
+    const refreshDocs = async () => {
+      const container = document.getElementById("docs");
+      container.innerHTML = "";
+      if (!selectedSource) return;
+      const docs = await req(`/data-sources/${encodeURIComponent(selectedSource)}/docs`);
+      for (const d of docs) {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <div><strong>#${d.id}</strong> <span class="pill">${d.doc_type}</span> <span class="small">${d.target || "-"}</span></div>
+          <div>${d.content}</div>
+          <div class="row">
+            <button class="danger" data-action="delete">Delete</button>
+          </div>
+        `;
+        li.querySelector('[data-action="delete"]').onclick = async () => {
+          try {
+            await req(`/data-sources/${encodeURIComponent(selectedSource)}/docs/${d.id}`, {method:"DELETE"});
+            await refreshDocs();
+            msg(`Deleted doc #${d.id}`);
+          } catch (e) { msg(e.message, true); }
+        };
+        container.appendChild(li);
+      }
+    };
+    const addDoc = async () => {
+      if (!selectedSource) return msg("Select a source first", true);
+      const doc_type = document.getElementById("doc-type").value;
+      const targetValue = document.getElementById("doc-target").value.trim();
+      const content = document.getElementById("doc-content").value.trim();
+      if (!content) return msg("Doc content is required", true);
+      try {
+        await req(`/data-sources/${encodeURIComponent(selectedSource)}/docs`, {
+          method:"POST",
+          body: JSON.stringify({doc_type, target: targetValue || null, content}),
+        });
+        document.getElementById("doc-target").value = "";
+        document.getElementById("doc-content").value = "";
+        await refreshDocs();
+        msg("Doc added");
+      } catch (e) { msg(e.message, true); }
+    };
+    refreshSources().catch((e) => msg(e.message, true));
+  </script>
+</body>
+</html>
+"""
 
 
 class DataSourceCreate(BaseModel):
@@ -65,6 +243,10 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
     app = FastAPI(title="UBS Hackathon Data Source Backend")
     store = MetaStore(Path(meta_db_path))
     catalog = SchemaCatalog(Path(catalog_path))
+
+    @app.get("/", include_in_schema=False, response_class=HTMLResponse)
+    def frontend() -> str:
+        return FRONTEND_HTML
 
     @app.get("/data-sources")
     def list_data_sources() -> list[dict]:

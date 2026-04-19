@@ -73,6 +73,8 @@ ubs-mcp-server --config config/config.yaml --transport stdio
 ubs-backend --meta-db data/meta.db --catalog data/catalog.db --host 127.0.0.1 --port 8080
 ```
 
+Then open `http://127.0.0.1:8080/` for a small built-in UI to manage data sources, docs, and sync.
+
 Available endpoints include:
 
 - `GET/POST /data-sources`
