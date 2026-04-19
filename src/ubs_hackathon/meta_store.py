@@ -6,6 +6,8 @@ from pathlib import Path
 
 from .models import DataSourceRegistration, DocEntry
 
+_UNSET = object()
+
 
 META_SCHEMA = """
 CREATE TABLE IF NOT EXISTS data_sources (
@@ -154,16 +156,16 @@ class MetaStore:
         self,
         data_source: str,
         doc_id: int,
-        doc_type: str | None = None,
-        target: str | None = None,
-        content: str | None = None,
+        doc_type: str | None | object = _UNSET,
+        target: str | None | object = _UNSET,
+        content: str | None | object = _UNSET,
     ) -> DocEntry | None:
         current = self.get_doc(data_source, doc_id)
         if current is None:
             return None
-        next_doc_type = doc_type if doc_type is not None else current.doc_type
-        next_target = target if target is not None else current.target
-        next_content = content if content is not None else current.content
+        next_doc_type = current.doc_type if doc_type is _UNSET else doc_type
+        next_target = current.target if target is _UNSET else target
+        next_content = current.content if content is _UNSET else content
         now = self._now()
         with self._connect() as conn:
             conn.execute(

@@ -86,10 +86,11 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
 
     updated = client.put(
         f"/data-sources/demo_sqlite/docs/{first_doc_id}",
-        json={"content": "Orders table documentation"},
+        json={"content": "Orders table documentation", "target": None},
     )
     assert updated.status_code == 200
     assert updated.json()["content"] == "Orders table documentation"
+    assert updated.json()["target"] is None
 
     deleted_doc = client.delete(f"/data-sources/demo_sqlite/docs/{second_doc_id}")
     assert deleted_doc.status_code == 204

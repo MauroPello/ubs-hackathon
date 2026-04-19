@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from .builder import _apply_schema_docs
 from .catalog import SchemaCatalog
 from .datasource import build_data_source
-from .meta_store import MetaStore
+from .meta_store import MetaStore, _UNSET
 from .models import DataSourceConfig
 
 
@@ -54,6 +54,8 @@ def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict:
             table_meta["description"] = content
             continue
         if doc_type == "column" and target and "." in target:
+            if target.count(".") != 1:
+                continue
             table_name, column_name = target.split(".", 1)
             table_meta = source_payload["tables"].setdefault(table_name, {})
             column_meta = table_meta.setdefault("columns", {})
@@ -121,13 +123,13 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
     def update_doc(name: str, doc_id: int, payload: DocUpdate) -> dict:
         if not store.get_data_source(name):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
-        fields_set = payload.model_fields_set
+        updates = payload.model_dump(exclude_unset=True)
         updated = store.update_doc(
             name,
             doc_id,
-            doc_type=payload.doc_type if "doc_type" in fields_set else None,
-            target=payload.target if "target" in fields_set else None,
-            content=payload.content if "content" in fields_set else None,
+            doc_type=updates.get("doc_type", _UNSET),
+            target=updates.get("target", _UNSET),
+            content=updates.get("content", _UNSET),
         )
         if not updated:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found")
