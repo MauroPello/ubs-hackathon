@@ -1,5 +1,8 @@
 catalog:
   db_path: data/big_catalog.db
+  description: Demo SQLite business source used for the hackathon walkthrough.
+# Embeddings env vars (same as config/config.yaml) are also respected here,
+# including auto/openai/huggingface/local provider selection.
 data_sources:
   - name: big_demo_sqlite
     type: sqlite

@@ -118,6 +118,11 @@ FRONTEND_HTML = """
             <input id="src-sensitive-cols" placeholder="e.g. users.email, users.ssn, credit_card_number" />
             <div class="hint">Comma-separated column names (column or table.column) that must be masked in query results.</div>
           </div>
+          <div class="field">
+            <label for="src-desc">Documentation description</label>
+            <textarea id="src-desc" placeholder="Describe what the source contains, who owns it, and how it should be used."></textarea>
+            <div class="hint">Shown in the source list and returned by the API.</div>
+          </div>
           <div class="actions">
             <button onclick="createSource()">Create source</button>
             <button class="secondary" onclick="updateSource()">Update selected</button>
@@ -202,11 +207,13 @@ FRONTEND_HTML = """
         name: "notion_workspace_demo",
         type: "notion",
         connection: "sqlite:///data/fake_notion_workspace.db",
+        description: "Simulated Notion workspace used to demo contextual docs.",
       },
       google_workspace: {
         name: "google_workspace_demo",
         type: "google_workspace",
         connection: "sqlite:///data/fake_google_workspace.db",
+        description: "Simulated Google Workspace source for docs and sheets metadata.",
       },
     };
 
@@ -251,6 +258,7 @@ FRONTEND_HTML = """
       document.getElementById("src-type").value = "sqlite";
       document.getElementById("src-conn").value = "";
       document.getElementById("src-sensitive-cols").value = "";
+      document.getElementById("src-desc").value = "";
       document.getElementById("form-mode").textContent = "create mode";
     };
 
@@ -273,6 +281,7 @@ FRONTEND_HTML = """
       document.getElementById("src-type").value = source.type;
       document.getElementById("src-conn").value = source.connection;
       document.getElementById("src-sensitive-cols").value = (source.sensitive_columns || []).join(", ");
+      document.getElementById("src-desc").value = source.description || "";
       document.getElementById("form-mode").textContent = `editing ${source.name}`;
     };
 
@@ -306,6 +315,7 @@ FRONTEND_HTML = """
             <div><strong>${s.name}</strong> <span class="pill">${s.type}</span> ${isFake ? '<span class="pill fake">simulated</span>' : ""}</div>
             <span class="small">${new Date(s.updated_at).toLocaleString()}</span>
           </div>
+          <div class="small">${s.description || "No description yet."}</div>
           <div class="small">${s.connection}</div>
           <div class="small">Sensitive columns: ${(s.sensitive_columns || []).length}</div>
           <div class="actions" style="margin-top:8px">
@@ -364,9 +374,19 @@ FRONTEND_HTML = """
       const type = document.getElementById("src-type").value.trim();
       const connection = document.getElementById("src-conn").value.trim();
       const sensitive_columns = parseSensitiveColumns();
+      const description = document.getElementById("src-desc").value.trim();
       if (!name || !type || !connection) return msg("Please fill name, type, and connection.", true);
       try {
-        await req("/data-sources", {method:"POST", body: JSON.stringify({name, type, connection, sensitive_columns})});
+        await req("/data-sources", {
+          method:"POST",
+          body: JSON.stringify({
+            name,
+            type,
+            connection,
+            sensitive_columns,
+            description: description || null
+          })
+        });
         await refreshSources();
         await refreshUsageDashboard();
         msg(`Created source '${name}'`);
@@ -380,11 +400,12 @@ FRONTEND_HTML = """
       const type = document.getElementById("src-type").value.trim();
       const connection = document.getElementById("src-conn").value.trim();
       const sensitive_columns = parseSensitiveColumns();
+      const description = document.getElementById("src-desc").value.trim();
       if (!name || !type || !connection) return msg("Please fill name, type, and connection.", true);
       try {
         await req(`/data-sources/${encodeURIComponent(name)}`, {
           method:"PUT",
-          body: JSON.stringify({type, connection, sensitive_columns}),
+          body: JSON.stringify({type, connection, sensitive_columns, description: description || null}),
         });
         selectedSourceType = type;
         await refreshSources();
@@ -527,12 +548,16 @@ class DataSourceCreate(BaseModel):
     type: str
     connection: str
     sensitive_columns: list[str] = Field(default_factory=list)
+    description: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class DataSourceUpdate(BaseModel):
     type: str | None = None
     connection: str | None = None
     sensitive_columns: list[str] | None = None
+    description: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -608,6 +633,7 @@ def _rebuild_catalog_for_data_source(store: MetaStore, catalog: SchemaCatalog, n
             type=registration.type,
             connection=registration.connection,
             sensitive_columns=registration.sensitive_columns,
+            description=registration.description,
         )
     )
     docs_map = _docs_to_schema_map(name, [row.to_dict() for row in store.list_docs(name)])
@@ -650,6 +676,7 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
             payload.type,
             payload.connection,
             sensitive_columns=payload.sensitive_columns,
+            description=payload.description,
         )
         return created.to_dict()
 
@@ -667,6 +694,7 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
             type_=payload.type,
             connection=payload.connection,
             sensitive_columns=payload.sensitive_columns,
+            description=payload.description,
         )
         if not updated:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")

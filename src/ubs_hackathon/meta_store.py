@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS data_sources (
     type TEXT NOT NULL,
     connection TEXT NOT NULL,
     sensitive_columns TEXT NOT NULL DEFAULT '[]',
+    description TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -39,6 +40,11 @@ CREATE TABLE IF NOT EXISTS source_docs (
 """
 
 
+def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row[1] == column for row in rows)
+
+
 class MetaStore:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
@@ -54,11 +60,9 @@ class MetaStore:
     def _ensure_schema(self) -> None:
         with self._connect() as conn:
             conn.executescript(META_SCHEMA)
-            columns = {
-                str(row["name"])
-                for row in conn.execute("PRAGMA table_info(data_sources)").fetchall()
-            }
-            if "sensitive_columns" not in columns:
+            if not _column_exists(conn, "data_sources", "description"):
+                conn.execute("ALTER TABLE data_sources ADD COLUMN description TEXT")
+            if not _column_exists(conn, "data_sources", "sensitive_columns"):
                 conn.execute(
                     "ALTER TABLE data_sources ADD COLUMN sensitive_columns TEXT NOT NULL DEFAULT '[]'"
                 )
@@ -101,14 +105,14 @@ class MetaStore:
     def list_data_sources(self) -> list[DataSourceRegistration]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT name, type, connection, sensitive_columns, created_at, updated_at FROM data_sources ORDER BY name"
+                "SELECT name, type, connection, sensitive_columns, description, created_at, updated_at FROM data_sources ORDER BY name"
             ).fetchall()
         return [self._row_to_registration(row) for row in rows]
 
     def get_data_source(self, name: str) -> DataSourceRegistration | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT name, type, connection, sensitive_columns, created_at, updated_at FROM data_sources WHERE name = ?",
+                "SELECT name, type, connection, sensitive_columns, description, created_at, updated_at FROM data_sources WHERE name = ?",
                 (name,),
             ).fetchone()
         return self._row_to_registration(row) if row else None
@@ -119,6 +123,7 @@ class MetaStore:
         type_: str,
         connection: str,
         sensitive_columns: list[str] | None = None,
+        description: str | None = None,
     ) -> DataSourceRegistration:
         now = self._now()
         encoded_sensitive_columns = json.dumps(
@@ -127,10 +132,10 @@ class MetaStore:
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO data_sources (name, type, connection, sensitive_columns, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO data_sources (name, type, connection, sensitive_columns, description, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (name, type_, connection, encoded_sensitive_columns, now, now),
+                (name, type_, connection, encoded_sensitive_columns, description, now, now),
             )
         created = self.get_data_source(name)
         if created is None:
@@ -143,6 +148,7 @@ class MetaStore:
         type_: str | None = None,
         connection: str | None = None,
         sensitive_columns: list[str] | None = None,
+        description: str | None | _Unset = _UNSET,
     ) -> DataSourceRegistration | None:
         current = self.get_data_source(name)
         if current is None:
@@ -154,15 +160,23 @@ class MetaStore:
             if sensitive_columns is not None
             else current.sensitive_columns
         )
+        next_description = current.description if description is _UNSET else description
         now = self._now()
         with self._connect() as conn:
             conn.execute(
                 """
                 UPDATE data_sources
-                SET type = ?, connection = ?, sensitive_columns = ?, updated_at = ?
+                SET type = ?, connection = ?, sensitive_columns = ?, description = ?, updated_at = ?
                 WHERE name = ?
                 """,
-                (next_type, next_connection, json.dumps(next_sensitive_columns), now, name),
+                (
+                    next_type,
+                    next_connection,
+                    json.dumps(next_sensitive_columns),
+                    next_description,
+                    now,
+                    name,
+                ),
             )
         updated = self.get_data_source(name)
         if updated is None:

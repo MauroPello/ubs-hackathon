@@ -9,6 +9,7 @@ class DataSourceConfig:
     name: str
     type: str
     connection: str
+    description: str | None = None
     adapter: str | None = None
     options: dict[str, Any] | None = None
     sensitive_columns: list[str] | None = None
@@ -53,6 +54,7 @@ class DataSourceRegistration:
     sensitive_columns: list[str]
     created_at: str
     updated_at: str
+    description: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

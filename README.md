@@ -10,7 +10,7 @@ This repository now includes a working Python MCP server prototype with:
 
 - **Multi-DBMS support via SQLAlchemy** — connects to any SQLAlchemy-supported database (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Snowflake, BigQuery, DuckDB, and more) using standard connection URLs; no custom code required per DBMS
 - **Schema catalog builder** that introspects source databases and merges **existing company schema docs**
-- **Semantic schema search** using local embeddings for table/column retrieval
+- **Semantic schema search** using free online embeddings (Hugging Face) with safe local fallback
 - **Read-only SQL execution** safeguards for conversational analytics
 - **Enterprise data masking** with per-source sensitive column configuration so MCP query results hide protected attributes
 - **MCP tool surface** for `list_data_sources`, `search_schema`, `describe_table`, and `execute_query`
@@ -140,6 +140,24 @@ To connect the local MCP server to GitHub Copilot Chat in VS Code, this reposito
 5. If you recreate the environment elsewhere, update the `command` in `.vscode/mcp.json` to the new Python executable.
 
 The server runs in stdio mode and uses the installed package from the Conda environment, so VS Code does not need a separate `PYTHONPATH` override.
+
+### Embeddings configuration
+
+By default, the catalog runs in `auto` mode:
+
+- uses OpenAI embeddings if `OPENAI_API_KEY` is present,
+- otherwise uses free online Hugging Face inference embeddings (no key required),
+- and falls back to the local model automatically if the online call fails.
+
+Optional environment variables:
+
+- `UBS_EMBEDDINGS_PROVIDER` — `auto` (default), `openai`, `huggingface`, or `local`
+- `OPENAI_API_KEY` — required only for `openai`
+- `UBS_EMBEDDINGS_MODEL` — OpenAI model, defaults to `text-embedding-3-small`
+- `UBS_EMBEDDINGS_BASE_URL` — OpenAI base URL, defaults to `https://api.openai.com/v1`
+- `UBS_HF_EMBEDDINGS_MODEL` — defaults to `sentence-transformers/all-MiniLM-L6-v2`
+- `UBS_HF_EMBEDDINGS_BASE_URL` — defaults to `https://api-inference.huggingface.co`
+- `HF_API_TOKEN` — optional Hugging Face token (not required for basic free usage)
 
 Useful checks:
 
