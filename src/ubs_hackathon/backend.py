@@ -16,13 +16,7 @@ from .datasource import build_data_source
 from .meta_store import MetaStore
 from .models import DataSourceConfig
 
-FRONTEND_HTML = """
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>UBS Data Sources</title>
+FRONTEND_COMMON_STYLE = """
   <style>
     :root { --bg:#f5f5f5; --card:#ffffff; --muted:#5f6368; --text:#171717; --accent:#e60000; --danger:#b00020; --ok:#0f766e; --line:#d6d6d6; }
     * { box-sizing:border-box; font-family: "Segoe UI", Arial, "Helvetica Neue", Helvetica, sans-serif; }
@@ -34,6 +28,7 @@ FRONTEND_HTML = """
     .hero { margin-bottom:14px; }
     .grid-main { display:grid; gap:16px; grid-template-columns:1.15fr .85fr; align-items:start; }
     .grid-side { display:grid; gap:16px; }
+    .grid-cards { display:grid; gap:16px; grid-template-columns:1fr 1fr; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 10px 24px rgba(0,0,0,.08); }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
     .stack { display:flex; flex-direction:column; gap:8px; }
@@ -49,7 +44,7 @@ FRONTEND_HTML = """
     button.danger { background:var(--danger); }
     button.ok { background:var(--ok); color:#fff; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
-    ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; max-height:360px; overflow:auto; }
+    ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; max-height:420px; overflow:auto; }
     li { border:1px solid var(--line); border-radius:10px; padding:10px; background:#fcfcfc; }
     .small { font-size:.82rem; color:var(--muted); }
     .pill { display:inline-block; font-size:.72rem; padding:2px 6px; border-radius:999px; background:#fff1f1; border:1px solid #efb0b0; color:#7f1d1d; }
@@ -60,23 +55,87 @@ FRONTEND_HTML = """
     .stat .value { font-size:1.2rem; font-weight:800; margin-top:4px; }
     .integrations { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     .integration { border:1px solid var(--line); border-radius:10px; padding:10px; background:#fcfcfc; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+    .nav { display:flex; gap:8px; flex-wrap:wrap; }
+    .nav a { text-decoration:none; color:#171717; border:1px solid var(--line); border-radius:999px; padding:6px 11px; font-weight:600; background:#fff; }
+    .nav a.active { background:#171717; color:#fff; border-color:#171717; }
     #message { margin:10px 0 16px; min-height:20px; color:#1f2937; font-weight:600; }
     @media (max-width: 980px) {
-      .grid-main { grid-template-columns:1fr; }
+      .grid-main, .grid-cards, .integrations, .stats { grid-template-columns:1fr; }
       .row { grid-template-columns:1fr; }
-      .stats, .integrations { grid-template-columns:1fr; }
     }
   </style>
+"""
+
+
+def _frontend_page(title: str, active_tab: str, body: str, script: str = "") -> str:
+    nav_items = {
+        "home": ("/", "Overview"),
+        "sources": ("/sources", "Sources & Docs"),
+        "dashboard": ("/dashboard", "Usage Dashboard"),
+        "connectors": ("/connectors", "Connectors"),
+    }
+    nav_html = "".join(
+        f'<a href="{href}" class="{"active" if key == active_tab else ""}">{label}</a>'
+        for key, (href, label) in nav_items.items()
+    )
+
+    return f"""
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title}</title>
+{FRONTEND_COMMON_STYLE}
 </head>
 <body>
   <div class="container">
-    <div class="hero">
+    <div class="topbar">
       <h1>Data Source Manager</h1>
-      <p>
-        A richer control center to register and maintain data sources, write business documentation,
-        monitor MCP usage, and simulate non-SQL connectors (Notion / Google Workspace).
-      </p>
+      <nav class="nav">{nav_html}</nav>
     </div>
+    {body}
+  </div>
+  <script>
+{script}
+  </script>
+</body>
+</html>
+"""
+
+
+def _frontend_home_html() -> str:
+    body = """
+    <div class="hero card">
+      <p>
+        Multi-page control center for data source onboarding, business documentation,
+        runtime monitoring, and simulated connector demos.
+      </p>
+      <div class="grid-cards">
+        <a class="card" href="/sources" style="text-decoration:none;color:inherit;display:block;">
+          <h3>Sources & Docs</h3>
+          <p>Register data sources, set sensitive columns, and manage table/column documentation.</p>
+        </a>
+        <a class="card" href="/dashboard" style="text-decoration:none;color:inherit;display:block;">
+          <h3>MCP Usage Dashboard</h3>
+          <p>Track requests, latency, success rate, and trend data from backend telemetry.</p>
+        </a>
+        <a class="card" href="/connectors" style="text-decoration:none;color:inherit;display:block;">
+          <h3>Connector Marketplace</h3>
+          <p>Simulate Notion and Google Workspace connector creation for demos.</p>
+        </a>
+      </div>
+    </div>
+    """
+    return _frontend_page("UBS Data Sources", "home", body)
+
+
+def _frontend_sources_html() -> str:
+    body = """
+    <p>
+      Register and maintain data sources, then attach documentation that enriches the schema catalog.
+    </p>
     <div id="message"></div>
     <div class="grid-main">
       <section class="card">
@@ -111,17 +170,15 @@ FRONTEND_HTML = """
           <div class="field">
             <label for="src-conn">Connection string / path</label>
             <input id="src-conn" placeholder="sqlite:///data/demo.db or postgresql+psycopg2://..." />
-            <div class="hint">For legacy sqlite paths, plain file paths are still accepted.</div>
           </div>
           <div class="field">
             <label for="src-sensitive-cols">Sensitive columns</label>
             <input id="src-sensitive-cols" placeholder="e.g. users.email, users.ssn, credit_card_number" />
-            <div class="hint">Comma-separated column names (column or table.column) that must be masked in query results.</div>
+            <div class="hint">Comma-separated column names (column or table.column).</div>
           </div>
           <div class="field">
             <label for="src-desc">Documentation description</label>
-            <textarea id="src-desc" placeholder="Describe what the source contains, who owns it, and how it should be used."></textarea>
-            <div class="hint">Shown in the source list and returned by the API.</div>
+            <textarea id="src-desc" placeholder="Describe source ownership and intended usage."></textarea>
           </div>
           <div class="actions">
             <button onclick="createSource()">Create source</button>
@@ -133,89 +190,41 @@ FRONTEND_HTML = """
         <p class="small">Select a source below to load it into the form and manage docs.</p>
         <ul id="sources"></ul>
       </section>
-      <div class="grid-side">
-        <section class="card">
-          <h3>Documentation <span id="selected" class="pill">none selected</span></h3>
-          <div class="stack">
-            <div class="row">
-              <div class="field">
-                <label for="doc-type">Doc type</label>
-                <select id="doc-type" onchange="updateDocTargetHint()">
-                  <option value="general">general</option>
-                  <option value="table">table</option>
-                  <option value="column">column</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="doc-target">Target</label>
-                <input id="doc-target" placeholder="optional target" />
-                <div id="doc-target-hint" class="hint">General docs can leave this empty.</div>
-              </div>
+      <section class="card">
+        <h3>Documentation <span id="selected" class="pill">none selected</span></h3>
+        <div class="stack">
+          <div class="row">
+            <div class="field">
+              <label for="doc-type">Doc type</label>
+              <select id="doc-type" onchange="updateDocTargetHint()">
+                <option value="general">general</option>
+                <option value="table">table</option>
+                <option value="column">column</option>
+              </select>
             </div>
             <div class="field">
-              <label for="doc-content">Documentation content</label>
-              <textarea id="doc-content" placeholder="Explain table meaning, KPI logic, ownership, caveats..."></textarea>
-            </div>
-            <div class="actions">
-              <button onclick="addDoc()">Add doc</button>
-              <button class="ghost" onclick="clearDocForm()">Clear</button>
+              <label for="doc-target">Target</label>
+              <input id="doc-target" placeholder="optional target" />
+              <div id="doc-target-hint" class="hint">General docs can leave this empty.</div>
             </div>
           </div>
-          <ul id="docs"></ul>
-        </section>
-        <section class="card">
-          <h3>MCP Usage Dashboard</h3>
-          <p class="small">Lightweight operational snapshot combining real metadata counts and simulated runtime telemetry.</p>
-          <div class="stats">
-            <div class="stat"><div class="small">Registered sources</div><div id="kpi-sources" class="value">-</div></div>
-            <div class="stat"><div class="small">Stored docs</div><div id="kpi-docs" class="value">-</div></div>
-            <div class="stat"><div class="small">Indexed tables</div><div id="kpi-tables" class="value">-</div></div>
-            <div class="stat"><div class="small">Requests (24h)</div><div id="kpi-requests" class="value">-</div></div>
-            <div class="stat"><div class="small">Avg latency</div><div id="kpi-latency" class="value">-</div></div>
-            <div class="stat"><div class="small">Success rate</div><div id="kpi-success" class="value">-</div></div>
+          <div class="field">
+            <label for="doc-content">Documentation content</label>
+            <textarea id="doc-content" placeholder="Explain KPI logic, caveats, ownership..."></textarea>
           </div>
-          <div class="stack" style="margin-top:10px">
-            <div class="small">Daily requests trend (7d)</div>
-            <ul id="usage-trend"></ul>
+          <div class="actions">
+            <button onclick="addDoc()">Add doc</button>
+            <button class="ghost" onclick="clearDocForm()">Clear</button>
           </div>
-        </section>
-        <section class="card">
-          <h3>Connector marketplace (simulated)</h3>
-          <p class="small">These are fake connections for demos only. They create a local placeholder data source entry.</p>
-          <div class="integrations">
-            <div class="integration">
-              <strong>Notion</strong>
-              <p class="small">Simulate connecting team pages as contextual docs.</p>
-              <button class="ok" onclick="connectFake('notion')">Connect Notion (fake)</button>
-            </div>
-            <div class="integration">
-              <strong>Google Workspace</strong>
-              <p class="small">Simulate connecting docs and spreadsheets as metadata context.</p>
-              <button class="ok" onclick="connectFake('google_workspace')">Connect Google Workspace (fake)</button>
-            </div>
-          </div>
-        </section>
-      </div>
+        </div>
+        <ul id="docs"></ul>
+      </section>
     </div>
-  </div>
-  <script>
+    """
+
+    script = """
     let selectedSource = null;
-    let selectedSourceType = null;
     const fakeTypes = new Set(["notion", "google_workspace"]);
-    const fakeConnectors = {
-      notion: {
-        name: "notion_workspace_demo",
-        type: "notion",
-        connection: "sqlite:///data/fake_notion_workspace.db",
-        description: "Simulated Notion workspace used to demo contextual docs.",
-      },
-      google_workspace: {
-        name: "google_workspace_demo",
-        type: "google_workspace",
-        connection: "sqlite:///data/fake_google_workspace.db",
-        description: "Simulated Google Workspace source for docs and sheets metadata.",
-      },
-    };
 
     const msg = (text, isErr=false) => {
       const el = document.getElementById("message");
@@ -285,24 +294,6 @@ FRONTEND_HTML = """
       document.getElementById("form-mode").textContent = `editing ${source.name}`;
     };
 
-    const refreshUsageDashboard = async () => {
-      const usage = await req("/mcp-usage");
-      document.getElementById("kpi-sources").textContent = usage.registered_sources;
-      document.getElementById("kpi-docs").textContent = usage.stored_docs;
-      document.getElementById("kpi-tables").textContent = usage.catalog_tables;
-      document.getElementById("kpi-requests").textContent = usage.requests_last_24h;
-      document.getElementById("kpi-latency").textContent = `${usage.avg_latency_ms} ms`;
-      document.getElementById("kpi-success").textContent = `${usage.success_rate_pct}%`;
-
-      const trend = document.getElementById("usage-trend");
-      trend.innerHTML = "";
-      for (const item of usage.requests_trend_7d) {
-        const li = document.createElement("li");
-        li.innerHTML = `<div class="split"><strong>${item.day}</strong><span class="pill">${item.requests} req</span></div>`;
-        trend.appendChild(li);
-      }
-    };
-
     const refreshSources = async () => {
       const list = await req("/data-sources");
       const container = document.getElementById("sources");
@@ -326,7 +317,6 @@ FRONTEND_HTML = """
         `;
 
         li.querySelector('[data-action="select"]').onclick = () => {
-          selectedSourceType = s.type;
           selectSource(s.name);
           loadSourceIntoForm(s);
         };
@@ -336,7 +326,6 @@ FRONTEND_HTML = """
           try {
             const out = await req(`/data-sources/${encodeURIComponent(s.name)}/sync`, {method:"POST"});
             msg(`Synced ${out.indexed_tables} tables for ${s.name}`);
-            await refreshUsageDashboard();
           } catch (e) {
             msg(e.message, true);
           }
@@ -347,13 +336,11 @@ FRONTEND_HTML = """
             await req(`/data-sources/${encodeURIComponent(s.name)}`, {method:"DELETE"});
             if (selectedSource === s.name) {
               selectedSource = null;
-              selectedSourceType = null;
               document.getElementById("selected").textContent = "none selected";
               clearSourceForm();
               await refreshDocs();
             }
             await refreshSources();
-            await refreshUsageDashboard();
             msg(`Deleted ${s.name}`);
           } catch (e) {
             msg(e.message, true);
@@ -379,16 +366,9 @@ FRONTEND_HTML = """
       try {
         await req("/data-sources", {
           method:"POST",
-          body: JSON.stringify({
-            name,
-            type,
-            connection,
-            sensitive_columns,
-            description: description || null
-          })
+          body: JSON.stringify({name, type, connection, sensitive_columns, description: description || null}),
         });
         await refreshSources();
-        await refreshUsageDashboard();
         msg(`Created source '${name}'`);
       } catch (e) {
         msg(e.message, true);
@@ -407,28 +387,10 @@ FRONTEND_HTML = """
           method:"PUT",
           body: JSON.stringify({type, connection, sensitive_columns, description: description || null}),
         });
-        selectedSourceType = type;
         await refreshSources();
         msg(`Updated source '${name}'`);
       } catch (e) {
         msg(e.message, true);
-      }
-    };
-
-    const connectFake = async (provider) => {
-      const cfg = fakeConnectors[provider];
-      if (!cfg) return;
-      try {
-        await req("/data-sources", {method:"POST", body: JSON.stringify(cfg)});
-        await refreshSources();
-        await refreshUsageDashboard();
-        msg(`Connected ${provider} (simulated): '${cfg.name}'`);
-      } catch (e) {
-        if ((e.message || "").includes("already exists")) {
-          msg(`${provider} simulated connector already exists.`);
-        } else {
-          msg(e.message, true);
-        }
       }
     };
 
@@ -459,7 +421,6 @@ FRONTEND_HTML = """
           try {
             await req(`/data-sources/${encodeURIComponent(selectedSource)}/docs/${d.id}`, {method:"DELETE"});
             await refreshDocs();
-            await refreshUsageDashboard();
             msg(`Deleted doc #${d.id}`);
           } catch (e) {
             msg(e.message, true);
@@ -482,7 +443,6 @@ FRONTEND_HTML = """
         });
         clearDocForm();
         await refreshDocs();
-        await refreshUsageDashboard();
         msg("Doc added.");
       } catch (e) {
         msg(e.message, true);
@@ -490,12 +450,178 @@ FRONTEND_HTML = """
     };
 
     updateDocTargetHint();
-    Promise.all([refreshSources(), refreshUsageDashboard()]).catch((e) => msg(e.message, true));
+    refreshSources().catch((e) => msg(e.message, true));
+    """
+    return _frontend_page("UBS Data Sources | Sources", "sources", body, script)
+
+
+def _frontend_dashboard_html() -> str:
+    body = """
+    <p>
+      Lightweight operational snapshot combining real metadata counts and simulated runtime telemetry.
+    </p>
+    <div id="message"></div>
+    <section class="card">
+      <h3>MCP Usage Dashboard</h3>
+      <div class="stats">
+        <div class="stat"><div class="small">Registered sources</div><div id="kpi-sources" class="value">-</div></div>
+        <div class="stat"><div class="small">Stored docs</div><div id="kpi-docs" class="value">-</div></div>
+        <div class="stat"><div class="small">Indexed tables</div><div id="kpi-tables" class="value">-</div></div>
+        <div class="stat"><div class="small">Requests (24h)</div><div id="kpi-requests" class="value">-</div></div>
+        <div class="stat"><div class="small">Avg latency</div><div id="kpi-latency" class="value">-</div></div>
+        <div class="stat"><div class="small">Success rate</div><div id="kpi-success" class="value">-</div></div>
+      </div>
+      <div class="stack" style="margin-top:10px">
+        <div class="small">Daily requests trend (7d)</div>
+        <ul id="usage-trend"></ul>
+      </div>
+    </section>
+    """
+
+    script = """
+    const msg = (text, isErr=false) => {
+      const el = document.getElementById("message");
+      el.textContent = text;
+      el.style.color = isErr ? "#b00020" : "#1f2937";
+    };
+
+    const req = async (url, opts={}) => {
+      const r = await fetch(url, {headers: {"Content-Type":"application/json"}, ...opts});
+      if (r.status === 204) return null;
+      let data = null;
+      try { data = await r.json(); } catch {}
+      if (!r.ok) throw new Error(data?.detail || "Request failed");
+      return data;
+    };
+
+    const refreshUsageDashboard = async () => {
+      const usage = await req("/mcp-usage");
+      document.getElementById("kpi-sources").textContent = usage.registered_sources;
+      document.getElementById("kpi-docs").textContent = usage.stored_docs;
+      document.getElementById("kpi-tables").textContent = usage.catalog_tables;
+      document.getElementById("kpi-requests").textContent = usage.requests_last_24h;
+      document.getElementById("kpi-latency").textContent = `${usage.avg_latency_ms} ms`;
+      document.getElementById("kpi-success").textContent = `${usage.success_rate_pct}%`;
+
+      const trend = document.getElementById("usage-trend");
+      trend.innerHTML = "";
+      for (const item of usage.requests_trend_7d) {
+        const li = document.createElement("li");
+        li.innerHTML = `<div class="split"><strong>${item.day}</strong><span class="pill">${item.requests} req</span></div>`;
+        trend.appendChild(li);
+      }
+    };
+
+    refreshUsageDashboard().catch((e) => msg(e.message, true));
     setInterval(() => refreshUsageDashboard().catch((e) => msg(e.message, true)), 15000);
-  </script>
-</body>
-</html>
-"""
+    """
+    return _frontend_page("UBS Data Sources | Dashboard", "dashboard", body, script)
+
+
+def _frontend_connectors_html() -> str:
+    body = """
+    <p>
+      Simulate non-SQL connector onboarding. These entries are demo placeholders stored as local data sources.
+    </p>
+    <div id="message"></div>
+    <section class="card">
+      <h3>Connector Marketplace (simulated)</h3>
+      <p class="small">Use this page to create demo connector records quickly.</p>
+      <div class="integrations">
+        <div class="integration">
+          <strong>Notion</strong>
+          <p class="small">Simulate connecting team pages as contextual docs.</p>
+          <button class="ok" onclick="connectFake('notion')">Connect Notion (fake)</button>
+        </div>
+        <div class="integration">
+          <strong>Google Workspace</strong>
+          <p class="small">Simulate connecting docs and spreadsheets as metadata context.</p>
+          <button class="ok" onclick="connectFake('google_workspace')">Connect Google Workspace (fake)</button>
+        </div>
+      </div>
+    </section>
+    <section class="card" style="margin-top:16px">
+      <h3>Simulated connectors in registry</h3>
+      <ul id="sources"></ul>
+    </section>
+    """
+
+    script = """
+    const fakeTypes = new Set(["notion", "google_workspace"]);
+    const fakeConnectors = {
+      notion: {
+        name: "notion_workspace_demo",
+        type: "notion",
+        connection: "sqlite:///data/fake_notion_workspace.db",
+        description: "Simulated Notion workspace used to demo contextual docs.",
+      },
+      google_workspace: {
+        name: "google_workspace_demo",
+        type: "google_workspace",
+        connection: "sqlite:///data/fake_google_workspace.db",
+        description: "Simulated Google Workspace source for docs and sheets metadata.",
+      },
+    };
+
+    const msg = (text, isErr=false) => {
+      const el = document.getElementById("message");
+      el.textContent = text;
+      el.style.color = isErr ? "#b00020" : "#1f2937";
+    };
+
+    const req = async (url, opts={}) => {
+      const r = await fetch(url, {headers: {"Content-Type":"application/json"}, ...opts});
+      if (r.status === 204) return null;
+      let data = null;
+      try { data = await r.json(); } catch {}
+      if (!r.ok) throw new Error(data?.detail || "Request failed");
+      return data;
+    };
+
+    const refreshFakeSources = async () => {
+      const list = await req("/data-sources");
+      const container = document.getElementById("sources");
+      container.innerHTML = "";
+      const fakeOnly = list.filter((s) => fakeTypes.has((s.type || "").toLowerCase()));
+      if (!fakeOnly.length) {
+        const li = document.createElement("li");
+        li.innerHTML = '<div class="small">No simulated connectors registered yet.</div>';
+        container.appendChild(li);
+        return;
+      }
+      for (const s of fakeOnly) {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <div class="split">
+            <div><strong>${s.name}</strong> <span class="pill">${s.type}</span> <span class="pill fake">simulated</span></div>
+            <span class="small">${new Date(s.updated_at).toLocaleString()}</span>
+          </div>
+          <div class="small">${s.description || "No description yet."}</div>
+          <div class="small">${s.connection}</div>
+        `;
+        container.appendChild(li);
+      }
+    };
+
+    const connectFake = async (provider) => {
+      const cfg = fakeConnectors[provider];
+      if (!cfg) return;
+      try {
+        await req("/data-sources", {method:"POST", body: JSON.stringify(cfg)});
+        await refreshFakeSources();
+        msg(`Connected ${provider} (simulated): '${cfg.name}'`);
+      } catch (e) {
+        if ((e.message || "").includes("already exists")) {
+          msg(`${provider} simulated connector already exists.`);
+        } else {
+          msg(e.message, true);
+        }
+      }
+    };
+
+    refreshFakeSources().catch((e) => msg(e.message, true));
+    """
+    return _frontend_page("UBS Data Sources | Connectors", "connectors", body, script)
 
 
 def _usage_trend(seed: int) -> list[dict]:
@@ -665,8 +791,20 @@ def create_app(
     catalog = SchemaCatalog(Path(catalog_path))
 
     @app.get("/", include_in_schema=False, response_class=HTMLResponse)
-    def frontend() -> str:
-        return FRONTEND_HTML
+    def frontend_home() -> str:
+        return _frontend_home_html()
+
+    @app.get("/sources", include_in_schema=False, response_class=HTMLResponse)
+    def frontend_sources() -> str:
+        return _frontend_sources_html()
+
+    @app.get("/dashboard", include_in_schema=False, response_class=HTMLResponse)
+    def frontend_dashboard() -> str:
+        return _frontend_dashboard_html()
+
+    @app.get("/connectors", include_in_schema=False, response_class=HTMLResponse)
+    def frontend_connectors() -> str:
+        return _frontend_connectors_html()
 
     @app.get("/mcp-usage")
     def mcp_usage() -> dict:

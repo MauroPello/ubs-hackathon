@@ -31,10 +31,22 @@ def test_frontend_homepage(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     assert "Data Source Manager" in response.text
-    assert "Documentation description" in response.text
-    assert "MCP Usage Dashboard" in response.text
-    assert "Connect Notion (fake)" in response.text
-    assert "Sensitive columns" in response.text
+    assert "href=\"/sources\"" in response.text
+    assert "href=\"/dashboard\"" in response.text
+    assert "href=\"/connectors\"" in response.text
+
+    sources = client.get("/sources")
+    assert sources.status_code == 200
+    assert "Documentation description" in sources.text
+    assert "Sensitive columns" in sources.text
+
+    dashboard = client.get("/dashboard")
+    assert dashboard.status_code == 200
+    assert "MCP Usage Dashboard" in dashboard.text
+
+    connectors = client.get("/connectors")
+    assert connectors.status_code == 200
+    assert "Connect Notion (fake)" in connectors.text
 
 
 def test_data_sources_crud(tmp_path: Path) -> None:
