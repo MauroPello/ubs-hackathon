@@ -5,6 +5,8 @@ const toast = useToast()
 const sources = ref([])
 const pending = ref(true)
 const category = ref('sql')
+const showCreateForm = ref(false)
+const q = ref('')
 
 // Form state
 const form = reactive({
@@ -61,6 +63,7 @@ async function createSource() {
     toast.add({ title: 'Source created successfully', color: 'green' })
     fetchSources()
     resetForm()
+    showCreateForm.value = false
   } catch (e) {
     toast.add({ title: 'Failed to create source', color: 'red' })
   }
@@ -101,6 +104,13 @@ const categories = [
   { label: 'Graph', value: 'graph' },
   { label: 'Documents', value: 'documents' }
 ]
+
+const filteredSources = computed(() => {
+  if (!q.value) return sources.value
+  return sources.value.filter(s => {
+    return Object.values(s).some(v => String(v).toLowerCase().includes(q.value.toLowerCase()))
+  })
+})
 </script>
 
 <template>
@@ -110,18 +120,34 @@ const categories = [
         <h2 class="text-2xl font-bold text-gray-900">Sources & Documentation</h2>
         <p class="text-gray-500">Register and enrich your data catalog.</p>
       </div>
+      <UButton
+        icon="i-heroicons-plus"
+        color="red"
+        label="Add Source"
+        @click="showCreateForm = true"
+      />
     </div>
 
     <div class="space-y-6 max-w-5xl mx-auto">
       <!-- Create Source Form -->
-      <UCard class="max-w-2xl">
-        <template #header>
-          <h3 class="font-bold">Create New Source</h3>
-        </template>
+      <div v-if="showCreateForm">
+        <UCard class="max-w-2xl">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold">Create New Source</h3>
+              <UButton
+                icon="i-heroicons-x-mark"
+                size="xs"
+                color="gray"
+                variant="ghost"
+                @click="showCreateForm = false"
+              />
+            </div>
+          </template>
 
         <form @submit.prevent="createSource()" class="space-y-4">
           <UFormGroup label="Category">
-            <USelectMenu v-model="category" :options="categories" />
+            <USelectMenu v-model="category" :options="categories" value-attribute="value" option-attribute="label" />
           </UFormGroup>
 
           <UFormGroup label="Name" required>
@@ -166,13 +192,15 @@ const categories = [
           />
         </form>
       </UCard>
+      </div>
 
       <!-- Sources List -->
-      <UCard>
+      <UCard :ui="{ header: { base: 'border-b-0' } }">
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="font-bold">Registered Data Sources</h3>
             <UInput
+              v-model="q"
               icon="i-heroicons-magnifying-glass-20-solid"
               size="sm"
               color="white"
@@ -183,7 +211,7 @@ const categories = [
         </template>
 
         <UTable
-          :rows="sources"
+          :rows="filteredSources"
           :columns="[
             { key: 'name', label: 'Name' },
             { key: 'type', label: 'Type' },
@@ -191,6 +219,7 @@ const categories = [
             { key: 'actions', label: '' }
           ]"
           :loading="pending"
+          :ui="{ thead: 'hidden' }"
         >
           <template #name-data="{ row }">
             <NuxtLink :to="`/sources/${row.name}`" class="font-medium text-gray-900 hover:text-red-600 transition-colors">{{ row.name }}</NuxtLink>
@@ -205,7 +234,7 @@ const categories = [
           </template>
 
           <template #updated_at-data="{ row }">
-            <span class="text-xs text-gray-500">{{ new Date(row.updated_at).toLocaleString() }}</span>
+            <span class="text-xs text-gray-500">Last Updated: {{ new Date(row.updated_at).toLocaleString() }}</span>
           </template>
 
           <template #actions-data="{ row }">

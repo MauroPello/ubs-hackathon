@@ -148,7 +148,7 @@ const timeAgo = (iso) => {
           </div>
         </template>
 
-        <div class="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+        <div class="space-y-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
           <div v-for="log in activity" :key="log.id" class="relative pl-6 pb-6 border-l border-gray-100 last:pb-0">
             <!-- Timeline dot -->
             <div :class="`absolute left-[-5px] top-1 w-[9px] h-[9px] rounded-full border-2 border-white ${log.status === 'Success' ? 'bg-green-500' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`"></div>

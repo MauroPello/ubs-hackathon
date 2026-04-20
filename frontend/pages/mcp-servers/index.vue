@@ -121,32 +121,6 @@ function resetForm() {
         </UCard>
       </div>
 
-      <!-- Configured Instances -->
-      <UCard>
-        <template #header>
-          <h3 class="font-bold">Configured Instances</h3>
-        </template>
-
-        <div v-if="configs?.length === 0" class="text-center py-8">
-          <p class="text-sm text-gray-500">No configured instances yet.</p>
-        </div>
-
-        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <NuxtLink v-for="cfg in configs" :key="cfg.id" :to="`/mcp-servers/${cfg.id}`" class="p-4 border rounded-xl bg-white hover:border-red-300 transition-all group relative flex items-center justify-between">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="font-bold text-sm text-gray-900 group-hover:text-red-600 transition-colors truncate">
-                  {{ cfg.name }}
-                </span>
-                <UBadge size="xs" color="gray" variant="solid">{{ cfg.server_id }}</UBadge>
-              </div>
-              <p class="text-xs text-gray-500 truncate">{{ cfg.endpoint || 'Internal' }}</p>
-            </div>
-            <UIcon name="i-heroicons-chevron-right-20-solid" class="w-5 h-5 text-gray-400 group-hover:text-red-500 transition-colors" />
-          </NuxtLink>
-        </div>
-      </UCard>
-
       <!-- Registry -->
       <UCard>
         <template #header>
@@ -178,13 +152,32 @@ function resetForm() {
             </div>
           </div>
         </div>
+      </UCard>
 
-        <template #footer>
-          <div class="flex items-center justify-between text-xs text-gray-400">
-            <span>Total registry entries: {{ registry?.length }}</span>
-            <span>Last sync: Just now</span>
-          </div>
+      <!-- Configured Instances -->
+      <UCard>
+        <template #header>
+          <h3 class="font-bold">Configured Instances</h3>
         </template>
+
+        <div v-if="configs?.length === 0" class="text-center py-8">
+          <p class="text-sm text-gray-500">No configured instances yet.</p>
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <NuxtLink v-for="cfg in configs" :key="cfg.id" :to="`/mcp-servers/${cfg.id}`" class="p-4 border rounded-xl bg-white hover:border-red-300 transition-all group relative flex items-center justify-between">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-sm text-gray-900 group-hover:text-red-600 transition-colors truncate">
+                  {{ cfg.name }}
+                </span>
+                <UBadge size="xs" color="gray" variant="solid">{{ cfg.server_id }}</UBadge>
+              </div>
+              <p class="text-xs text-gray-500 truncate">{{ cfg.endpoint || 'Internal' }}</p>
+            </div>
+            <UIcon name="i-heroicons-chevron-right-20-solid" class="w-5 h-5 text-gray-400 group-hover:text-red-500 transition-colors" />
+          </NuxtLink>
+        </div>
       </UCard>
     </div>
   </div>

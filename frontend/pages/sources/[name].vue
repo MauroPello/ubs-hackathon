@@ -21,6 +21,7 @@ const form = reactive({
 
 // Doc form state
 const showDocModal = ref(false)
+const editingDocId = ref(null)
 const docForm = reactive({
   doc_type: 'table',
   target: '',
@@ -37,15 +38,15 @@ async function fetchData() {
       $fetch(`/api/data-sources/${name}`),
       $fetch(`/api/data-sources/${name}/docs`)
     ])
-    
+
     source.value = sourceData
     docs.value = docsData
-    
+
     // Fill form
     form.name = sourceData.name
     form.description = sourceData.description || ''
     form.sensitive_columns = (sourceData.sensitive_columns || []).join(', ')
-    
+
     if (sourceData.upstream_mcp_server_config_id) {
       category.value = sourceData.type
       form.upstream_mcp_server_config_id = sourceData.upstream_mcp_server_config_id
@@ -91,7 +92,7 @@ async function updateSource() {
 
 async function deleteSource() {
   if (!confirm('Are you sure you want to delete this data source?')) return
-  
+
   try {
     await $fetch(`/api/data-sources/${name}`, {
       method: 'DELETE'
@@ -105,18 +106,45 @@ async function deleteSource() {
 
 async function addDoc() {
   try {
-    await $fetch(`/api/data-sources/${name}/docs`, {
-      method: 'POST',
-      body: docForm
-    })
-    toast.add({ title: 'Documentation added', color: 'green' })
+    if (editingDocId.value) {
+      await $fetch(`/api/data-sources/${name}/docs/${editingDocId.value}`, {
+        method: 'PUT',
+        body: docForm
+      })
+      toast.add({ title: 'Documentation updated', color: 'green' })
+    } else {
+      await $fetch(`/api/data-sources/${name}/docs`, {
+        method: 'POST',
+        body: docForm
+      })
+      toast.add({ title: 'Documentation added', color: 'green' })
+    }
     showDocModal.value = false
-    docForm.target = ''
-    docForm.content = ''
+    resetDocForm()
     fetchData()
   } catch (e) {
-    toast.add({ title: 'Failed to add documentation', color: 'red' })
+    toast.add({ title: `Failed to ${editingDocId.value ? 'update' : 'add'} documentation`, color: 'red' })
   }
+}
+
+function resetDocForm() {
+  editingDocId.value = null
+  docForm.doc_type = 'table'
+  docForm.target = ''
+  docForm.content = ''
+}
+
+function openAddDocModal() {
+  resetDocForm()
+  showDocModal.value = true
+}
+
+function openEditDocModal(doc) {
+  editingDocId.value = doc.id
+  docForm.doc_type = doc.doc_type
+  docForm.target = doc.target || ''
+  docForm.content = doc.content
+  showDocModal.value = true
 }
 
 async function removeDoc(docId) {
@@ -182,7 +210,7 @@ const docTypes = [
 
         <form @submit.prevent="updateSource" class="space-y-4">
           <UFormGroup label="Category">
-            <USelectMenu v-model="category" :options="categories" />
+            <USelectMenu v-model="category" :options="categories" value-attribute="value" option-attribute="label" />
           </UFormGroup>
 
           <UFormGroup label="Name" required>
@@ -233,18 +261,23 @@ const docTypes = [
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="font-bold">Documentation</h3>
-            <UButton size="xs" variant="ghost" icon="i-heroicons-plus" @click="showDocModal = true" />
+            <UButton label="Add" size="sm" variant="ghost" icon="i-heroicons-plus" @click="openAddDocModal" />
           </div>
         </template>
 
         <div v-if="docs.length === 0" class="text-center py-10 border-2 border-dashed border-gray-100 rounded-xl">
           <UIcon name="i-heroicons-document-text" class="w-12 h-12 text-gray-200 mx-auto" />
           <p class="text-sm text-gray-500 mt-2">No documentation entries yet.</p>
-          <UButton variant="link" color="red" label="Add first entry" @click="showDocModal = true" />
+          <UButton variant="link" color="red" label="Add first entry" @click="openAddDocModal" />
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div v-for="doc in docs" :key="doc.id" class="p-4 bg-gray-50 rounded-xl border border-gray-100 relative group hover:border-red-200 transition-colors">
+          <div
+            v-for="doc in docs"
+            :key="doc.id"
+            class="p-4 bg-gray-50 rounded-xl border border-gray-100 relative group hover:border-red-200 transition-colors cursor-pointer"
+            @click="openEditDocModal(doc)"
+          >
             <div class="flex items-center gap-2 mb-2">
               <UBadge size="xs" variant="solid" color="gray">{{ doc.doc_type }}</UBadge>
               <span v-if="doc.target" class="text-[10px] font-bold text-gray-400 truncate">{{ doc.target }}</span>
@@ -256,7 +289,7 @@ const docTypes = [
               color="red"
               variant="ghost"
               icon="i-heroicons-trash"
-              @click="removeDoc(doc.id)"
+              @click.stop="removeDoc(doc.id)"
             />
           </div>
         </div>
@@ -268,7 +301,7 @@ const docTypes = [
       <UCard>
         <template #header>
           <div class="flex items-center justify-between">
-            <h3 class="font-bold">Add Documentation</h3>
+            <h3 class="font-bold">{{ editingDocId ? 'Edit Documentation' : 'Add Documentation' }}</h3>
             <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark" @click="showDocModal = false" />
           </div>
         </template>
@@ -277,7 +310,7 @@ const docTypes = [
           <UFormGroup label="Type">
             <USelectMenu v-model="docForm.doc_type" :options="docTypes" value-attribute="value" option-attribute="label" />
           </UFormGroup>
-          
+
           <UFormGroup label="Target (Table/Column/Entity)">
             <UInput v-model="docForm.target" placeholder="users.email or customers" />
             <template #hint>Leave empty for global source docs</template>
@@ -287,7 +320,7 @@ const docTypes = [
             <UTextarea v-model="docForm.content" placeholder="Description of the target..." />
           </UFormGroup>
 
-          <UButton type="submit" block color="red" label="Add Documentation" />
+          <UButton type="submit" block color="red" :label="editingDocId ? 'Update Documentation' : 'Add Documentation'" />
         </form>
       </UCard>
     </UModal>
