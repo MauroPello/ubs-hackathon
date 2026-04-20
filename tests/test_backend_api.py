@@ -31,6 +31,8 @@ def test_frontend_homepage(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     assert "Data Source Manager" in response.text
+    assert "MCP Usage Dashboard" in response.text
+    assert "Connect Notion (fake)" in response.text
 
 
 def test_data_sources_crud(tmp_path: Path) -> None:
@@ -141,3 +143,47 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
     with sqlite3.connect(meta_db) as conn:
         row = conn.execute("SELECT COUNT(*) FROM source_docs").fetchone()
     assert row is not None and int(row[0]) == 0
+
+
+def test_mcp_usage_endpoint(tmp_path: Path) -> None:
+    source_db = tmp_path / "source.db"
+    _seed_sqlite_source(source_db)
+    app = create_app(meta_db_path=tmp_path / "meta.db", catalog_path=tmp_path / "catalog.db")
+    client = TestClient(app)
+
+    initial = client.get("/mcp-usage")
+    assert initial.status_code == 200
+    payload = initial.json()
+    assert payload["registered_sources"] == 0
+    assert payload["stored_docs"] == 0
+    assert payload["catalog_tables"] == 0
+    assert len(payload["requests_trend_7d"]) == 7
+    assert set(payload["simulated_connectors"]) == {"notion", "google_workspace"}
+
+    create_source = client.post(
+        "/data-sources",
+        json={"name": "demo_sqlite", "type": "sqlite", "connection": str(source_db)},
+    )
+    assert create_source.status_code == 201
+
+    create_doc = client.post(
+        "/data-sources/demo_sqlite/docs",
+        json={"doc_type": "table", "target": "orders", "content": "Orders description"},
+    )
+    assert create_doc.status_code == 201
+
+    usage_after = client.get("/mcp-usage")
+    assert usage_after.status_code == 200
+    usage_payload = usage_after.json()
+    assert usage_payload["registered_sources"] == 1
+    assert usage_payload["stored_docs"] == 1
+    assert usage_payload["catalog_tables"] >= 1
+    assert usage_payload["requests_last_24h"] >= 24
+    assert usage_payload["avg_latency_ms"] >= 95
+    assert 95.0 <= usage_payload["success_rate_pct"] <= 99.9
+    assert set(usage_payload["tool_calls_24h"]) == {
+        "search_schema",
+        "describe_table",
+        "execute_query",
+        "list_data_sources",
+    }
