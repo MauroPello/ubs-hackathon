@@ -170,7 +170,10 @@ class SQLAlchemyDataSource(DataSource):
 
     def _quote_qualified_identifier(self, identifier: str) -> str:
         preparer = self._engine.dialect.identifier_preparer
-        parts = [part for part in identifier.split(".") if part]
+        raw_parts = identifier.split(".")
+        if not identifier or any(part == "" for part in raw_parts):
+            raise ValueError(f"Malformed identifier: {identifier!r}")
+        parts = raw_parts
         if not parts:
             raise ValueError("Identifier cannot be empty")
         return ".".join(preparer.quote_identifier(part) for part in parts)
