@@ -69,12 +69,13 @@ class MetaStore:
     @staticmethod
     def _normalize_sensitive_columns(columns: list[str] | None) -> list[str]:
         normalized: list[str] = []
+        seen: set[str] = set()
         for raw in columns or []:
             value = str(raw).strip()
-            if not value:
+            if not value or value in seen:
                 continue
-            if value not in normalized:
-                normalized.append(value)
+            seen.add(value)
+            normalized.append(value)
         return normalized
 
     @staticmethod

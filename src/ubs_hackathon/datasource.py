@@ -28,6 +28,7 @@ FORBIDDEN_CYPHER = re.compile(
 )
 TEMP_VIEW_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SESSION_ID_NAME = re.compile(r"^[A-Za-z0-9_\-]+$")
+IDENTIFIER_STRIP_CHARS = '"`[]'
 # Supported graph source type aliases (including legacy `mcp_graph` spelling).
 GRAPH_ADAPTER_TYPES: frozenset[str] = frozenset(
     {"delegated_graph", "graph", "mcp_graph"}
@@ -64,6 +65,7 @@ class DataSource(ABC):
         self.config = config
         self._sensitive_unqualified: set[str] = set()
         self._sensitive_qualified: set[tuple[str, str]] = set()
+        self._sensitive_any_qualified_column: set[str] = set()
         for raw in config.sensitive_columns or []:
             token = self._normalize_identifier_token(raw)
             if not token:
@@ -72,6 +74,7 @@ class DataSource(ABC):
                 entity, column = token.split(".", 1)
                 if entity and column:
                     self._sensitive_qualified.add((entity, column))
+                    self._sensitive_any_qualified_column.add(column)
                     continue
             self._sensitive_unqualified.add(token)
 
@@ -155,10 +158,13 @@ class DataSource(ABC):
 
     @staticmethod
     def _normalize_identifier_token(identifier: str | None) -> str:
-        value = str(identifier or "").strip().strip('"`[]')
+        value = str(identifier or "").strip().strip(IDENTIFIER_STRIP_CHARS)
         if not value:
             return ""
-        pieces = [part.strip().strip('"`[]').lower() for part in value.split(".")]
+        pieces = [
+            part.strip().strip(IDENTIFIER_STRIP_CHARS).lower()
+            for part in value.split(".")
+        ]
         pieces = [part for part in pieces if part]
         if not pieces:
             return ""
@@ -170,6 +176,8 @@ class DataSource(ABC):
             return False
 
         if normalized_column in self._sensitive_unqualified:
+            return True
+        if normalized_column in self._sensitive_any_qualified_column:
             return True
 
         if "." in normalized_column:
@@ -603,8 +611,9 @@ class DelegatedGraphDataSource(DataSource):
             if not str(col.get("name", "")).strip():
                 continue
             column_name = str(col.get("name"))
-            masked_samples = [] if self._is_sensitive_column(column_name, table=name) else list(
-                col.get("sample_values", []) or []
+            sample_values = list(col.get("sample_values", []) or [])
+            masked_samples = (
+                [] if self._is_sensitive_column(column_name, table=name) else sample_values
             )
             columns.append(
                 ColumnDoc(

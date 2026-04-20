@@ -159,7 +159,9 @@ def test_sensitive_columns_are_masked_in_query_results_and_samples(tmp_path: Pat
     assert email_col.sample_values == []
     assert segment_col.sample_values is not None and len(segment_col.sample_values) > 0
 
-    result = source.execute_read_only("SELECT customer_id, email, segment FROM customers ORDER BY customer_id")
+    result = source.execute_read_only(
+        "SELECT customer_id, email, segment FROM customers ORDER BY customer_id"
+    )
     assert result["columns"] == ["customer_id", "segment"]
     assert result["masked_columns"] == ["email"]
     assert result["rows"] == [

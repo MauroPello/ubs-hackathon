@@ -225,6 +225,11 @@ FRONTEND_HTML = """
       return data;
     };
 
+    const parseSensitiveColumns = () => {
+      const raw = document.getElementById("src-sensitive-cols").value.trim();
+      return raw ? raw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+    };
+
     const updateDocTargetHint = () => {
       const docType = document.getElementById("doc-type").value;
       const hint = document.getElementById("doc-target-hint");
@@ -358,10 +363,7 @@ FRONTEND_HTML = """
       const name = document.getElementById("src-name").value.trim();
       const type = document.getElementById("src-type").value.trim();
       const connection = document.getElementById("src-conn").value.trim();
-      const sensitiveColumnsRaw = document.getElementById("src-sensitive-cols").value.trim();
-      const sensitive_columns = sensitiveColumnsRaw
-        ? sensitiveColumnsRaw.split(",").map((v) => v.trim()).filter(Boolean)
-        : [];
+      const sensitive_columns = parseSensitiveColumns();
       if (!name || !type || !connection) return msg("Please fill name, type, and connection.", true);
       try {
         await req("/data-sources", {method:"POST", body: JSON.stringify({name, type, connection, sensitive_columns})});
@@ -377,10 +379,7 @@ FRONTEND_HTML = """
       const name = document.getElementById("src-name").value.trim();
       const type = document.getElementById("src-type").value.trim();
       const connection = document.getElementById("src-conn").value.trim();
-      const sensitiveColumnsRaw = document.getElementById("src-sensitive-cols").value.trim();
-      const sensitive_columns = sensitiveColumnsRaw
-        ? sensitiveColumnsRaw.split(",").map((v) => v.trim()).filter(Boolean)
-        : [];
+      const sensitive_columns = parseSensitiveColumns();
       if (!name || !type || !connection) return msg("Please fill name, type, and connection.", true);
       try {
         await req(`/data-sources/${encodeURIComponent(name)}`, {
