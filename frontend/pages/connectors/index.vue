@@ -89,11 +89,11 @@ function resetForm() {
 
           <form @submit.prevent="saveConfig" class="space-y-4">
             <UFormGroup label="Configuration Name" required>
-              <UInput v-model="form.name" placeholder="my_neo4j_prod" />
+              <UInput v-model="form.name" placeholder="my_sql_db" />
             </UFormGroup>
 
             <UFormGroup v-if="selectedRegistry.is_mcp_tool" label="MCP endpoint">
-              <UInput v-model="form.endpoint" placeholder="http://..." />
+              <UInput v-model="form.endpoint" placeholder="https://..." />
             </UFormGroup>
 
             <div v-if="selectedRegistry.auth_schema" class="space-y-4 border-t border-gray-100 pt-4">
