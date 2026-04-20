@@ -82,8 +82,8 @@ class SourceRegistry:
 
     def _refresh_if_needed(self) -> None:
         now = time.time()
-        if not self._configs or (now - self._last_refresh) > self._ttl:
-            self.refresh()
+        if self._configs and (now - self._last_refresh) < self._ttl:
+            return
 
         # Start with YAML sources as base
         new_configs: dict[str, DataSourceConfig] = {
