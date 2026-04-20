@@ -11,11 +11,16 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 
 from .catalog import SchemaCatalog
-from .config import load_config, get_registry_entry
+from .config import load_config
 from .datasource import DataSource, build_data_source, UpstreamMCPDataSource
 from .meta_store import MetaStore
 from .models import DataSourceConfig
-from .source_runtime import RuntimeResolutionError, build_runtime_source_config
+from .source_runtime import (
+    RuntimeResolutionError,
+    build_runtime_source_config,
+    resolve_data_type,
+    SQL_SOURCE_TYPE,
+)
 
 
 def _extract_exposed_tool_specs(
@@ -80,14 +85,19 @@ class SourceRegistry:
         if not self._configs or (now - self._last_refresh) > self._ttl:
             self.refresh()
 
-    def refresh(self) -> None:
+        # Start with YAML sources as base
+        new_configs: dict[str, DataSourceConfig] = {
+            c.name: c for c in self.yaml_sources
+        }
+
         if self.meta_db_path:
             store = MetaStore(Path(self.meta_db_path))
 
-            # Load upstreams for proxy tools
+            # Reset upstream tracking
             self._upstream_sources = {}
             self._upstream_tool_specs = {}
             self._connector_configs = {}
+
             for upstream_cfg in store.list_upstream_configs():
                 self._connector_configs[upstream_cfg.id] = upstream_cfg
                 if not upstream_cfg.exposed_tools:
@@ -98,31 +108,28 @@ class SourceRegistry:
 
                 self._upstream_tool_specs[upstream_cfg.id] = tool_specs
 
-                entry = get_registry_entry(self.registry, upstream_cfg.server_id)
-                data_type = (
-                    str((entry or {}).get("data_type") or upstream_cfg.server_id)
-                    .strip()
-                    .lower()
-                )
-                if data_type == "sql":
-                    # Internal SQL-like connector doesn't need an UpstreamMCPDataSource proxy
+                # Build an UpstreamMCPDataSource proxy for non-SQL connectors
+                try:
+                    data_type = resolve_data_type(upstream_cfg, self.registry)
+                except Exception:
+                    continue
+                if data_type == SQL_SOURCE_TYPE:
                     continue
 
-                endpoint = upstream_cfg.endpoint or ""
-                upstream_source = UpstreamMCPDataSource(
-                    DataSourceConfig(
-                        name=f"upstream__{upstream_cfg.id}",
-                        type="graph",
-                        connection=f"upstream://{upstream_cfg.id}",
-                        upstream_mcp_server_config_id=upstream_cfg.id,
-                    ),
-                    endpoint,
-                    [name for name, _ in tool_specs],
+                proxy_cfg = DataSourceConfig(
+                    name=f"upstream__{upstream_cfg.id}",
+                    type=data_type,
+                    upstream_mcp_server_config_id=upstream_cfg.id,
+                    options={
+                        "endpoint": upstream_cfg.endpoint or "",
+                        "exposed_tools": [name for name, _ in tool_specs],
+                    },
                 )
-                self._upstream_sources[upstream_cfg.id] = upstream_source
+                self._upstream_sources[upstream_cfg.id] = UpstreamMCPDataSource(
+                    proxy_cfg
+                )
 
-            # Load sources
-            new_configs = {}
+            # Load sources from DB (will overwrite YAML sources with same name)
             for reg in store.list_data_sources():
                 config_id = reg.upstream_mcp_server_config_id
                 if not config_id:
@@ -135,10 +142,8 @@ class SourceRegistry:
                 except RuntimeResolutionError:
                     continue
                 new_configs[reg.name] = cfg
-            self._configs = new_configs
-        else:
-            self._configs = {c.name: c for c in self.yaml_sources}
 
+        self._configs = new_configs
         self._last_refresh = time.time()
 
     def get_all_configs(self) -> list[DataSourceConfig]:
@@ -266,9 +271,8 @@ def create_server(
     @mcp.tool()
     def list_data_sources() -> list[dict]:
         """Enumerate configured data sources and supported type."""
-        configs = registry.get_all_configs()
         results = []
-        for cfg in configs:
+        for cfg in registry.get_all_configs():
             results.append(
                 {
                     "name": cfg.name,

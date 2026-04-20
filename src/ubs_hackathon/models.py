@@ -8,7 +8,7 @@ from typing import Any
 class DataSourceConfig:
     name: str
     type: str
-    connection: str
+    connection: str | None = None
     description: str | None = None
     adapter: str | None = None
     options: dict[str, Any] | None = None

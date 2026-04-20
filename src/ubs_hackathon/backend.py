@@ -22,7 +22,6 @@ from .catalog import SchemaCatalog
 from .config import load_config, get_registry_entry, list_registry_entries
 from .datasource import build_data_source
 from .meta_store import MetaStore, _UNSET
-from .models import DataSourceConfig
 from .source_runtime import RuntimeResolutionError, build_runtime_source_config
 
 _UNSET_SENTINEL = _UNSET
@@ -230,10 +229,6 @@ def _rebuild_catalog_for_data_source(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Connector '{config_id}' not found",
         )
-    entry = get_registry_entry(registry, u_cfg.server_id)
-    data_type = str((entry or {}).get("data_type") or u_cfg.server_id).strip().lower()
-    if data_type != "sql":
-        return 0
     try:
         runtime_cfg = build_runtime_source_config(registration, u_cfg, registry)
     except RuntimeResolutionError as exc:
@@ -242,24 +237,13 @@ def _rebuild_catalog_for_data_source(
             detail=str(exc),
         ) from exc
 
-    source = build_data_source(
-        DataSourceConfig(
-            name=runtime_cfg.name,
-            type=runtime_cfg.type,
-            connection=runtime_cfg.connection,
-            sensitive_columns=runtime_cfg.sensitive_columns,
-            description=runtime_cfg.description,
-            databases=runtime_cfg.databases,
-            upstream_mcp_server_config_id=runtime_cfg.upstream_mcp_server_config_id,
-        )
-    )
+    source = build_data_source(runtime_cfg)
     docs_map = _docs_to_schema_map(
         name, [row.to_dict() for row in store.list_docs(name)]
     )
 
     total_tables = 0
-    for table in source.list_tables():
-        doc = source.table_doc(table)
+    for doc in source.catalog_docs():
         _apply_schema_docs(doc, docs_map)
         catalog.upsert_table_doc(doc)
         total_tables += 1

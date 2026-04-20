@@ -5,7 +5,7 @@ import re
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Sequence
+from typing import Any, Sequence
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
@@ -29,10 +29,6 @@ FORBIDDEN_CYPHER = re.compile(
 TEMP_VIEW_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SESSION_ID_NAME = re.compile(r"^[A-Za-z0-9_\-]+$")
 IDENTIFIER_STRIP_CHARS = '"`[]'
-# Supported graph source type aliases (including legacy `mcp_graph` spelling).
-GRAPH_ADAPTER_TYPES: frozenset[str] = frozenset(
-    {"delegated_graph", "graph", "mcp_graph"}
-)
 
 
 class TemporaryViewError(ValueError):
@@ -52,6 +48,11 @@ def _resolve_connection_url(config: DataSourceConfig) -> str:
     existing configs keep working without modification.
     """
     conn = config.connection
+    if not conn:
+        raise ValueError(
+            f"Data source '{config.name}' requires a connection string "
+            f"but none was provided"
+        )
     if config.type == "sqlite" and "://" not in conn:
         return f"sqlite:///{conn}"
     return conn
@@ -227,7 +228,7 @@ class DataSource(ABC):
 
 
 # ---------------------------------------------------------------------------
-# Universal SQLAlchemy implementation
+# SQLAlchemy data source — handles all SQL-like databases
 # ---------------------------------------------------------------------------
 
 
@@ -582,237 +583,29 @@ class SQLAlchemyDataSource(DataSource):
                 pass
 
 
-class DelegatedGraphDataSource(DataSource):
-    """Graph data source delegating query execution to an external endpoint."""
-
-    def __init__(self, config: DataSourceConfig) -> None:
-        super().__init__(config)
-        self._options: dict[str, Any] = dict(config.options or {})
-        self._entities: list[dict[str, Any]] = list(
-            self._options.get("graph_entities", []) or []
-        )
-
-    @staticmethod
-    def _validate_read_only_graph_query(query: str) -> str:
-        statement = query.strip().rstrip(";")
-        if not statement:
-            raise ValueError("Graph query cannot be empty")
-        if ";" in statement:
-            raise ValueError("Only a single graph statement is allowed")
-        if not ALLOWED_CYPHER_START.search(statement):
-            raise ValueError("Only read-only graph queries are allowed")
-        if FORBIDDEN_CYPHER.search(statement):
-            raise ValueError("Potentially mutating graph query is not allowed")
-        return statement
-
-    def _entity_doc(self, item: dict[str, Any]) -> TableDoc:
-        name = str(item.get("name") or "").strip()
-        if not name:
-            raise ValueError("Graph entity entry must include a non-empty 'name'")
-        entity_type = str(item.get("entity_type") or "graph_node").strip().lower()
-        if entity_type not in {"graph_node", "graph_relationship"}:
-            entity_type = "graph_node"
-        columns: list[ColumnDoc] = []
-        for col in item.get("columns", []) or []:
-            if not str(col.get("name", "")).strip():
-                continue
-            column_name = str(col.get("name"))
-            sample_values = list(col.get("sample_values", []) or [])
-            masked_samples = (
-                []
-                if self._is_sensitive_column(column_name, table=name)
-                else sample_values
-            )
-            columns.append(
-                ColumnDoc(
-                    name=column_name,
-                    data_type=str(col.get("data_type") or "text"),
-                    nullable=bool(col.get("nullable", True)),
-                    description=col.get("description"),
-                    sample_values=masked_samples,
-                )
-            )
-        foreign_keys = [
-            ForeignKeyDoc(
-                column=str(fk.get("column")),
-                ref_table=str(fk.get("ref_table")),
-                ref_column=str(fk.get("ref_column")),
-            )
-            for fk in (item.get("foreign_keys", []) or [])
-            if str(fk.get("column", "")).strip()
-            and str(fk.get("ref_table", "")).strip()
-            and str(fk.get("ref_column", "")).strip()
-        ]
-        return TableDoc(
-            data_source=self.config.name,
-            table=name,
-            table_type=entity_type,
-            description=item.get("description"),
-            row_count_estimate=(
-                int(item["row_count_estimate"])
-                if item.get("row_count_estimate") is not None
-                else None
-            ),
-            columns=columns,
-            foreign_keys=foreign_keys,
-        )
-
-    def _entity_index(self) -> dict[str, dict[str, Any]]:
-        return {
-            doc["name"]: doc
-            for doc in self._entities
-            if isinstance(doc, dict) and str(doc.get("name", "")).strip()
-        }
-
-    def _delegate_tool(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        endpoint = str(self._options.get("delegated_endpoint") or "").strip()
-        if not endpoint:
-            return {
-                "delegated": False,
-                "reason": "No delegated_endpoint configured",
-                "tool": tool,
-                "arguments": arguments,
-            }
-        payload = json.dumps(
-            {
-                "data_source": self.config.name,
-                "tool": tool,
-                "arguments": arguments,
-            }
-        ).encode("utf-8")
-        req = urllib_request.Request(
-            endpoint,
-            data=payload,
-            method="POST",
-            headers={"Content-Type": "application/json"},
-        )
-        timeout_seconds = float(self._options.get("request_timeout", 30))
-        try:
-            with urllib_request.urlopen(req, timeout=timeout_seconds) as resp:
-                body = resp.read().decode("utf-8")
-            data = json.loads(body) if body else {}
-            return {"delegated": True, "tool": tool, "result": data}
-        except (urllib_error.URLError, json.JSONDecodeError) as exc:
-            raise ValueError(f"Delegated MCP call failed for '{tool}': {exc}") from exc
-
-    def list_tables(self) -> list[str]:
-        return self.list_graph_entities()
-
-    def table_doc(self, table: str) -> TableDoc:
-        return self.describe_graph_entity(table)
-
-    def execute_read_only(
-        self, sql: str, limit: int = 200, session_id: str | None = None
-    ) -> dict[str, Any]:
-        raise ValueError(
-            f"Data source '{self.config.name}' does not support SQL queries; use execute_graph_query"
-        )
-
-    def list_temporary_views(
-        self, session_id: str | None = None
-    ) -> list[dict[str, Any]]:
-        return []
-
-    def create_temporary_view(
-        self,
-        sql: str,
-        view_name: str | None = None,
-        ttl_seconds: int = 3600,
-        session_id: str | None = None,
-    ) -> dict[str, Any]:
-        raise TemporaryViewError(
-            f"Data source '{self.config.name}' does not support temporary SQL views"
-        )
-
-    def drop_temporary_view(
-        self, view_name: str, session_id: str | None = None
-    ) -> dict[str, Any]:
-        raise TemporaryViewError(
-            f"Data source '{self.config.name}' does not support temporary SQL views"
-        )
-
-    def list_graph_entities(self) -> list[str]:
-        return sorted(self._entity_index().keys())
-
-    def describe_graph_entity(self, entity: str) -> TableDoc:
-        item = self._entity_index().get(entity)
-        if item is None:
-            raise ValueError(f"Graph entity not found: {entity}")
-        return self._entity_doc(item)
-
-    def execute_graph_read_only(
-        self, query: str, limit: int = 200, session_id: str | None = None
-    ) -> dict[str, Any]:
-        statement = self._validate_read_only_graph_query(query)
-        safe_limit = max(0, int(limit))
-        tool_map = dict(self._options.get("tool_map") or {})
-        execute_tool = str(tool_map.get("execute_graph_query") or "execute_graph_query")
-        delegated = self._delegate_tool(
-            execute_tool,
-            {"query": statement, "limit": safe_limit, "session_id": session_id},
-        )
-        # Keep `mock_rows` as a backward-compatible alias for existing configs.
-        sample_rows = list(
-            self._options.get("sample_rows", self._options.get("mock_rows", [])) or []
-        )
-        sample_columns = sorted(
-            {str(k) for row in sample_rows if isinstance(row, dict) for k in row.keys()}
-        )
-        safe_columns, safe_rows, masked_columns = self._sanitize_result_rows(
-            sample_columns,
-            [
-                tuple(row.get(col) for col in sample_columns)
-                for row in sample_rows
-                if isinstance(row, dict)
-            ],
-        )
-        limited_rows = safe_rows[:safe_limit]
-        return {
-            "query": statement,
-            "limit": safe_limit,
-            "delegated": delegated,
-            "columns": safe_columns,
-            "rows": limited_rows,
-            "row_count": len(limited_rows),
-            "truncated": len(safe_rows) > safe_limit,
-            "masked_columns": masked_columns,
-        }
-
-    def capabilities(self) -> list[str]:
-        return ["list_graph_entities", "describe_graph_entity", "execute_graph_query"]
-
-
-# ---------------------------------------------------------------------------
 # Backward-compat alias – existing code that imports SQLiteDataSource keeps
 # working; the SQLAlchemy implementation handles SQLite automatically.
-# ---------------------------------------------------------------------------
 SQLiteDataSource = SQLAlchemyDataSource
 
 
 # ---------------------------------------------------------------------------
-# Upstream MCP data source – forwards tool calls to a configured upstream
-# MCP server via a simple JSON HTTP proxy.
+# Upstream MCP data source — proxies tool calls to an external MCP server
 # ---------------------------------------------------------------------------
-
-# Data types that are routed to an upstream MCP server (not SQL in-house).
-UPSTREAM_MCP_DATA_TYPES: frozenset[str] = frozenset({"graph", "documents"})
 
 
 class UpstreamMCPDataSource(DataSource):
     """Data source that proxies tool calls to a configured upstream MCP server.
 
-    This adapter is used when a data source references an upstream MCP server
-    config (``upstream_mcp_server_config_id``).  It replaces the older
-    :class:`DelegatedGraphDataSource` for new-style graph sources and also
-    handles document-type upstream sources.
+    Used for **graph** and **documents** source types.  The ``endpoint`` and
+    ``exposed_tools`` are read from ``config.options`` which is populated by
+    :func:`~.source_runtime.build_runtime_source_config`.
     """
 
-    def __init__(
-        self, config: DataSourceConfig, endpoint: str, exposed_tools: list[str]
-    ) -> None:
+    def __init__(self, config: DataSourceConfig) -> None:
         super().__init__(config)
-        self._endpoint = endpoint.strip()
-        self._exposed_tools: list[str] = list(exposed_tools)
+        opts: dict[str, Any] = dict(config.options or {})
+        self._endpoint: str = str(opts.get("endpoint") or "").strip()
+        self._exposed_tools: list[str] = list(opts.get("exposed_tools") or [])
 
     # ------------------------------------------------------------------
     # Delegation helper
@@ -913,52 +706,30 @@ class UpstreamMCPDataSource(DataSource):
 
 
 # ---------------------------------------------------------------------------
-# Adapter registry and factory
+# Factory
 # ---------------------------------------------------------------------------
 
-DataSourceFactory = Callable[[DataSourceConfig], DataSource]
-_ADAPTER_REGISTRY: dict[str, DataSourceFactory] = {}
+# Source types that are handled by UpstreamMCPDataSource.
+_UPSTREAM_TYPES: frozenset[str] = frozenset({"graph", "documents"})
 
-
-def register_data_source_adapter(name: str, factory: DataSourceFactory) -> None:
-    key = (name or "").strip().lower()
-    if not key:
-        raise ValueError("Adapter name cannot be empty")
-    _ADAPTER_REGISTRY[key] = factory
-
-
-def _default_adapter_key(config: DataSourceConfig) -> str:
-    explicit = (config.adapter or "").strip().lower()
-    if explicit:
-        return explicit
-    if (config.connection or "").startswith("upstream://"):
-        return "upstream"
-    source_type = (config.type or "").strip().lower()
-    if source_type in GRAPH_ADAPTER_TYPES:
-        return "delegated_graph"
-    return "sqlalchemy"
+# Source types handled by SQLAlchemyDataSource (common SQL dialects).
+_SQL_TYPES: frozenset[str] = frozenset(
+    {"sql", "sqlite", "postgresql", "postgres", "mysql", "mssql", "oracle"}
+)
 
 
 def build_data_source(config: DataSourceConfig) -> DataSource:
-    """Return a registered :class:`DataSource` adapter for *config*."""
-    adapter_key = _default_adapter_key(config)
-    factory = _ADAPTER_REGISTRY.get(adapter_key)
-    if factory is None:
-        raise ValueError(f"Unsupported data source adapter: {adapter_key}")
-    return factory(config)
+    """Create the appropriate :class:`DataSource` for *config*.
 
+    Dispatch rules (checked in order):
 
-def _build_upstream_adapter(config: DataSourceConfig) -> UpstreamMCPDataSource:
-    opts = config.options or {}
-    return UpstreamMCPDataSource(
-        config,
-        endpoint=str(opts.get("endpoint") or ""),
-        exposed_tools=list(opts.get("exposed_tools") or []),
-    )
+    1. ``config.type`` in ``{graph, documents}`` → :class:`UpstreamMCPDataSource`
+    2. Everything else → :class:`SQLAlchemyDataSource`
+    """
+    source_type = (config.type or "").strip().lower()
 
+    if source_type in _UPSTREAM_TYPES:
+        return UpstreamMCPDataSource(config)
 
-register_data_source_adapter("sqlalchemy", SQLAlchemyDataSource)
-register_data_source_adapter("sqlite", SQLAlchemyDataSource)
-register_data_source_adapter("upstream", _build_upstream_adapter)
-for _graph_alias in GRAPH_ADAPTER_TYPES:
-    register_data_source_adapter(_graph_alias, DelegatedGraphDataSource)
+    # Default: SQL-like source (SQLite, PostgreSQL, MySQL, etc.)
+    return SQLAlchemyDataSource(config)

@@ -46,10 +46,7 @@ def load_config(
             )
         ds = DataSourceConfig(
             name=source["name"],
-            type=(source.get("type") or "managed").lower(),
-            connection=_resolve_env(
-                source.get("connection", f"managed://{upstream_id}")
-            ),
+            type=(source.get("type") or "").strip().lower(),
             description=source.get("description"),
             adapter=(source.get("adapter") or "").strip().lower() or None,
             options=source.get("options"),

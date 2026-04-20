@@ -8,7 +8,10 @@ from .catalog import SchemaCatalog
 from .config import load_config, get_registry_entry
 from .datasource import build_data_source
 from .models import DataSourceConfig, TableDoc
-from .source_runtime import RuntimeResolutionError, build_runtime_source_config
+from .source_runtime import (
+    RuntimeResolutionError,
+    build_runtime_source_config,
+)
 
 
 def _apply_schema_docs(doc: TableDoc, docs_map: dict) -> None:
@@ -140,24 +143,24 @@ def build_catalog(config_path: str | None = None) -> int:
 
     total_tables = 0
     for source_cfg in sources:
-        runtime_cfg = source_cfg
         config_id = source_cfg.upstream_mcp_server_config_id
-        if config_id:
-            connector = store.get_upstream_config(config_id)
-            registration = registration_by_name.get(source_cfg.name)
-            if connector and registration:
-                entry = get_registry_entry(connectors_registry, connector.server_id)
-                data_type = (
-                    str((entry or {}).get("data_type") or connector.server_id)
-                    .strip()
-                    .lower()
-                )
-                try:
-                    runtime_cfg = build_runtime_source_config(
-                        registration, connector, connectors_registry
-                    )
-                except RuntimeResolutionError:
-                    continue
+        if not config_id:
+            continue
+
+        connector = store.get_upstream_config(config_id)
+        registration = registration_by_name.get(source_cfg.name)
+        if not connector or not registration:
+            continue
+
+        # Build the fully-resolved runtime config for any source type.
+        try:
+            runtime_cfg = build_runtime_source_config(
+                registration, connector, connectors_registry
+            )
+        except RuntimeResolutionError as exc:
+            logging.warning("Skipping source '%s': %s", source_cfg.name, exc)
+            continue
+
         source = build_data_source(runtime_cfg)
         for doc in source.catalog_docs():
             _apply_schema_docs(doc, docs_map)
