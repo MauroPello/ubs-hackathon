@@ -173,10 +173,7 @@ class SQLAlchemyDataSource(DataSource):
         raw_parts = identifier.split(".")
         if not identifier or any(part == "" for part in raw_parts):
             raise ValueError(f"Malformed identifier: {identifier!r}")
-        parts = raw_parts
-        if not parts:
-            raise ValueError("Identifier cannot be empty")
-        return ".".join(preparer.quote_identifier(part) for part in parts)
+        return ".".join(preparer.quote_identifier(part) for part in raw_parts)
 
     def _purge_expired_temp_views_locked(self) -> None:
         now = time.time()
@@ -335,8 +332,11 @@ class SQLAlchemyDataSource(DataSource):
             self._purge_expired_temp_views_locked()
             conn = self._connection()
             result = conn.execute(text(statement))
-            rows = result.fetchmany(limit + 1)
-            columns = list(result.keys())
+            try:
+                rows = result.fetchmany(limit + 1)
+                columns = list(result.keys())
+            finally:
+                result.close()
 
         truncated = len(rows) > limit
         rows = rows[:limit]
