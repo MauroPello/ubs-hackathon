@@ -114,6 +114,8 @@ def create_server(
                 per_tool_routes = upstream_tool_routes.setdefault(tool_name, {})
                 per_tool_routes[registration.name] = upstream_source
                 if tool_description:
+                    # If multiple upstreams expose the same tool name with different
+                    # descriptions, keep the first non-empty description.
                     upstream_tool_descriptions.setdefault(tool_name, tool_description)
 
     mcp = FastMCP("ubs-hackathon-assistant", host=host, port=port)

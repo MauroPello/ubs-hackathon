@@ -35,6 +35,7 @@ def test_extract_exposed_tool_specs_accepts_strings_and_dicts() -> None:
         ("search_pages", None),
         ("get_page_content", "Read content"),
     ]
+    assert (" ", "ignored") not in specs
 
 
 def test_upstream_proxy_routes_same_tool_name_by_data_source() -> None:
