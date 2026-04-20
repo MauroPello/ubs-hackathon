@@ -152,10 +152,6 @@ class SourceRegistry:
                     continue
                 new_configs[reg.name.strip()] = cfg
 
-        # Debug logging to track config state
-        print(f"DEBUG: YAML sources: {[c.name for c in self.yaml_sources]}", file=sys.stderr)
-        print(f"DEBUG: Registry config keys: {list(new_configs.keys())}", file=sys.stderr)
-        
         self._configs = new_configs
         self._last_refresh = time.time()
 
@@ -319,7 +315,7 @@ def create_server(
                 {
                     "name": cfg.name,
                     "type": cfg.type,
-                    "adapter": cfg.adapter or cfg.type,
+                    "description": cfg.description,
                     "sensitive_columns": list(cfg.sensitive_columns or []),
                     "capabilities": registry.get_allowed_tools(cfg.name),
                 }

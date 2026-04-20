@@ -10,7 +10,6 @@ class DataSourceConfig:
     type: str
     connection: str | None = None
     description: str | None = None
-    adapter: str | None = None
     options: dict[str, Any] | None = None
     databases: list[str] | None = None
     sensitive_columns: list[str] | None = None

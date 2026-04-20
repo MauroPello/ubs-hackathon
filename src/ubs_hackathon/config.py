@@ -49,7 +49,6 @@ def load_config(
             name=source["name"].strip(),
             type=(source.get("type") or "").strip().lower(),
             description=source.get("description"),
-            adapter=(source.get("adapter") or "").strip().lower() or None,
             options=source.get("options"),
             databases=list(source.get("databases", []) or []),
             sensitive_columns=list(source.get("sensitive_columns", []) or []),
