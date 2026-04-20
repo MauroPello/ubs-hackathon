@@ -13,6 +13,7 @@ class DataSourceConfig:
     adapter: str | None = None
     options: dict[str, Any] | None = None
     sensitive_columns: list[str] | None = None
+    upstream_mcp_server_config_id: str | None = None
 
 
 @dataclass(slots=True)
@@ -55,6 +56,24 @@ class DataSourceRegistration:
     created_at: str
     updated_at: str
     description: str | None = None
+    upstream_mcp_server_config_id: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class UpstreamMCPServerConfigRecord:
+    """A user-configured instance of an upstream MCP server."""
+
+    id: str
+    server_id: str
+    name: str
+    endpoint: str | None
+    auth: dict[str, Any]
+    exposed_tools: list[str]
+    created_at: str
+    updated_at: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

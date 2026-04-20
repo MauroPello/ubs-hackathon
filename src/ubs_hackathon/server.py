@@ -2,22 +2,63 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
 from .catalog import SchemaCatalog
 from .config import load_config
-from .datasource import build_data_source
+from .datasource import build_data_source, UpstreamMCPDataSource
+from .meta_store import MetaStore
+from .models import DataSourceConfig
+
+
+def _make_upstream_proxy(
+    source: UpstreamMCPDataSource, tool_name: str
+):
+    """Return a callable that proxies calls to the upstream MCP server tool."""
+
+    def proxy_tool(arguments: dict[str, Any] | None = None) -> dict:
+        """Proxy tool forwarding requests to an upstream MCP server."""
+        return source.call_upstream_tool(tool_name, arguments or {})
+
+    proxy_tool.__name__ = f"{source.config.name}__{tool_name}"
+    proxy_tool.__doc__ = (
+        f"Proxy tool for data source '{source.config.name}', "
+        f"forwarding to upstream tool '{tool_name}'."
+    )
+    return proxy_tool
 
 
 def create_server(
     config_path: str | None = None,
     host: str = "127.0.0.1",
     port: int = 8000,
+    meta_db_path: str | Path | None = None,
 ) -> FastMCP:
     sources, catalog_path, _ = load_config(config_path)
     source_map = {cfg.name: build_data_source(cfg) for cfg in sources}
     catalog = SchemaCatalog(Path(catalog_path))
+
+    # Load upstream MCP data sources from the metadata store so that
+    # proxy tools are registered for each configured+exposed tool.
+    upstream_sources: dict[str, UpstreamMCPDataSource] = {}
+    if meta_db_path is not None:
+        store = MetaStore(Path(meta_db_path))
+        for upstream_cfg in store.list_upstream_configs():
+            if not upstream_cfg.exposed_tools:
+                continue
+            endpoint = upstream_cfg.endpoint or ""
+            ds_config = DataSourceConfig(
+                name=f"upstream__{upstream_cfg.id}",
+                type="graph",
+                connection=f"upstream://{upstream_cfg.id}",
+                upstream_mcp_server_config_id=upstream_cfg.id,
+            )
+            upstream_source = UpstreamMCPDataSource(
+                ds_config, endpoint, upstream_cfg.exposed_tools
+            )
+            upstream_sources[upstream_cfg.id] = upstream_source
 
     mcp = FastMCP("ubs-hackathon-assistant", host=host, port=port)
 
@@ -125,6 +166,44 @@ def create_server(
             query=query, limit=limit, session_id=session_id
         )
 
+    @mcp.tool()
+    def list_upstream_mcp_sources() -> list[dict]:
+        """List upstream MCP server data sources with their exposed tools."""
+        return [
+            {
+                "config_id": cfg_id,
+                "exposed_tools": src.get_exposed_tools(),
+                "capabilities": src.capabilities(),
+            }
+            for cfg_id, src in upstream_sources.items()
+        ]
+
+    @mcp.tool()
+    def call_upstream_tool(
+        config_id: str,
+        tool_name: str,
+        arguments: dict[str, Any] | None = None,
+    ) -> dict:
+        """Call an exposed tool on a configured upstream MCP server.
+
+        Use list_upstream_mcp_sources to discover available config IDs and tools.
+        """
+        source = upstream_sources.get(config_id)
+        if source is None:
+            raise ValueError(
+                f"Unknown upstream MCP config: {config_id}. "
+                f"Available: {list(upstream_sources.keys())}"
+            )
+        return source.call_upstream_tool(tool_name, arguments or {})
+
+    # Register individual named proxy tools for each exposed upstream tool
+    # so that MCP clients can discover them by name.
+    for _cfg_id, _upstream_src in upstream_sources.items():
+        for _tool_name in _upstream_src.get_exposed_tools():
+            _proxy = _make_upstream_proxy(_upstream_src, _tool_name)
+            _full_name = f"{_cfg_id}__{_tool_name}"
+            mcp.tool(name=_full_name)(_proxy)
+
     return mcp
 
 
@@ -139,9 +218,19 @@ def main() -> None:
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument(
+        "--meta-db",
+        default=None,
+        help="Path to metadata DB (enables dynamic upstream MCP proxy tools)",
+    )
     args = parser.parse_args()
 
-    mcp = create_server(args.config, host=args.host, port=args.port)
+    mcp = create_server(
+        args.config,
+        host=args.host,
+        port=args.port,
+        meta_db_path=args.meta_db,
+    )
     if args.transport == "stdio":
         mcp.run(transport="stdio")
     else:

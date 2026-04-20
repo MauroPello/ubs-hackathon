@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sqlite3
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -13,8 +15,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from .builder import _apply_schema_docs
 from .catalog import SchemaCatalog
 from .datasource import build_data_source
-from .meta_store import MetaStore
+from .meta_store import MetaStore, _UNSET
 from .models import DataSourceConfig
+from .registry import UPSTREAM_MCP_REGISTRY, get_registry_entry, list_registry_entries
+
+_UNSET_SENTINEL = _UNSET
 
 FRONTEND_COMMON_STYLE = """
   <style>
@@ -73,7 +78,7 @@ def _frontend_page(title: str, active_tab: str, body: str, script: str = "") -> 
         "home": ("/", "Overview"),
         "sources": ("/sources", "Sources & Docs"),
         "dashboard": ("/dashboard", "Usage Dashboard"),
-        "connectors": ("/connectors", "Connectors"),
+        "mcp-servers": ("/mcp-servers", "MCP Servers"),
     }
     nav_html = "".join(
         f'<a href="{href}" class="{"active" if key == active_tab else ""}">{label}</a>'
@@ -121,9 +126,9 @@ def _frontend_home_html() -> str:
           <h3>MCP Usage Dashboard</h3>
           <p>Track requests, latency, success rate, and trend data from backend telemetry.</p>
         </a>
-        <a class="card" href="/connectors" style="text-decoration:none;color:inherit;display:block;">
-          <h3>Connector Marketplace</h3>
-          <p>Simulate Notion and Google Workspace connector creation for demos.</p>
+        <a class="card" href="/mcp-servers" style="text-decoration:none;color:inherit;display:block;">
+          <h3>MCP Servers</h3>
+          <p>Register and configure upstream MCP servers (Neo4j, Notion, …) and expose their tools as proxy tools.</p>
         </a>
       </div>
     </div>
@@ -144,14 +149,23 @@ def _frontend_sources_html() -> str:
           <span id="form-mode" class="pill">create mode</span>
         </div>
         <div class="stack">
+          <div class="field">
+            <label>Data Category</label>
+            <div class="actions">
+              <button id="cat-sql" class="ok" onclick="setCategory('sql')">SQL-like</button>
+              <button id="cat-graph" class="ghost" onclick="setCategory('graph')">Graph</button>
+              <button id="cat-documents" class="ghost" onclick="setCategory('documents')">Documents</button>
+            </div>
+            <div class="hint">SQL-like sources are handled in-house. Graph and Document sources require an upstream MCP server.</div>
+          </div>
           <div class="row">
             <div class="field">
               <label for="src-name">Name</label>
               <input id="src-name" placeholder="e.g. sales_sqlite_prod" />
               <div class="hint">Unique key used by MCP tools and endpoints.</div>
             </div>
-            <div class="field">
-              <label for="src-type">Type</label>
+            <div class="field" id="field-src-type">
+              <label for="src-type">SQL Dialect</label>
               <select id="src-type">
                 <option value="sqlite">sqlite</option>
                 <option value="postgresql">postgresql</option>
@@ -161,15 +175,19 @@ def _frontend_sources_html() -> str:
                 <option value="snowflake">snowflake</option>
                 <option value="bigquery">bigquery</option>
                 <option value="duckdb">duckdb</option>
-                <option value="notion">notion (simulated)</option>
-                <option value="google_workspace">google_workspace (simulated)</option>
               </select>
-              <div class="hint">Choose the source technology or a simulated connector.</div>
             </div>
           </div>
-          <div class="field">
+          <div class="field" id="field-src-conn">
             <label for="src-conn">Connection string / path</label>
             <input id="src-conn" placeholder="sqlite:///data/demo.db or postgresql+psycopg2://..." />
+          </div>
+          <div class="field" id="field-src-upstream" style="display:none">
+            <label for="src-upstream">Upstream MCP Server</label>
+            <select id="src-upstream">
+              <option value="">-- select a configured upstream MCP server --</option>
+            </select>
+            <div class="hint">Select a configured upstream MCP server. Configure servers on the <a href="/mcp-servers">MCP Servers</a> page.</div>
           </div>
           <div class="field">
             <label for="src-sensitive-cols">Sensitive columns</label>
@@ -224,7 +242,8 @@ def _frontend_sources_html() -> str:
 
     script = """
     let selectedSource = null;
-    const fakeTypes = new Set(["notion", "google_workspace"]);
+    let currentCategory = "sql";
+    const upstreamTypeMap = {};  // config_id -> data_type
 
     const msg = (text, isErr=false) => {
       const el = document.getElementById("message");
@@ -244,6 +263,32 @@ def _frontend_sources_html() -> str:
     const parseSensitiveColumns = () => {
       const raw = document.getElementById("src-sensitive-cols").value.trim();
       return raw ? raw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+    };
+
+    const setCategory = (cat) => {
+      currentCategory = cat;
+      ["sql","graph","documents"].forEach(c => {
+        const btn = document.getElementById("cat-"+c);
+        btn.className = c === cat ? "ok" : "ghost";
+      });
+      const isSql = cat === "sql";
+      document.getElementById("field-src-type").style.display = isSql ? "" : "none";
+      document.getElementById("field-src-conn").style.display = isSql ? "" : "none";
+      document.getElementById("field-src-upstream").style.display = isSql ? "none" : "";
+      if (!isSql) refreshUpstreamOptions(cat);
+    };
+
+    const refreshUpstreamOptions = async (cat) => {
+      const configs = await req("/upstream-mcp-server-configs");
+      const sel = document.getElementById("src-upstream");
+      sel.innerHTML = '<option value="">-- select a configured upstream MCP server --</option>';
+      const filtered = configs.filter(c => upstreamTypeMap[c.id] === cat || !upstreamTypeMap[c.id]);
+      for (const c of filtered) {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = `${c.name} (${c.server_id})`;
+        sel.appendChild(opt);
+      }
     };
 
     const updateDocTargetHint = () => {
@@ -269,6 +314,7 @@ def _frontend_sources_html() -> str:
       document.getElementById("src-sensitive-cols").value = "";
       document.getElementById("src-desc").value = "";
       document.getElementById("form-mode").textContent = "create mode";
+      setCategory("sql");
     };
 
     const clearDocForm = () => {
@@ -279,19 +325,35 @@ def _frontend_sources_html() -> str:
     };
 
     const prefillSqlite = () => {
+      setCategory("sql");
       document.getElementById("src-name").value = "demo_sqlite";
       document.getElementById("src-type").value = "sqlite";
       document.getElementById("src-conn").value = "data/demo_business.db";
       msg("Pre-filled a sqlite source template.");
     };
 
+    const _detectCategory = (source) => {
+      if (source.upstream_mcp_server_config_id) {
+        return upstreamTypeMap[source.upstream_mcp_server_config_id] || "graph";
+      }
+      const t = (source.type || "").toLowerCase();
+      if (["graph","documents"].includes(t)) return t;
+      return "sql";
+    };
+
     const loadSourceIntoForm = (source) => {
       document.getElementById("src-name").value = source.name;
-      document.getElementById("src-type").value = source.type;
-      document.getElementById("src-conn").value = source.connection;
       document.getElementById("src-sensitive-cols").value = (source.sensitive_columns || []).join(", ");
       document.getElementById("src-desc").value = source.description || "";
       document.getElementById("form-mode").textContent = `editing ${source.name}`;
+      const cat = _detectCategory(source);
+      setCategory(cat);
+      if (cat === "sql") {
+        document.getElementById("src-type").value = source.type || "sqlite";
+        document.getElementById("src-conn").value = source.connection || "";
+      } else {
+        document.getElementById("src-upstream").value = source.upstream_mcp_server_config_id || "";
+      }
     };
 
     const refreshSources = async () => {
@@ -299,19 +361,23 @@ def _frontend_sources_html() -> str:
       const container = document.getElementById("sources");
       container.innerHTML = "";
       for (const s of list) {
-        const isFake = fakeTypes.has((s.type || "").toLowerCase());
+        const isUpstream = !!s.upstream_mcp_server_config_id;
         const li = document.createElement("li");
+        const catBadge = isUpstream
+          ? `<span class="pill">${upstreamTypeMap[s.upstream_mcp_server_config_id] || s.type}</span>`
+          : `<span class="pill">${s.type}</span>`;
+        const canSync = !isUpstream;
         li.innerHTML = `
           <div class="split">
-            <div><strong>${s.name}</strong> <span class="pill">${s.type}</span> ${isFake ? '<span class="pill fake">simulated</span>' : ""}</div>
+            <div><strong>${s.name}</strong> ${catBadge} ${isUpstream ? '<span class="pill fake">upstream MCP</span>' : ""}</div>
             <span class="small">${new Date(s.updated_at).toLocaleString()}</span>
           </div>
           <div class="small">${s.description || "No description yet."}</div>
-          <div class="small">${s.connection}</div>
+          <div class="small">${isUpstream ? "Upstream config: "+s.upstream_mcp_server_config_id : s.connection}</div>
           <div class="small">Sensitive columns: ${(s.sensitive_columns || []).length}</div>
           <div class="actions" style="margin-top:8px">
             <button class="secondary" data-action="select">Select</button>
-            <button class="ok" data-action="sync" ${isFake ? "disabled" : ""}>${isFake ? "Sync N/A" : "Sync catalog"}</button>
+            <button class="ok" data-action="sync" ${!canSync ? "disabled" : ""}>${!canSync ? "Sync N/A" : "Sync catalog"}</button>
             <button class="danger" data-action="delete">Delete</button>
           </div>
         `;
@@ -322,7 +388,7 @@ def _frontend_sources_html() -> str:
         };
 
         li.querySelector('[data-action="sync"]').onclick = async () => {
-          if (isFake) return msg(`'${s.name}' is a simulated connector and does not sync catalog tables.`);
+          if (!canSync) return msg(`'${s.name}' uses an upstream MCP server and does not sync catalog tables.`);
           try {
             const out = await req(`/data-sources/${encodeURIComponent(s.name)}/sync`, {method:"POST"});
             msg(`Synced ${out.indexed_tables} tables for ${s.name}`);
@@ -358,16 +424,22 @@ def _frontend_sources_html() -> str:
 
     const createSource = async () => {
       const name = document.getElementById("src-name").value.trim();
-      const type = document.getElementById("src-type").value.trim();
-      const connection = document.getElementById("src-conn").value.trim();
       const sensitive_columns = parseSensitiveColumns();
       const description = document.getElementById("src-desc").value.trim();
-      if (!name || !type || !connection) return msg("Please fill name, type, and connection.", true);
+      if (!name) return msg("Please fill in the source name.", true);
+      let payload = {name, sensitive_columns, description: description || null};
+      if (currentCategory === "sql") {
+        const type = document.getElementById("src-type").value.trim();
+        const connection = document.getElementById("src-conn").value.trim();
+        if (!connection) return msg("Please fill in the connection string.", true);
+        payload = {...payload, type, connection};
+      } else {
+        const upstreamId = document.getElementById("src-upstream").value;
+        if (!upstreamId) return msg("Please select an upstream MCP server configuration.", true);
+        payload = {...payload, type: currentCategory, connection: "upstream://"+upstreamId, upstream_mcp_server_config_id: upstreamId};
+      }
       try {
-        await req("/data-sources", {
-          method:"POST",
-          body: JSON.stringify({name, type, connection, sensitive_columns, description: description || null}),
-        });
+        await req("/data-sources", {method:"POST", body: JSON.stringify(payload)});
         await refreshSources();
         msg(`Created source '${name}'`);
       } catch (e) {
@@ -377,16 +449,22 @@ def _frontend_sources_html() -> str:
 
     const updateSource = async () => {
       const name = document.getElementById("src-name").value.trim();
-      const type = document.getElementById("src-type").value.trim();
-      const connection = document.getElementById("src-conn").value.trim();
       const sensitive_columns = parseSensitiveColumns();
       const description = document.getElementById("src-desc").value.trim();
-      if (!name || !type || !connection) return msg("Please fill name, type, and connection.", true);
+      if (!name) return msg("Please fill in the source name.", true);
+      let payload = {sensitive_columns, description: description || null};
+      if (currentCategory === "sql") {
+        const type = document.getElementById("src-type").value.trim();
+        const connection = document.getElementById("src-conn").value.trim();
+        if (!connection) return msg("Please fill in the connection string.", true);
+        payload = {...payload, type, connection};
+      } else {
+        const upstreamId = document.getElementById("src-upstream").value;
+        if (!upstreamId) return msg("Please select an upstream MCP server configuration.", true);
+        payload = {...payload, type: currentCategory, connection: "upstream://"+upstreamId, upstream_mcp_server_config_id: upstreamId};
+      }
       try {
-        await req(`/data-sources/${encodeURIComponent(name)}`, {
-          method:"PUT",
-          body: JSON.stringify({type, connection, sensitive_columns, description: description || null}),
-        });
+        await req(`/data-sources/${encodeURIComponent(name)}`, {method:"PUT", body: JSON.stringify(payload)});
         await refreshSources();
         msg(`Updated source '${name}'`);
       } catch (e) {
@@ -449,8 +527,22 @@ def _frontend_sources_html() -> str:
       }
     };
 
+    // Pre-load upstream configs to build the type map
+    const initUpstreamTypeMap = async () => {
+      try {
+        const registry = await req("/upstream-mcp-servers");
+        const byId = {};
+        for (const e of registry) byId[e.id] = e.data_type;
+        const configs = await req("/upstream-mcp-server-configs");
+        for (const c of configs) {
+          upstreamTypeMap[c.id] = byId[c.server_id] || "graph";
+        }
+      } catch {}
+    };
+
     updateDocTargetHint();
-    refreshSources().catch((e) => msg(e.message, true));
+    setCategory("sql");
+    initUpstreamTypeMap().then(() => refreshSources().catch((e) => msg(e.message, true)));
     """
     return _frontend_page("UBS Data Sources | Sources", "sources", body, script)
 
@@ -518,50 +610,61 @@ def _frontend_dashboard_html() -> str:
     return _frontend_page("UBS Data Sources | Dashboard", "dashboard", body, script)
 
 
-def _frontend_connectors_html() -> str:
+def _frontend_mcp_servers_html() -> str:
     body = """
     <p>
-      Simulate non-SQL connector onboarding. These entries are demo placeholders stored as local data sources.
+      Browse the upstream MCP server registry and configure server instances with authentication and tool selection.
+      Configured servers can be referenced when creating data sources.
     </p>
     <div id="message"></div>
-    <section class="card">
-      <h3>Connector Marketplace (simulated)</h3>
-      <p class="small">Use this page to create demo connector records quickly.</p>
-      <div class="integrations">
-        <div class="integration">
-          <strong>Notion</strong>
-          <p class="small">Simulate connecting team pages as contextual docs.</p>
-          <button class="ok" onclick="connectFake('notion')">Connect Notion (fake)</button>
+    <div class="grid-main">
+      <section class="card">
+        <h3>Available Upstream MCP Servers</h3>
+        <ul id="registry-list"></ul>
+        <div style="margin-top:16px">
+          <h3>Configure an Upstream MCP Server</h3>
+          <div class="stack" id="config-form">
+            <div class="row">
+              <div class="field">
+                <label for="cfg-server">Server</label>
+                <select id="cfg-server" onchange="onServerSelect()">
+                  <option value="">-- select from registry --</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="cfg-name">Config name</label>
+                <input id="cfg-name" placeholder="e.g. my_neo4j" />
+                <div class="hint">A unique name for this configuration.</div>
+              </div>
+            </div>
+            <div class="field">
+              <label for="cfg-endpoint">Endpoint URL</label>
+              <input id="cfg-endpoint" placeholder="e.g. http://localhost:9000/mcp-proxy" />
+              <div class="hint">HTTP endpoint where this MCP server accepts tool calls.</div>
+            </div>
+            <div id="cfg-auth-fields" class="stack"></div>
+            <div class="field">
+              <label>Exposed Tools</label>
+              <div id="cfg-tools-checkboxes" class="stack"></div>
+              <div class="hint">Select which tools to expose as proxy tools on this MCP server.</div>
+            </div>
+            <div class="actions">
+              <button onclick="saveConfig()">Save configuration</button>
+              <button class="ghost" onclick="clearConfigForm()">Clear</button>
+            </div>
+          </div>
         </div>
-        <div class="integration">
-          <strong>Google Workspace</strong>
-          <p class="small">Simulate connecting docs and spreadsheets as metadata context.</p>
-          <button class="ok" onclick="connectFake('google_workspace')">Connect Google Workspace (fake)</button>
-        </div>
-      </div>
-    </section>
-    <section class="card" style="margin-top:16px">
-      <h3>Simulated connectors in registry</h3>
-      <ul id="sources"></ul>
-    </section>
+      </section>
+      <section class="card">
+        <h3>Configured Instances</h3>
+        <ul id="configs-list"></ul>
+      </section>
+    </div>
     """
 
     script = """
-    const fakeTypes = new Set(["notion", "google_workspace"]);
-    const fakeConnectors = {
-      notion: {
-        name: "notion_workspace_demo",
-        type: "notion",
-        connection: "sqlite:///data/fake_notion_workspace.db",
-        description: "Simulated Notion workspace used to demo contextual docs.",
-      },
-      google_workspace: {
-        name: "google_workspace_demo",
-        type: "google_workspace",
-        connection: "sqlite:///data/fake_google_workspace.db",
-        description: "Simulated Google Workspace source for docs and sheets metadata.",
-      },
-    };
+    let registryData = [];
+    let editingConfigId = null;
 
     const msg = (text, isErr=false) => {
       const el = document.getElementById("message");
@@ -578,50 +681,216 @@ def _frontend_connectors_html() -> str:
       return data;
     };
 
-    const refreshFakeSources = async () => {
-      const list = await req("/data-sources");
-      const container = document.getElementById("sources");
-      container.innerHTML = "";
-      const fakeOnly = list.filter((s) => fakeTypes.has((s.type || "").toLowerCase()));
-      if (!fakeOnly.length) {
-        const li = document.createElement("li");
-        li.innerHTML = '<div class="small">No simulated connectors registered yet.</div>';
-        container.appendChild(li);
-        return;
+    const onServerSelect = () => {
+      const serverId = document.getElementById("cfg-server").value;
+      const entry = registryData.find(e => e.id === serverId);
+      const authDiv = document.getElementById("cfg-auth-fields");
+      const toolsDiv = document.getElementById("cfg-tools-checkboxes");
+      authDiv.innerHTML = "";
+      toolsDiv.innerHTML = "";
+      if (!entry) return;
+      // Auth fields
+      for (const [key, spec] of Object.entries(entry.auth_schema || {})) {
+        const field = document.createElement("div");
+        field.className = "field";
+        const label = document.createElement("label");
+        label.textContent = key + (spec.secret ? " (secret)" : "");
+        const input = document.createElement("input");
+        input.id = "cfg-auth-" + key;
+        input.type = spec.secret ? "password" : "text";
+        input.placeholder = spec.description || "";
+        const hint = document.createElement("div");
+        hint.className = "hint";
+        hint.textContent = spec.description || "";
+        field.appendChild(label);
+        field.appendChild(input);
+        field.appendChild(hint);
+        authDiv.appendChild(field);
       }
-      for (const s of fakeOnly) {
+      // Tool checkboxes
+      const toolLabel = document.createElement("label");
+      toolLabel.textContent = "Select tools to expose:";
+      toolsDiv.appendChild(toolLabel);
+      for (const tool of (entry.tools || [])) {
+        const row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.gap = "8px";
+        row.style.alignItems = "center";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.id = "cfg-tool-" + tool.name;
+        cb.value = tool.name;
+        cb.checked = true;
+        const lbl = document.createElement("label");
+        lbl.htmlFor = "cfg-tool-" + tool.name;
+        lbl.textContent = tool.name + " — " + (tool.description || "");
+        row.appendChild(cb);
+        row.appendChild(lbl);
+        toolsDiv.appendChild(row);
+      }
+    };
+
+    const clearConfigForm = () => {
+      editingConfigId = null;
+      document.getElementById("cfg-server").value = "";
+      document.getElementById("cfg-name").value = "";
+      document.getElementById("cfg-endpoint").value = "";
+      document.getElementById("cfg-auth-fields").innerHTML = "";
+      document.getElementById("cfg-tools-checkboxes").innerHTML = "";
+    };
+
+    const saveConfig = async () => {
+      const serverId = document.getElementById("cfg-server").value;
+      const name = document.getElementById("cfg-name").value.trim();
+      const endpoint = document.getElementById("cfg-endpoint").value.trim();
+      if (!serverId) return msg("Please select a server from the registry.", true);
+      if (!name) return msg("Please provide a configuration name.", true);
+      const entry = registryData.find(e => e.id === serverId);
+      const auth = {};
+      for (const key of Object.keys(entry?.auth_schema || {})) {
+        const el = document.getElementById("cfg-auth-" + key);
+        if (el) auth[key] = el.value;
+      }
+      const exposed_tools = [];
+      for (const tool of (entry?.tools || [])) {
+        const cb = document.getElementById("cfg-tool-" + tool.name);
+        if (cb && cb.checked) exposed_tools.push(tool.name);
+      }
+      try {
+        if (editingConfigId) {
+          await req(`/upstream-mcp-server-configs/${encodeURIComponent(editingConfigId)}`, {
+            method: "PUT",
+            body: JSON.stringify({name, endpoint: endpoint || null, auth, exposed_tools}),
+          });
+          msg(`Updated configuration '${name}'`);
+        } else {
+          await req("/upstream-mcp-server-configs", {
+            method: "POST",
+            body: JSON.stringify({server_id: serverId, name, endpoint: endpoint || null, auth, exposed_tools}),
+          });
+          msg(`Saved configuration '${name}'`);
+        }
+        clearConfigForm();
+        await refreshConfigs();
+      } catch (e) {
+        msg(e.message, true);
+      }
+    };
+
+    const refreshRegistry = async () => {
+      registryData = await req("/upstream-mcp-servers");
+      const container = document.getElementById("registry-list");
+      container.innerHTML = "";
+      const sel = document.getElementById("cfg-server");
+      sel.innerHTML = '<option value="">-- select from registry --</option>';
+      for (const entry of registryData) {
+        const isAvailable = entry.status === "available";
         const li = document.createElement("li");
         li.innerHTML = `
           <div class="split">
-            <div><strong>${s.name}</strong> <span class="pill">${s.type}</span> <span class="pill fake">simulated</span></div>
-            <span class="small">${new Date(s.updated_at).toLocaleString()}</span>
+            <div><strong>${entry.name}</strong> <span class="pill">${entry.data_type}</span>
+              <span class="pill" style="${isAvailable ? "background:#d1fae5;border-color:#6ee7b7;color:#065f46" : "background:#fff1f1;border-color:#efb0b0;color:#7f1d1d"}">
+                ${isAvailable ? "available" : "unavailable"}
+              </span>
+            </div>
           </div>
-          <div class="small">${s.description || "No description yet."}</div>
-          <div class="small">${s.connection}</div>
+          <div class="small">${entry.description || ""}</div>
+          <div class="small" style="margin-top:4px">Tools: ${(entry.tools || []).map(t => t.name).join(", ")}</div>
+          ${entry.requires_auth ? '<div class="small">Requires auth: ' + Object.keys(entry.auth_schema || {}).join(", ") + '</div>' : ""}
+          <div class="small">${entry.is_local ? "Local server" : "External (cloud)"}</div>
+          <div class="actions" style="margin-top:8px">
+            <button class="ok" onclick="startConfigure('${entry.id}')" ${!isAvailable ? "disabled" : ""}>
+              ${isAvailable ? "Configure" : "Not available"}
+            </button>
+          </div>
+        `;
+        container.appendChild(li);
+        if (isAvailable) {
+          const opt = document.createElement("option");
+          opt.value = entry.id;
+          opt.textContent = entry.name + " (" + entry.data_type + ")";
+          sel.appendChild(opt);
+        }
+      }
+    };
+
+    const startConfigure = (serverId) => {
+      document.getElementById("cfg-server").value = serverId;
+      onServerSelect();
+      document.getElementById("cfg-name").focus();
+    };
+
+    const refreshConfigs = async () => {
+      const configs = await req("/upstream-mcp-server-configs");
+      const container = document.getElementById("configs-list");
+      container.innerHTML = "";
+      if (!configs.length) {
+        const li = document.createElement("li");
+        li.innerHTML = '<div class="small">No upstream MCP server configurations yet. Use the form on the left to create one.</div>';
+        container.appendChild(li);
+        return;
+      }
+      for (const c of configs) {
+        const li = document.createElement("li");
+        const reg = registryData.find(e => e.id === c.server_id) || {};
+        li.innerHTML = `
+          <div class="split">
+            <div><strong>${c.name}</strong> <span class="pill">${reg.name || c.server_id}</span> <span class="pill">${reg.data_type || ""}</span></div>
+            <span class="small">${new Date(c.updated_at).toLocaleString()}</span>
+          </div>
+          <div class="small">Endpoint: ${c.endpoint || "(none)"}</div>
+          <div class="small">Exposed tools: ${(c.exposed_tools || []).join(", ") || "(none)"}</div>
+          <div class="actions" style="margin-top:8px">
+            <button class="secondary" onclick="editConfig('${c.id}')">Edit</button>
+            <button class="danger" onclick="deleteConfig('${c.id}', '${c.name}')">Delete</button>
+          </div>
         `;
         container.appendChild(li);
       }
     };
 
-    const connectFake = async (provider) => {
-      const cfg = fakeConnectors[provider];
-      if (!cfg) return;
-      try {
-        await req("/data-sources", {method:"POST", body: JSON.stringify(cfg)});
-        await refreshFakeSources();
-        msg(`Connected ${provider} (simulated): '${cfg.name}'`);
-      } catch (e) {
-        if ((e.message || "").includes("already exists")) {
-          msg(`${provider} simulated connector already exists.`);
-        } else {
-          msg(e.message, true);
+    const editConfig = async (configId) => {
+      const configs = await req("/upstream-mcp-server-configs");
+      const c = configs.find(x => x.id === configId);
+      if (!c) return;
+      editingConfigId = configId;
+      document.getElementById("cfg-server").value = c.server_id;
+      onServerSelect();
+      document.getElementById("cfg-name").value = c.name;
+      document.getElementById("cfg-endpoint").value = c.endpoint || "";
+      // Fill auth fields after a tick so DOM updates
+      setTimeout(() => {
+        for (const [key, val] of Object.entries(c.auth || {})) {
+          const el = document.getElementById("cfg-auth-" + key);
+          if (el) el.value = val;
         }
+        for (const toolName of (c.exposed_tools || [])) {
+          const cb = document.getElementById("cfg-tool-" + toolName);
+          if (cb) cb.checked = true;
+        }
+        // Uncheck tools not in exposed list
+        const reg = registryData.find(e => e.id === c.server_id) || {};
+        for (const tool of (reg.tools || [])) {
+          const cb = document.getElementById("cfg-tool-" + tool.name);
+          if (cb && !(c.exposed_tools || []).includes(tool.name)) cb.checked = false;
+        }
+        msg(`Editing '${c.name}' — make changes and click Save.`);
+      }, 50);
+    };
+
+    const deleteConfig = async (configId, name) => {
+      try {
+        await req(`/upstream-mcp-server-configs/${encodeURIComponent(configId)}`, {method:"DELETE"});
+        await refreshConfigs();
+        msg(`Deleted configuration '${name}'`);
+      } catch (e) {
+        msg(e.message, true);
       }
     };
 
-    refreshFakeSources().catch((e) => msg(e.message, true));
+    refreshRegistry().then(() => refreshConfigs()).catch((e) => msg(e.message, true));
     """
-    return _frontend_page("UBS Data Sources | Connectors", "connectors", body, script)
+    return _frontend_page("UBS Data Sources | MCP Servers", "mcp-servers", body, script)
 
 
 def _usage_trend(seed: int) -> list[dict]:
@@ -678,6 +947,7 @@ class DataSourceCreate(BaseModel):
     connection: str
     sensitive_columns: list[str] = Field(default_factory=list)
     description: str | None = None
+    upstream_mcp_server_config_id: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -687,6 +957,26 @@ class DataSourceUpdate(BaseModel):
     connection: str | None = None
     sensitive_columns: list[str] | None = None
     description: str | None = None
+    upstream_mcp_server_config_id: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class UpstreamMCPServerConfigCreate(BaseModel):
+    server_id: str
+    name: str
+    endpoint: str | None = None
+    auth: dict = Field(default_factory=dict)
+    exposed_tools: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class UpstreamMCPServerConfigUpdate(BaseModel):
+    name: str | None = None
+    endpoint: str | None = None
+    auth: dict | None = None
+    exposed_tools: list[str] | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -751,6 +1041,15 @@ def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
     return {data_source: source_payload}
 
 
+_SLUG_INVALID = re.compile(r"[^A-Za-z0-9_\-]")
+
+
+def _make_config_id(name: str) -> str:
+    """Generate a URL-safe config ID from a name, appended with a short UUID fragment."""
+    slug = _SLUG_INVALID.sub("_", name.strip().lower())[:32].strip("_") or "cfg"
+    return f"{slug}_{uuid.uuid4().hex[:8]}"
+
+
 def _rebuild_catalog_for_data_source(
     store: MetaStore, catalog: SchemaCatalog, name: str
 ) -> int:
@@ -759,6 +1058,10 @@ def _rebuild_catalog_for_data_source(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
         )
+
+    # Upstream MCP data sources do not have catalogueable SQL tables.
+    if registration.upstream_mcp_server_config_id:
+        return 0
 
     source = build_data_source(
         DataSourceConfig(
@@ -802,13 +1105,115 @@ def create_app(
     def frontend_dashboard() -> str:
         return _frontend_dashboard_html()
 
+    @app.get("/mcp-servers", include_in_schema=False, response_class=HTMLResponse)
+    def frontend_mcp_servers() -> str:
+        return _frontend_mcp_servers_html()
+
+    # Keep legacy /connectors URL as a redirect alias so existing bookmarks work.
     @app.get("/connectors", include_in_schema=False, response_class=HTMLResponse)
-    def frontend_connectors() -> str:
-        return _frontend_connectors_html()
+    def frontend_connectors_alias() -> str:
+        return _frontend_mcp_servers_html()
 
     @app.get("/mcp-usage")
     def mcp_usage() -> dict:
         return _collect_mcp_usage_snapshot(store, Path(catalog_path))
+
+    # ------------------------------------------------------------------
+    # Upstream MCP server registry (read-only, hardcoded)
+    # ------------------------------------------------------------------
+
+    @app.get("/upstream-mcp-servers")
+    def list_upstream_mcp_servers(data_type: str | None = None) -> list[dict]:
+        """List available upstream MCP servers from the hardcoded registry."""
+        return list_registry_entries(data_type=data_type)
+
+    @app.get("/upstream-mcp-servers/{server_id}")
+    def get_upstream_mcp_server(server_id: str) -> dict:
+        """Get a single upstream MCP server entry from the registry."""
+        entry = get_registry_entry(server_id)
+        if entry is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Upstream MCP server '{server_id}' not found in registry",
+            )
+        return entry
+
+    # ------------------------------------------------------------------
+    # Upstream MCP server configs (user-configured instances)
+    # ------------------------------------------------------------------
+
+    @app.get("/upstream-mcp-server-configs")
+    def list_upstream_configs() -> list[dict]:
+        """List all user-configured upstream MCP server instances."""
+        return [c.to_dict() for c in store.list_upstream_configs()]
+
+    @app.post("/upstream-mcp-server-configs", status_code=status.HTTP_201_CREATED)
+    def create_upstream_config(payload: UpstreamMCPServerConfigCreate) -> dict:
+        """Create a new upstream MCP server configuration."""
+        if get_registry_entry(payload.server_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Server '{payload.server_id}' not found in upstream MCP registry",
+            )
+        config_id = _make_config_id(payload.name)
+        created = store.create_upstream_config(
+            config_id=config_id,
+            server_id=payload.server_id,
+            name=payload.name,
+            endpoint=payload.endpoint,
+            auth=payload.auth,
+            exposed_tools=payload.exposed_tools,
+        )
+        return created.to_dict()
+
+    @app.get("/upstream-mcp-server-configs/{config_id}")
+    def get_upstream_config(config_id: str) -> dict:
+        """Get a single upstream MCP server configuration."""
+        found = store.get_upstream_config(config_id)
+        if not found:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Upstream MCP server configuration not found",
+            )
+        return found.to_dict()
+
+    @app.put("/upstream-mcp-server-configs/{config_id}")
+    def update_upstream_config(
+        config_id: str, payload: UpstreamMCPServerConfigUpdate
+    ) -> dict:
+        """Update an existing upstream MCP server configuration."""
+        updates = payload.model_dump(exclude_unset=True)
+        endpoint_value = updates["endpoint"] if "endpoint" in updates else _UNSET_SENTINEL
+        updated = store.update_upstream_config(
+            config_id,
+            name=updates.get("name"),
+            endpoint=endpoint_value,
+            auth=updates.get("auth"),
+            exposed_tools=updates.get("exposed_tools"),
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Upstream MCP server configuration not found",
+            )
+        return updated.to_dict()
+
+    @app.delete(
+        "/upstream-mcp-server-configs/{config_id}",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    def delete_upstream_config(config_id: str) -> None:
+        """Delete an upstream MCP server configuration."""
+        deleted = store.delete_upstream_config(config_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Upstream MCP server configuration not found",
+            )
+
+    # ------------------------------------------------------------------
+    # Data sources CRUD
+    # ------------------------------------------------------------------
 
     @app.get("/data-sources")
     def list_data_sources() -> list[dict]:
@@ -821,12 +1226,20 @@ def create_app(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Data source '{payload.name}' already exists",
             )
+        # Validate upstream config reference if provided.
+        if payload.upstream_mcp_server_config_id:
+            if not store.get_upstream_config(payload.upstream_mcp_server_config_id):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Upstream MCP server config '{payload.upstream_mcp_server_config_id}' not found",
+                )
         created = store.create_data_source(
             payload.name,
             payload.type,
             payload.connection,
             sensitive_columns=payload.sensitive_columns,
             description=payload.description,
+            upstream_mcp_server_config_id=payload.upstream_mcp_server_config_id,
         )
         return created.to_dict()
 
@@ -841,12 +1254,30 @@ def create_app(
 
     @app.put("/data-sources/{name}")
     def update_data_source(name: str, payload: DataSourceUpdate) -> dict:
+        updates = payload.model_dump(exclude_unset=True)
+        # Validate upstream config reference if explicitly provided.
+        upstream_id = updates.get("upstream_mcp_server_config_id")
+        if upstream_id is not None and upstream_id != "":
+            if not store.get_upstream_config(upstream_id):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Upstream MCP server config '{upstream_id}' not found",
+                )
+        upstream_id_sentinel = (
+            updates["upstream_mcp_server_config_id"]
+            if "upstream_mcp_server_config_id" in updates
+            else _UNSET_SENTINEL
+        )
+        desc_sentinel = (
+            updates["description"] if "description" in updates else _UNSET_SENTINEL
+        )
         updated = store.update_data_source(
             name,
-            type_=payload.type,
-            connection=payload.connection,
-            sensitive_columns=payload.sensitive_columns,
-            description=payload.description,
+            type_=updates.get("type"),
+            connection=updates.get("connection"),
+            sensitive_columns=updates.get("sensitive_columns"),
+            description=desc_sentinel,
+            upstream_mcp_server_config_id=upstream_id_sentinel,
         )
         if not updated:
             raise HTTPException(
