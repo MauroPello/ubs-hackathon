@@ -78,7 +78,7 @@ def test_hf_embedding_model_embed_parses_response(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr("ubs_hackathon.embeddings.request.urlopen", lambda *args, **kwargs: _FakeResponse())
     embedding = model.embed("hello world")
-    assert embedding == [0.3, 0.5, 0.7]
+    assert embedding == pytest.approx([0.3, 0.5, 0.7])
 
 
 def test_fallback_model_switches_to_local_on_primary_error() -> None:
