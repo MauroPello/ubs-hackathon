@@ -6,6 +6,7 @@ import os
 import re
 from typing import Protocol
 from urllib import error as urlerror
+from urllib import parse
 from urllib import request
 
 
@@ -49,7 +50,13 @@ class OpenAIEmbeddingModel:
         timeout_seconds: float = 20.0,
     ) -> None:
         if not api_key:
-            raise ValueError("OpenAI API key is required for managed embeddings")
+            raise ValueError(
+                "OpenAI API key is required for managed embeddings. "
+                "Set OPENAI_API_KEY or pass api_key explicitly."
+            )
+        parsed = parse.urlparse(base_url)
+        if parsed.scheme != "https":
+            raise ValueError("Managed embeddings base URL must use https")
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
@@ -67,7 +74,7 @@ class OpenAIEmbeddingModel:
             },
         )
         try:
-            with request.urlopen(req, timeout=self.timeout_seconds) as resp:  # nosec B310
+            with request.urlopen(req, timeout=self.timeout_seconds) as resp:
                 body = resp.read().decode("utf-8")
         except urlerror.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="ignore")
@@ -102,7 +109,10 @@ def create_embedding_model(
                 model=model or os.getenv("UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"),
                 base_url=base_url or os.getenv("UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"),
             )
-        raise ValueError("Managed embeddings provider selected but OPENAI_API_KEY is not set")
+        raise ValueError(
+            "Managed embeddings provider selected but OPENAI_API_KEY is not set. "
+            "Set OPENAI_API_KEY or change UBS_EMBEDDINGS_PROVIDER to 'local'."
+        )
     return SimpleEmbeddingModel(dims=local_dims)
 
 
