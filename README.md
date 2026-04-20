@@ -43,10 +43,26 @@ All data sources are powered by **[SQLAlchemy](https://www.sqlalchemy.org/)**, w
 
 Simply set the `connection` field in `config/config.yaml` to the appropriate URL.  Legacy entries that use `type: sqlite` with a bare file path continue to work unchanged.
 
-For **non-SQL sources** (graph databases, vector stores, document stores) we recommend delegating to a purpose-built MCP server alongside this one:
+For **non-SQL sources** (graph databases, vector stores, document stores) you can configure a delegated graph adapter that normalizes graph metadata into the catalog and optionally routes graph queries to an external MCP/proxy endpoint.
 
 - **Neo4j / Cypher** — [`mcp-neo4j-cypher`](https://github.com/neo4j-contrib/mcp-neo4j)
 - **Vector stores** (Chroma, Weaviate, Pinecone) — their respective MCP servers or the SQLAlchemy `pgvector` dialect for PostgreSQL+pgvector
+
+Example delegated graph source in `config/config.yaml`:
+
+```yaml
+- name: demo_graph
+  type: graph
+  connection: delegated://graph
+  adapter: delegated_graph
+  options:
+    delegated_endpoint: http://127.0.0.1:9000/mcp-proxy
+    graph_entities:
+      - name: Person
+        entity_type: graph_node
+      - name: BOUGHT
+        entity_type: graph_relationship
+```
 
 ## Quickstart
 
@@ -275,13 +291,19 @@ What good behavior looks like:
 ## Available MCP tools
 
 1. `list_data_sources()`
-   - Lists configured data sources and types.
+   - Lists configured data sources, adapter, and capability flags.
 2. `search_schema(query, top_k=5)`
    - Returns the most relevant tables for a natural-language question.
 3. `describe_table(data_source, table)`
    - Returns complete table metadata (columns, foreign keys, row estimates).
 4. `execute_query(data_source, sql, limit=200)`
    - Executes read-only SQL with row limits and mutation blocking.
+5. `list_graph_entities(data_source)`
+   - Lists graph entities (nodes/relationships) for graph-capable sources.
+6. `describe_graph_entity(data_source, entity)`
+   - Returns normalized metadata for a graph entity.
+7. `execute_graph_query(data_source, query, limit=200)`
+   - Executes read-only graph queries using delegated graph adapters.
 
 ## Example prompt flow
 

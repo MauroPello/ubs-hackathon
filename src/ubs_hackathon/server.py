@@ -24,7 +24,15 @@ def create_server(
     @mcp.tool()
     def list_data_sources() -> list[dict]:
         """Enumerate configured data sources and supported type."""
-        return [{"name": cfg.name, "type": cfg.type} for cfg in sources]
+        return [
+            {
+                "name": cfg.name,
+                "type": cfg.type,
+                "adapter": cfg.adapter or cfg.type,
+                "capabilities": source_map[cfg.name].capabilities(),
+            }
+            for cfg in sources
+        ]
 
     @mcp.tool()
     def search_schema(query: str, top_k: int = 5) -> list[dict]:
@@ -84,6 +92,37 @@ def create_server(
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
         return source.drop_temporary_view(view_name=view_name, session_id=session_id)
+
+    @mcp.tool()
+    def list_graph_entities(data_source: str) -> list[str]:
+        """List graph entities (nodes/relationships) for graph-capable sources."""
+        source = source_map.get(data_source)
+        if source is None:
+            raise ValueError(f"Unknown data source: {data_source}")
+        return source.list_graph_entities()
+
+    @mcp.tool()
+    def describe_graph_entity(data_source: str, entity: str) -> dict:
+        """Describe graph entity metadata in normalized catalog shape."""
+        source = source_map.get(data_source)
+        if source is None:
+            raise ValueError(f"Unknown data source: {data_source}")
+        return source.describe_graph_entity(entity).to_dict()
+
+    @mcp.tool()
+    def execute_graph_query(
+        data_source: str,
+        query: str,
+        limit: int = 200,
+        session_id: str | None = None,
+    ) -> dict:
+        """Execute a read-only graph query for graph-capable sources."""
+        source = source_map.get(data_source)
+        if source is None:
+            raise ValueError(f"Unknown data source: {data_source}")
+        return source.execute_graph_read_only(
+            query=query, limit=limit, session_id=session_id
+        )
 
     return mcp
 

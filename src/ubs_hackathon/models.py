@@ -9,6 +9,8 @@ class DataSourceConfig:
     name: str
     type: str
     connection: str
+    adapter: str | None = None
+    options: dict[str, Any] | None = None
 
 
 @dataclass(slots=True)
