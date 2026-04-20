@@ -317,12 +317,10 @@ What good behavior looks like:
    - Returns complete table metadata (columns, foreign keys, row estimates).
 4. `execute_query(data_source, sql, limit=200)`
    - Executes read-only SQL with row limits and mutation blocking.
-5. `list_graph_entities(data_source)`
-   - Lists graph entities (nodes/relationships) for graph-capable sources.
-6. `describe_graph_entity(data_source, entity)`
-   - Returns normalized metadata for a graph entity.
-7. `execute_graph_query(data_source, query, limit=200)`
-   - Executes read-only graph queries using delegated graph adapters.
+5. `list_upstream_mcp_sources()`
+   - Lists configured upstream MCP servers, routed data sources, and exposed tools.
+6. `<upstream_tool_name>(data_source, arguments={...})`
+   - Dynamic proxy tools are exposed directly using each upstream tool name and routed by `data_source`.
 
 ## Example prompt flow
 

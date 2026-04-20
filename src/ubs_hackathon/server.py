@@ -13,19 +13,50 @@ from .meta_store import MetaStore
 from .models import DataSourceConfig
 
 
-def _make_upstream_proxy(
-    source: UpstreamMCPDataSource, tool_name: str
-):
-    """Return a callable that proxies calls to the upstream MCP server tool."""
+def _extract_exposed_tool_specs(
+    exposed_tools: list[Any] | None,
+) -> list[tuple[str, str | None]]:
+    """Normalize exposed tools to (name, description) tuples."""
+    specs: list[tuple[str, str | None]] = []
+    for item in exposed_tools or []:
+        if isinstance(item, dict):
+            name = str(item.get("name") or "").strip()
+            if not name:
+                continue
+            description = str(item.get("description") or "").strip() or None
+            specs.append((name, description))
+            continue
+        name = str(item or "").strip()
+        if not name:
+            continue
+        specs.append((name, None))
+    return specs
 
-    def proxy_tool(arguments: dict[str, Any] | None = None) -> dict:
+
+def _make_upstream_proxy(
+    tool_name: str,
+    routes_by_data_source: dict[str, UpstreamMCPDataSource],
+    description: str | None = None,
+):
+    """Return a callable that proxies a tool to the correct upstream by data source."""
+
+    def proxy_tool(data_source: str, arguments: dict[str, Any] | None = None) -> dict:
         """Proxy tool forwarding requests to an upstream MCP server."""
+        source = routes_by_data_source.get(data_source)
+        if source is None:
+            raise ValueError(
+                f"Tool '{tool_name}' is not available for data_source '{data_source}'. "
+                f"Supported data sources: {sorted(routes_by_data_source.keys())}"
+            )
         return source.call_upstream_tool(tool_name, arguments or {})
 
-    proxy_tool.__name__ = f"{source.config.name}__{tool_name}"
+    proxy_tool.__name__ = tool_name
     proxy_tool.__doc__ = (
-        f"Proxy tool for data source '{source.config.name}', "
-        f"forwarding to upstream tool '{tool_name}'."
+        description
+        or (
+            f"Proxy tool for upstream MCP tool '{tool_name}'. "
+            f"Select the target with data_source."
+        )
     )
     return proxy_tool
 
@@ -40,13 +71,19 @@ def create_server(
     source_map = {cfg.name: build_data_source(cfg) for cfg in sources}
     catalog = SchemaCatalog(Path(catalog_path))
 
-    # Load upstream MCP data sources from the metadata store so that
-    # proxy tools are registered for each configured+exposed tool.
+    # Load upstream MCP data sources from metadata store and build
+    # tool routing by data source name.
     upstream_sources: dict[str, UpstreamMCPDataSource] = {}
+    upstream_tool_routes: dict[str, dict[str, UpstreamMCPDataSource]] = {}
+    upstream_tool_descriptions: dict[str, str] = {}
     if meta_db_path is not None:
         store = MetaStore(Path(meta_db_path))
+        upstream_tool_specs_by_config: dict[str, list[tuple[str, str | None]]] = {}
         for upstream_cfg in store.list_upstream_configs():
             if not upstream_cfg.exposed_tools:
+                continue
+            tool_specs = _extract_exposed_tool_specs(upstream_cfg.exposed_tools)
+            if not tool_specs:
                 continue
             endpoint = upstream_cfg.endpoint or ""
             ds_config = DataSourceConfig(
@@ -56,9 +93,27 @@ def create_server(
                 upstream_mcp_server_config_id=upstream_cfg.id,
             )
             upstream_source = UpstreamMCPDataSource(
-                ds_config, endpoint, upstream_cfg.exposed_tools
+                ds_config,
+                endpoint,
+                [tool_name for tool_name, _ in tool_specs],
             )
             upstream_sources[upstream_cfg.id] = upstream_source
+            upstream_tool_specs_by_config[upstream_cfg.id] = tool_specs
+
+        for registration in store.list_data_sources():
+            config_id = registration.upstream_mcp_server_config_id
+            if not config_id:
+                continue
+            upstream_source = upstream_sources.get(config_id)
+            if upstream_source is None:
+                continue
+            for tool_name, tool_description in upstream_tool_specs_by_config.get(
+                config_id, []
+            ):
+                per_tool_routes = upstream_tool_routes.setdefault(tool_name, {})
+                per_tool_routes[registration.name] = upstream_source
+                if tool_description:
+                    upstream_tool_descriptions.setdefault(tool_name, tool_description)
 
     mcp = FastMCP("ubs-hackathon-assistant", host=host, port=port)
 
@@ -136,73 +191,40 @@ def create_server(
         return source.drop_temporary_view(view_name=view_name, session_id=session_id)
 
     @mcp.tool()
-    def list_graph_entities(data_source: str) -> list[str]:
-        """List graph entities (nodes/relationships) for graph-capable sources."""
-        source = source_map.get(data_source)
-        if source is None:
-            raise ValueError(f"Unknown data source: {data_source}")
-        return source.list_graph_entities()
-
-    @mcp.tool()
-    def describe_graph_entity(data_source: str, entity: str) -> dict:
-        """Describe graph entity metadata in normalized catalog shape."""
-        source = source_map.get(data_source)
-        if source is None:
-            raise ValueError(f"Unknown data source: {data_source}")
-        return source.describe_graph_entity(entity).to_dict()
-
-    @mcp.tool()
-    def execute_graph_query(
-        data_source: str,
-        query: str,
-        limit: int = 200,
-        session_id: str | None = None,
-    ) -> dict:
-        """Execute a read-only graph query for graph-capable sources."""
-        source = source_map.get(data_source)
-        if source is None:
-            raise ValueError(f"Unknown data source: {data_source}")
-        return source.execute_graph_read_only(
-            query=query, limit=limit, session_id=session_id
-        )
-
-    @mcp.tool()
     def list_upstream_mcp_sources() -> list[dict]:
-        """List upstream MCP server data sources with their exposed tools."""
+        """List upstream MCP server configurations with routed data sources and exposed tools."""
+        tool_names_for_config: dict[str, list[str]] = {
+            cfg_id: src.get_exposed_tools() for cfg_id, src in upstream_sources.items()
+        }
+        data_sources_by_config: dict[str, list[str]] = {cfg_id: [] for cfg_id in upstream_sources}
+        for tool_name, routes in upstream_tool_routes.items():
+            _ = tool_name
+            for data_source_name, src in routes.items():
+                config_id = src.config.upstream_mcp_server_config_id
+                if not config_id:
+                    continue
+                bucket = data_sources_by_config.setdefault(config_id, [])
+                if data_source_name not in bucket:
+                    bucket.append(data_source_name)
         return [
             {
                 "config_id": cfg_id,
-                "exposed_tools": src.get_exposed_tools(),
+                "exposed_tools": tool_names_for_config.get(cfg_id, []),
+                "routed_data_sources": sorted(data_sources_by_config.get(cfg_id, [])),
                 "capabilities": src.capabilities(),
             }
             for cfg_id, src in upstream_sources.items()
         ]
 
-    @mcp.tool()
-    def call_upstream_tool(
-        config_id: str,
-        tool_name: str,
-        arguments: dict[str, Any] | None = None,
-    ) -> dict:
-        """Call an exposed tool on a configured upstream MCP server.
-
-        Use list_upstream_mcp_sources to discover available config IDs and tools.
-        """
-        source = upstream_sources.get(config_id)
-        if source is None:
-            raise ValueError(
-                f"Unknown upstream MCP config: {config_id}. "
-                f"Available: {list(upstream_sources.keys())}"
-            )
-        return source.call_upstream_tool(tool_name, arguments or {})
-
-    # Register individual named proxy tools for each exposed upstream tool
-    # so that MCP clients can discover them by name.
-    for _cfg_id, _upstream_src in upstream_sources.items():
-        for _tool_name in _upstream_src.get_exposed_tools():
-            _proxy = _make_upstream_proxy(_upstream_src, _tool_name)
-            _full_name = f"{_cfg_id}__{_tool_name}"
-            mcp.tool(name=_full_name)(_proxy)
+    # Register one proxy tool per upstream tool name.
+    # If multiple upstream servers expose the same tool name, route by data_source.
+    for _tool_name, _routes in upstream_tool_routes.items():
+        _proxy = _make_upstream_proxy(
+            _tool_name,
+            _routes,
+            description=upstream_tool_descriptions.get(_tool_name),
+        )
+        mcp.tool(name=_tool_name)(_proxy)
 
     return mcp
 
