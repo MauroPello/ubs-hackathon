@@ -27,6 +27,11 @@ Get the system up and running in minutes:
    bash scripts/run-all.sh
    ```
 
+4. **Wipe Data (Optional)**:
+   ```bash
+   bash scripts/wipe-data.sh
+   ```
+
 ## Documentation
 
 For more detailed information, please refer to the following guides:

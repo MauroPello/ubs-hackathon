@@ -25,8 +25,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--start-date", default="2025-01-01")
     parser.add_argument("--day-span", type=int, default=730)
     parser.add_argument("--db-path", default="data/big_demo.db")
-    parser.add_argument("--docs-path", default="config/big_schema_docs.json")
-    parser.add_argument("--config-path", default="config/big_config.yaml")
+    parser.add_argument("--docs-path", default="config/schema_docs.json")
+    parser.add_argument("--config-path", default="config/config.yaml")
+    parser.add_argument("--cypher-path", default="data/big_demo.cypher")
     return parser
 
 
@@ -656,17 +657,116 @@ def _seed_fact_tables(
     return created_tables
 
 
-def _write_config(path: Path, db_path: Path, docs_path: Path) -> None:
+def _generate_cypher(
+    path: Path,
+    regions: list[tuple],
+    countries: list[tuple],
+    desks: list[tuple],
+    product_families: list[tuple],
+    products: list[tuple],
+    customers: list[tuple],
+    counterparties: list[tuple],
+    traders: list[tuple],
+    bridge: list[tuple],
+) -> None:
+    """Generates a Cypher script to load the dimension data into Neo4j."""
     lines = [
-        "catalog:",
-        "  db_path: data/big_catalog.db",
-        "data_sources:",
-        f"  - name: {DATA_SOURCE_NAME}",
-        "    type: sqlite",
-        f"    connection: {db_path.as_posix()}",
-        f"schema_docs_path: {docs_path.as_posix()}",
+        "// Auto-generated Cypher script for big_demo dataset",
+        "// Constraints",
+        "CREATE CONSTRAINT region_id_unique IF NOT EXISTS FOR (r:Region) REQUIRE r.region_id IS UNIQUE;",
+        "CREATE CONSTRAINT country_id_unique IF NOT EXISTS FOR (c:Country) REQUIRE c.country_id IS UNIQUE;",
+        "CREATE CONSTRAINT desk_id_unique IF NOT EXISTS FOR (d:Desk) REQUIRE d.desk_id IS UNIQUE;",
+        "CREATE CONSTRAINT family_id_unique IF NOT EXISTS FOR (f:ProductFamily) REQUIRE f.family_id IS UNIQUE;",
+        "CREATE CONSTRAINT product_id_unique IF NOT EXISTS FOR (p:Product) REQUIRE p.product_id IS UNIQUE;",
+        "CREATE CONSTRAINT customer_id_unique IF NOT EXISTS FOR (c:Customer) REQUIRE c.customer_id IS UNIQUE;",
+        "CREATE CONSTRAINT counterparty_id_unique IF NOT EXISTS FOR (cp:Counterparty) REQUIRE cp.counterparty_id IS UNIQUE;",
+        "CREATE CONSTRAINT trader_id_unique IF NOT EXISTS FOR (t:Trader) REQUIRE t.trader_id IS UNIQUE;",
         "",
     ]
+
+    # Regions
+    for r_id, r_name in regions:
+        lines.append(f'MERGE (:Region {{region_id: {r_id}, name: "{r_name}"}});')
+    lines.append("")
+
+    # Countries
+    for c_id, r_id, iso, c_name in countries:
+        lines.append(
+            f'MERGE (c:Country {{country_id: {c_id}, iso_code: "{iso}", name: "{c_name}"}});'
+        )
+        lines.append(
+            f'MATCH (c:Country {{country_id: {c_id}}}), (r:Region {{region_id: {r_id}}}) '
+            f"MERGE (c)-[:IN_REGION]->(r);"
+        )
+    lines.append("")
+
+    # Desks
+    for d_id, c_id, d_name, tier in desks:
+        lines.append(
+            f'MERGE (d:Desk {{desk_id: {d_id}, name: "{d_name}", tier: "{tier}"}});'
+        )
+        lines.append(
+            f'MATCH (d:Desk {{desk_id: {d_id}}}), (c:Country {{country_id: {c_id}}}) '
+            f"MERGE (d)-[:LOCATED_IN]->(c);"
+        )
+    lines.append("")
+
+    # Product Families
+    for f_id, f_name in product_families:
+        lines.append(f'MERGE (:ProductFamily {{family_id: {f_id}, name: "{f_name}"}});')
+    lines.append("")
+
+    # Products
+    for p_id, f_id, p_name, risk, liq in products:
+        lines.append(
+            f'MERGE (p:Product {{product_id: {p_id}, name: "{p_name}", risk_class: "{risk}", liquidity_tier: "{liq}"}});'
+        )
+        lines.append(
+            f'MATCH (p:Product {{product_id: {p_id}}}), (f:ProductFamily {{family_id: {f_id}}}) '
+            f"MERGE (p)-[:PART_OF_FAMILY]->(f);"
+        )
+    lines.append("")
+
+    # Customers
+    for c_id, co_id, name, seg, credit, inc in customers:
+        lines.append(
+            f'MERGE (c:Customer {{customer_id: {c_id}, name: "{name}", segment: "{seg}", credit_bucket: "{credit}", inception_date: "{inc}"}});'
+        )
+        lines.append(
+            f'MATCH (c:Customer {{customer_id: {c_id}}}), (co:Country {{country_id: {co_id}}}) '
+            f"MERGE (c)-[:BASED_IN]->(co);"
+        )
+    lines.append("")
+
+    # Counterparties
+    for cp_id, co_id, name, c_type, sys_flag in counterparties:
+        lines.append(
+            f'MERGE (cp:Counterparty {{counterparty_id: {cp_id}, name: "{name}", type: "{c_type}", systemic_flag: {sys_flag}}});'
+        )
+        lines.append(
+            f'MATCH (cp:Counterparty {{counterparty_id: {cp_id}}}), (co:Country {{country_id: {co_id}}}) '
+            f"MERGE (cp)-[:BASED_IN]->(co);"
+        )
+    lines.append("")
+
+    # Traders
+    for t_id, d_id, name, seniority, location in traders:
+        lines.append(
+            f'MERGE (t:Trader {{trader_id: {t_id}, name: "{name}", seniority: "{seniority}", location: "{location}"}});'
+        )
+        lines.append(
+            f'MATCH (t:Trader {{trader_id: {t_id}}}), (d:Desk {{desk_id: {d_id}}}) '
+            f"MERGE (t)-[:WORKS_AT]->(d);"
+        )
+    lines.append("")
+
+    # Bridge (Relationships)
+    for _, c_id, cp_id, rel_type, since in bridge:
+        lines.append(
+            f"MATCH (c:Customer {{customer_id: {c_id}}}), (cp:Counterparty {{counterparty_id: {cp_id}}}) "
+            f'MERGE (c)-[:HAS_RELATIONSHIP {{type: "{rel_type}", since: "{since}"}}]->(cp);'
+        )
+
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -682,14 +782,49 @@ def main() -> None:
     db_path = Path(args.db_path)
     docs_path = Path(args.docs_path)
     cfg_path = Path(args.config_path)
+    cypher_path = Path(args.cypher_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     docs_path.parent.mkdir(parents=True, exist_ok=True)
     cfg_path.parent.mkdir(parents=True, exist_ok=True)
+    cypher_path.parent.mkdir(parents=True, exist_ok=True)
 
     rng = random.Random(args.seed)
     start_dt = date.fromisoformat(args.start_date)
 
-    docs = {DATA_SOURCE_NAME: {"tables": _table_docs()}}
+    # Initial docs with standard demo sources
+    docs = {
+        "demo_sqlite": {
+            "tables": {
+                "regions": {
+                    "description": "Region reference dimension for customer geography.",
+                    "columns": {
+                        "region_id": "Unique region identifier.",
+                        "region_name": "Business reporting region label.",
+                    },
+                },
+                "customers": {
+                    "description": "Customer master with regional assignment.",
+                    "columns": {
+                        "customer_id": "Unique customer identifier.",
+                        "customer_name": "Legal customer name.",
+                        "region_id": "Foreign key to regions.",
+                    },
+                },
+                "orders": {
+                    "description": "Order facts with booked revenue and reporting quarter.",
+                    "columns": {
+                        "order_id": "Unique order identifier.",
+                        "customer_id": "Foreign key to customers.",
+                        "order_date": "Order booking date.",
+                        "revenue": "Booked revenue amount for the order.",
+                        "quarter": "Reporting quarter (for example Q1, Q2.",
+                    },
+                },
+            }
+        },
+        DATA_SOURCE_NAME: {"tables": _table_docs()},
+    }
+
     with sqlite3.connect(db_path) as conn:
         cur = conn.cursor()
         cur.execute("PRAGMA foreign_keys = ON")
@@ -711,12 +846,32 @@ def main() -> None:
     with docs_path.open("w", encoding="utf-8") as f:
         json.dump(docs, f, indent=2)
 
-    _write_config(cfg_path, db_path, docs_path)
+    # Note: _seed_dimensions fills the database but doesn't return the lists.
+    # For simplicity, we could modify _seed_dimensions or just re-read the DB if needed.
+    # Better: let's wrap the logic to capture the data lists.
+    # Since we already ran the seeding, we can just extract from the DB for Cypher.
+    
+    with sqlite3.connect(db_path) as conn:
+        cur = conn.cursor()
+        regions = cur.execute("SELECT region_id, region_name FROM dim_region").fetchall()
+        countries = cur.execute("SELECT country_id, region_id, iso_code, country_name FROM dim_country").fetchall()
+        desks = cur.execute("SELECT desk_id, country_id, desk_name, desk_tier FROM dim_desk").fetchall()
+        families = cur.execute("SELECT family_id, family_name FROM dim_product_family").fetchall()
+        products = cur.execute("SELECT product_id, family_id, product_name, risk_class, liquidity_tier FROM dim_product").fetchall()
+        customers = cur.execute("SELECT customer_id, country_id, customer_name, customer_segment, credit_bucket, inception_date FROM dim_customer").fetchall()
+        counterparties = cur.execute("SELECT counterparty_id, country_id, counterparty_name, counterparty_type, systemic_flag FROM dim_counterparty").fetchall()
+        traders = cur.execute("SELECT trader_id, desk_id, trader_name, seniority, location FROM dim_trader").fetchall()
+        bridge = cur.execute("SELECT bridge_id, customer_id, counterparty_id, relationship_type, relationship_since FROM bridge_customer_counterparty").fetchall()
+
+    _generate_cypher(
+        cypher_path,
+        regions, countries, desks, families, products, customers, counterparties, traders, bridge
+    )
 
     total_tables = len(docs[DATA_SOURCE_NAME]["tables"])
     print(f"Created database: {db_path}")
     print(f"Created schema docs: {docs_path}")
-    print(f"Created config: {cfg_path}")
+    print(f"Created Cypher script: {cypher_path}")
     print(f"Fact tables: {args.table_count}")
     print(f"Rows per fact table: {args.rows_per_table}")
     print(f"Total documented tables: {total_tables}")

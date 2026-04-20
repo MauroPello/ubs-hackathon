@@ -12,7 +12,7 @@ catalog:
 
 # Optional: point to a YAML or JSON file with existing schema documentation.
 # If omitted, inline `schema_docs` below will be used.
-# schema_docs_path: config/schema_docs.yaml
+schema_docs_path: config/schema_docs.json
 
 # ---------------------------------------------------------------------------
 # Data sources
@@ -46,7 +46,11 @@ data_sources:
   - name: demo_sqlite
     type: sqlite
     connection: data/demo_business.db
-    description: Demo SQLite business source used for the hackathon walkthrough.
+    description: Small demo SQLite business source.
+  - name: big_demo_sqlite
+    type: sqlite
+    connection: data/big_demo.db
+    description: Large synthetic SQLite dataset with hundreds of tables.
   # Example delegated graph source (MCP/adapter gateway):
   # - name: demo_graph
   #   type: graph
@@ -74,31 +78,4 @@ data_sources:
   #   type: postgresql
   #   connection: postgresql+psycopg2://user:password@localhost:5432/mydb
 
-schema_docs:
-  demo_sqlite:
-    tables:
-      regions:
-        description: "Region reference dimension for customer geography."
-        columns:
-          region_id: "Unique region identifier."
-          region_name: "Business reporting region label."
-      customers:
-        description: "Customer master with regional assignment."
-        columns:
-          customer_id: "Unique customer identifier."
-          customer_name: "Legal customer name."
-          region_id: "Foreign key to regions."
-      orders:
-        description: "Order facts with booked revenue and reporting quarter."
-        columns:
-          order_id: "Unique order identifier."
-          customer_id: "Foreign key to customers."
-          order_date: "Order booking date."
-          revenue: "Booked revenue amount for the order."
-          quarter: "Reporting quarter (for example Q1, Q2)."
-  # demo_graph:
-  #   graph_entities:
-  #     Person:
-  #       description: "Person graph node."
-  #       columns:
-  #         segment: "Customer segment label."
+# (Optional) Inline schema_docs have been moved to config/schema_docs.json

@@ -43,10 +43,18 @@ pnpm install
 
 ## Data Initialization
 
-To initialize the demo database and build the schema catalog:
+To initialize the demo database, build the schema catalog, and **generate graph data**:
 
 ```bash
 bash scripts/init-data.sh
+```
+
+### Starting from Scratch
+
+If you want to clear all local data and start fresh:
+
+```bash
+bash scripts/wipe-data.sh
 ```
 
 ### Manual Steps
@@ -61,11 +69,12 @@ bash scripts/init-data.sh
    ubs-build-catalog --config config/config.yaml
    ```
 
-3. **Generate large synthetic dataset (Optional)**:
+3. **Generate large synthetic dataset (SQLite + Cypher)**:
    ```bash
    python scripts/generate_data.py
-   ubs-build-catalog --config config/big_config.yaml
+   ubs-build-catalog --config config/config.yaml
    ```
+   This generates both a SQLite database (`data/big_demo.db`) and a Cypher script (`data/big_demo.cypher`) for Neo4j.
 
 ## Neo4j Setup
 

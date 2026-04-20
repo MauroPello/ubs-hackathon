@@ -13,21 +13,45 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
+# Set PYTHONPATH to include the src directory
+export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+
+# --- 0. Ensure Neo4j is running ---
+NEO4J_CONTAINER="ubs-neo4j"
+if [ "$(docker ps -aq -f name=^/${NEO4J_CONTAINER}$)" ]; then
+    if [ ! "$(docker ps -q -f name=^/${NEO4J_CONTAINER}$)" ]; then
+        echo "🔄 Starting existing Neo4j container..."
+        docker start ${NEO4J_CONTAINER}
+    fi
+else
+    echo "🐳 Creating and starting new Neo4j container..."
+    docker run --name ${NEO4J_CONTAINER} \
+      --detach \
+      --publish 7474:7474 \
+      --publish 7687:7687 \
+      --env NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-ChangeMe123!} \
+      --env NEO4J_PLUGINS='["apoc"]' \
+      --volume ubs-neo4j-data:/data \
+      neo4j:5.26.1
+fi
+
+echo "⏳ Waiting for Neo4j to be ready..."
+until cypher-shell -a ${NEO4J_URI:-bolt://localhost:7687} -u ${NEO4J_USERNAME:-neo4j} -p ${NEO4J_PASSWORD:-ChangeMe123!} "RETURN 1" > /dev/null 2>&1; do
+    sleep 2
+done
+echo "✅ Neo4j is ready!"
+
 # 1. Start Backend
 echo "📡 Starting Backend (REST API) on port 8080..."
-ubs-backend --meta-db data/meta.db --catalog data/catalog.db --host 127.0.0.1 --port 8080 > backend.log 2>&1 &
+python3 -m ubs_hackathon.backend --meta-db data/meta.db --catalog data/catalog.db --host 127.0.0.1 --port 8080 > backend.log 2>&1 &
 
 # 2. Start MCP Server (SSE)
 echo "🔌 Starting MCP Server (SSE) on port 8000..."
-ubs-mcp-server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000 > mcp.log 2>&1 &
+python3 -m ubs_hackathon.server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000 > mcp.log 2>&1 &
 
-# 3. Start Neo4j MCP (if environment variables are set)
-if [ ! -z "$NEO4J_URI" ]; then
-    echo "🌳 Starting Neo4j MCP Server..."
-    uvx mcp-neo4j-cypher@0.6.0 --transport stdio > neo4j_mcp.log 2>&1 &
-else
-    echo "ℹ️ Neo4j environment variables not set. Skipping Neo4j MCP."
-fi
+# 3. Start Neo4j MCP
+echo "🌳 Starting Neo4j MCP Server..."
+uvx mcp-neo4j-cypher@0.6.0 --transport stdio > neo4j_mcp.log 2>&1 &
 
 # 4. Start Frontend
 echo "💻 Starting Frontend..."
