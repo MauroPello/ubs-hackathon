@@ -47,7 +47,7 @@ FRONTEND_HTML = """
     button.secondary { background:#1f1f1f; color:#fff; }
     button.ghost { background:#fff; border:1px solid #9ca3af; color:#171717; }
     button.danger { background:var(--danger); }
-    button.ok { background:var(--ok); color:#052e16; }
+    button.ok { background:var(--ok); color:#fff; }
     button[disabled] { opacity:.55; cursor:not-allowed; }
     ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; max-height:360px; overflow:auto; }
     li { border:1px solid var(--line); border-radius:10px; padding:10px; background:#fcfcfc; }
