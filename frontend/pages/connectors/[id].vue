@@ -105,7 +105,7 @@ onMounted(() => {
               <UInput v-model="form.name" placeholder="my_neo4j_prod" />
             </UFormGroup>
 
-            <UFormGroup label="Endpoint URL">
+            <UFormGroup v-if="registryEntry?.id !== 'sql-like'" label="Endpoint URL">
               <UInput v-model="form.endpoint" placeholder="http://..." />
             </UFormGroup>
           </div>
