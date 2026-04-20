@@ -20,10 +20,10 @@ async function fetchData() {
   try {
     const cfg = await $fetch(`/api/upstream-mcp-server-configs/${id}`)
     config.value = cfg
-    
+
     const reg = await $fetch(`/api/upstream-mcp-servers/${cfg.server_id}`)
     registryEntry.value = reg
-    
+
     // Fill form
     form.name = cfg.name
     form.endpoint = cfg.endpoint || ''
@@ -59,7 +59,7 @@ async function updateConfig() {
 
 async function deleteConfig() {
   if (!confirm('Are you sure you want to delete this configuration?')) return
-  
+
   try {
     await $fetch(`/api/upstream-mcp-server-configs/${id}`, {
       method: 'DELETE'
@@ -105,7 +105,7 @@ onMounted(() => {
               <UInput v-model="form.name" placeholder="my_neo4j_prod" />
             </UFormGroup>
 
-            <UFormGroup v-if="registryEntry?.is_mcp_tool" label="MCP endpoint">
+            <UFormGroup v-if="registryEntry?.uses_mcp" label="MCP endpoint">
               <UInput v-model="form.endpoint" placeholder="http://..." />
             </UFormGroup>
           </div>
@@ -114,9 +114,9 @@ onMounted(() => {
             <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Authentication</h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <UFormGroup v-for="(spec, key) in registryEntry.auth_schema" :key="key" :label="key">
-                <UInput 
-                  v-model="form.auth[key]" 
-                  :type="spec.secret ? 'password' : 'text'" 
+                <UInput
+                  v-model="form.auth[key]"
+                  :type="spec.secret ? 'password' : 'text'"
                   :placeholder="spec.description"
                 />
               </UFormGroup>
@@ -126,7 +126,7 @@ onMounted(() => {
           <div v-if="registryEntry?.tools" class="space-y-4 border-t border-gray-100 pt-6">
             <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Exposed Tools</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div v-for="tool in registryEntry.tools" :key="tool.name" 
+              <div v-for="tool in registryEntry.tools" :key="tool.name"
                    class="flex items-center gap-3 p-3 border rounded-xl hover:bg-gray-50 transition-colors">
                 <UCheckbox v-model="form.exposed_tools" :value="tool.name" />
                 <div class="min-w-0">

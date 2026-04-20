@@ -46,7 +46,7 @@ connectors_registry:
         type: string
         description: Neo4j database password
         secret: true
-    is_mcp_tool: true
+    uses_mcp: true
     status: available
   - id: notion
     name: Notion
@@ -67,7 +67,7 @@ connectors_registry:
         type: string
         description: Notion integration token (starts with secret_...)
         secret: true
-    is_mcp_tool: true
+    uses_mcp: true
     status: unavailable
     hidden_source_fields:
       - databases
@@ -101,7 +101,7 @@ connectors_registry:
         type: string
         description: SQLAlchemy connection string
         secret: false
-    is_mcp_tool: false
+    uses_mcp: false
     status: available
 
 # ---------------------------------------------------------------------------

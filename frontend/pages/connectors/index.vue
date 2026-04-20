@@ -92,7 +92,7 @@ function resetForm() {
               <UInput v-model="form.name" placeholder="my_sql_db" />
             </UFormGroup>
 
-            <UFormGroup v-if="selectedRegistry.is_mcp_tool" label="MCP endpoint">
+            <UFormGroup v-if="selectedRegistry.uses_mcp" label="MCP endpoint">
               <UInput v-model="form.endpoint" placeholder="https://..." />
             </UFormGroup>
 
