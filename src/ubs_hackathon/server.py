@@ -102,7 +102,8 @@ class SourceRegistry:
                 self._connector_configs[upstream_cfg.id] = upstream_cfg
                 tool_specs = _extract_exposed_tool_specs(upstream_cfg.exposed_tools)
                 metadata_specs = get_metadata_tool_specs(
-                    get_registry_entry(self.registry, upstream_cfg.server_id)
+                    get_registry_entry(self.registry, upstream_cfg.server_id),
+                    prefix=upstream_cfg.server_id,
                 )
                 combined_specs: list[tuple[str, str | None]] = []
                 seen_names: set[str] = set()

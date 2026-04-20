@@ -58,7 +58,7 @@ async function updateConfig() {
 }
 
 async function deleteConfig() {
-  if (!confirm('Are you sure you want to delete this configuration?')) return
+  if (!confirm('Are you sure you want to delete this configuration? This will also delete all associated data sources.')) return
 
   try {
     await $fetch(`/api/upstream-mcp-server-configs/${id}`, {

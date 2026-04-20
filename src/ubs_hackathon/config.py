@@ -85,7 +85,9 @@ def _normalize_tool_fragment(value: str) -> str:
     return cleaned
 
 
-def get_metadata_tool_specs(entry: dict | None) -> list[tuple[str, str]]:
+def get_metadata_tool_specs(
+    entry: dict | None, prefix: str | None = None
+) -> list[tuple[str, str]]:
     """Return metadata-backed tool specs derived from a registry entry."""
     if not entry or not entry.get("has_metadata"):
         return []
@@ -94,13 +96,16 @@ def get_metadata_tool_specs(entry: dict | None) -> list[tuple[str, str]]:
     if not entity_name:
         return []
 
+    p = _normalize_tool_fragment(prefix) if prefix else ""
+    if p:
+        p = f"{p}_"
     return [
         (
-            f"search_{entity_name}",
+            f"search_{p}{entity_name}",
             f"Search {entity_name} metadata in the catalog.",
         ),
         (
-            f"describe_{entity_name}",
+            f"describe_{p}{entity_name}",
             f"Describe {entity_name} metadata in the catalog.",
         ),
     ]

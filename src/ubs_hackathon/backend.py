@@ -335,7 +335,7 @@ def create_app(
             d["has_metadata"] = reg["has_metadata"]
         if reg and "entity_name" in reg:
             d["entity_name"] = reg["entity_name"]
-        metadata_tools = get_metadata_tool_specs(reg)
+        metadata_tools = get_metadata_tool_specs(reg, prefix=cfg.server_id)
         if metadata_tools:
             d["metadata_tools"] = [name for name, _ in metadata_tools]
         return d
@@ -448,12 +448,16 @@ def create_app(
     )
     def delete_upstream_config(config_id: str) -> None:
         """Delete an upstream MCP server configuration."""
-        deleted = store.delete_upstream_config(config_id)
-        if not deleted:
+        deleted_sources, connector_deleted = store.delete_upstream_config(config_id)
+        if not connector_deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Upstream MCP server configuration not found",
             )
+        # Clean up catalog for each deleted data source
+        for source_name in deleted_sources:
+            catalog.delete_data_source(source_name)
+
         _trigger_mcp_restart()
 
     # ------------------------------------------------------------------
@@ -546,6 +550,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
             )
+        catalog.delete_data_source(name)
 
     @api_router.get("/data-sources/{name}/docs")
     def list_docs(name: str) -> list[dict]:

@@ -297,9 +297,8 @@ const categories = [
         </template>
 
         <form @submit.prevent="addDoc" class="space-y-4">
-          <UFormGroup :label="`Target (${entityLabel})`" required>
-            <UInput v-model="docForm.target" :placeholder="`customers or person`" />
-            <template #hint>Use the entity name this documentation describes.</template>
+          <UFormGroup :label="`${entityLabel}`" required>
+            <UInput v-model="docForm.target" />
           </UFormGroup>
 
           <UFormGroup label="Content" required>

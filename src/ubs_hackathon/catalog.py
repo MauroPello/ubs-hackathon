@@ -39,7 +39,7 @@ class SchemaCatalog:
 
     def _doc_text(self, doc: TableDoc) -> str:
         column_text = "\n".join(
-            f"- {c.name} ({c.data_type}) nullable={c.nullable} samples={','.join(c.sample_values or [])}"
+            f"- {c.name} ({c.data_type}) {c.description or ''} nullable={c.nullable} samples={','.join(c.sample_values or [])}"
             for c in doc.columns
         )
         fk_text = "\n".join(
@@ -79,6 +79,13 @@ class SchemaCatalog:
                     json.dumps(embedding),
                 ),
             )
+
+    def delete_data_source(self, data_source: str) -> bool:
+        with self._connect() as conn:
+            result = conn.execute(
+                "DELETE FROM table_docs WHERE data_source = ?", (data_source,)
+            )
+        return result.rowcount > 0
 
     def describe_table(self, data_source: str, table: str) -> dict:
         with self._connect() as conn:

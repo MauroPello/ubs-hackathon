@@ -565,13 +565,27 @@ class MetaStore:
             raise RuntimeError(f"Failed to update upstream config: {config_id}")
         return updated
 
-    def delete_upstream_config(self, config_id: str) -> bool:
+    def delete_upstream_config(self, config_id: str) -> tuple[list[str], bool]:
         with self._connect() as conn:
+            # Find data sources to delete
+            rows = conn.execute(
+                "SELECT name FROM data_sources WHERE upstream_mcp_server_config_id = ?",
+                (config_id,),
+            ).fetchall()
+            deleted_sources = [row["name"] for row in rows]
+
+            # Delete associated data sources first
+            # source_docs has ON DELETE CASCADE on data_source, so they will be cleaned up automatically
+            conn.execute(
+                "DELETE FROM data_sources WHERE upstream_mcp_server_config_id = ?",
+                (config_id,),
+            )
             result = conn.execute(
                 "DELETE FROM upstream_mcp_server_configs WHERE id = ?",
                 (config_id,),
             )
-        return result.rowcount > 0
+            connector_deleted = result.rowcount > 0
+        return deleted_sources, connector_deleted
 
     # ------------------------------------------------------------------
     # Audit Logging

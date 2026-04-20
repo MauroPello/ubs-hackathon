@@ -16,6 +16,20 @@ NEO4J_DATA_SOURCE_NAME = "big_demo_neo4j"
 MAX_SETTLEMENT_LAG_DAYS = 5
 
 
+def _merge_columns_into_description(
+    docs: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    new_docs = {}
+    for name, meta in docs.items():
+        desc = meta.get("description", "")
+        cols = meta.get("columns", {})
+        if cols:
+            col_parts = [f"{k} ({v})" for k, v in cols.items()]
+            desc += " Attributes: " + ", ".join(col_parts)
+        new_docs[name] = {"description": desc}
+    return new_docs
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate a large, interconnected SQLite dataset plus schema docs."
@@ -866,8 +880,10 @@ def main() -> None:
 
     # Initial docs with standard demo sources
     docs = {
-        DATA_SOURCE_NAME: {"tables": _table_docs()},
-        NEO4J_DATA_SOURCE_NAME: {"tables": _neo4j_docs()},
+        DATA_SOURCE_NAME: {"tables": _merge_columns_into_description(_table_docs())},
+        NEO4J_DATA_SOURCE_NAME: {
+            "graph_entities": _merge_columns_into_description(_neo4j_docs())
+        },
     }
 
     with sqlite3.connect(db_path) as conn:
@@ -885,7 +901,9 @@ def main() -> None:
             start_dt=start_dt,
         )
         for table_name in created_fact_tables:
-            docs[DATA_SOURCE_NAME]["tables"][table_name] = _fact_table_docs(table_name)
+            docs[DATA_SOURCE_NAME]["tables"][table_name] = _merge_columns_into_description(
+                {table_name: _fact_table_docs(table_name)}
+            )[table_name]
         conn.commit()
 
     with docs_path.open("w", encoding="utf-8") as f:
