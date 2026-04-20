@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 from .models import DataSourceConfig, DataSourceRegistration, UpstreamMCPServerConfigRecord
-from .registry import get_registry_entry
+from .config import get_registry_entry
 
 
 class RuntimeResolutionError(ValueError):
@@ -26,11 +24,12 @@ def _resolve_sql_like_runtime(
 
 def resolve_runtime_type_and_connection(
     connector: UpstreamMCPServerConfigRecord,
+    registry: list[dict],
 ) -> tuple[str, str]:
     if connector.server_id == "sql-like":
         return _resolve_sql_like_runtime(connector)
 
-    entry = get_registry_entry(connector.server_id)
+    entry = get_registry_entry(registry, connector.server_id)
     data_type = str((entry or {}).get("data_type") or connector.server_id).strip().lower()
     if not data_type:
         raise RuntimeResolutionError(
@@ -42,8 +41,9 @@ def resolve_runtime_type_and_connection(
 def build_runtime_source_config(
     registration: DataSourceRegistration,
     connector: UpstreamMCPServerConfigRecord,
+    registry: list[dict],
 ) -> DataSourceConfig:
-    source_type, connection = resolve_runtime_type_and_connection(connector)
+    source_type, connection = resolve_runtime_type_and_connection(connector, registry)
     return DataSourceConfig(
         name=registration.name,
         type=source_type,

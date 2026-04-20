@@ -19,10 +19,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .builder import _apply_schema_docs
 from .catalog import SchemaCatalog
+from .config import load_config, get_registry_entry, list_registry_entries
 from .datasource import build_data_source
 from .meta_store import MetaStore, _UNSET
 from .models import DataSourceConfig
-from .registry import UPSTREAM_MCP_REGISTRY, get_registry_entry, list_registry_entries
 from .source_runtime import RuntimeResolutionError, build_runtime_source_config
 
 _UNSET_SENTINEL = _UNSET
@@ -205,7 +205,7 @@ def _make_config_id(name: str) -> str:
 
 
 def _rebuild_catalog_for_data_source(
-    store: MetaStore, catalog: SchemaCatalog, name: str
+    store: MetaStore, catalog: SchemaCatalog, name: str, registry: list[dict]
 ) -> int:
     registration = store.get_data_source(name)
     if not registration:
@@ -228,7 +228,7 @@ def _rebuild_catalog_for_data_source(
     if u_cfg.server_id != "sql-like":
         return 0
     try:
-        runtime_cfg = build_runtime_source_config(registration, u_cfg)
+        runtime_cfg = build_runtime_source_config(registration, u_cfg, registry)
     except RuntimeResolutionError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -262,8 +262,11 @@ def _rebuild_catalog_for_data_source(
 def create_app(
     meta_db_path: str | Path = "data/meta.db",
     catalog_path: str | Path = "data/catalog.db",
+    config_path: str | Path | None = None,
 ) -> FastAPI:
     app = FastAPI(title="UBS Hackathon Data Source Backend")
+
+    _, _, _, _, _, connectors_registry = load_config(config_path)
 
     app.add_middleware(
         CORSMiddleware,
@@ -338,12 +341,12 @@ def create_app(
     @api_router.get("/upstream-mcp-servers")
     def list_upstream_mcp_servers(data_type: str | None = None) -> list[dict]:
         """List available upstream MCP servers from the hardcoded registry."""
-        return list_registry_entries(data_type=data_type)
+        return list_registry_entries(connectors_registry, data_type=data_type)
 
     @api_router.get("/upstream-mcp-servers/{server_id}")
     def get_upstream_mcp_server(server_id: str) -> dict:
         """Get a single upstream MCP server entry from the registry."""
-        entry = get_registry_entry(server_id)
+        entry = get_registry_entry(connectors_registry, server_id)
         if entry is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -363,7 +366,7 @@ def create_app(
     @api_router.post("/upstream-mcp-server-configs", status_code=status.HTTP_201_CREATED)
     def create_upstream_config(payload: UpstreamMCPServerConfigCreate) -> dict:
         """Create a new upstream MCP server configuration."""
-        if get_registry_entry(payload.server_id) is None:
+        if get_registry_entry(connectors_registry, payload.server_id) is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"Server '{payload.server_id}' not found in upstream MCP registry",
@@ -535,7 +538,7 @@ def create_app(
         created = store.create_doc(
             name, payload.doc_type, payload.target, payload.content
         )
-        _rebuild_catalog_for_data_source(store, catalog, name)
+        _rebuild_catalog_for_data_source(store, catalog, name, connectors_registry)
         return created.to_dict()
 
     @api_router.get("/data-sources/{name}/docs/{doc_id}")
@@ -564,7 +567,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found"
             )
-        _rebuild_catalog_for_data_source(store, catalog, name)
+        _rebuild_catalog_for_data_source(store, catalog, name, connectors_registry)
         return updated.to_dict()
 
     @api_router.delete(
@@ -576,11 +579,11 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found"
             )
-        _rebuild_catalog_for_data_source(store, catalog, name)
+        _rebuild_catalog_for_data_source(store, catalog, name, connectors_registry)
 
     @api_router.post("/data-sources/{name}/sync")
     def sync_data_source(name: str) -> dict:
-        total_tables = _rebuild_catalog_for_data_source(store, catalog, name)
+        total_tables = _rebuild_catalog_for_data_source(store, catalog, name, connectors_registry)
         return {"data_source": name, "indexed_tables": total_tables}
 
     # Include the router twice: once with /api prefix and once without.
@@ -599,12 +602,13 @@ def main() -> None:
     parser.add_argument(
         "--catalog", default="data/catalog.db", help="Path to schema catalog DB"
     )
+    parser.add_argument("--config", default=None, help="Path to config YAML")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--reload", action="store_true", help="Enable uvicorn reload")
     args = parser.parse_args()
 
-    app = "ubs_hackathon.backend:create_app" if args.reload else create_app(meta_db_path=args.meta_db, catalog_path=args.catalog)
+    app = "ubs_hackathon.backend:create_app" if args.reload else create_app(meta_db_path=args.meta_db, catalog_path=args.catalog, config_path=args.config)
 
     if args.reload:
         uvicorn.run(app, host=args.host, port=args.port, reload=True, factory=True)

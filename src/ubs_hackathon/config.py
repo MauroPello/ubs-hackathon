@@ -30,7 +30,7 @@ def _load_docs(path: Path) -> dict:
 
 def load_config(
     path: str | Path | None = None,
-) -> tuple[list[DataSourceConfig], Path, Path, dict, list[dict]]:
+) -> tuple[list[DataSourceConfig], Path, Path, dict, list[dict], list[dict]]:
     config_path = Path(path) if path else DEFAULT_CONFIG_PATH
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     catalog_path = Path(raw.get("catalog", {}).get("db_path", "data/catalog.db"))
@@ -69,4 +69,24 @@ def load_config(
         meta_db_path,
         docs_map,
         list(raw.get("upstream_mcp_server_configs", []) or []),
+        list(raw.get("connectors_registry", []) or []),
     )
+
+
+def get_registry_entry(
+    registry: list[dict], server_id: str
+) -> dict | None:
+    """Return the registry entry for *server_id*, or ``None`` if not found."""
+    for entry in registry:
+        if entry.get("id") == server_id:
+            return entry
+    return None
+
+
+def list_registry_entries(
+    registry: list[dict], data_type: str | None = None
+) -> list[dict]:
+    """Return registry entries, optionally filtered by *data_type*."""
+    if data_type is None:
+        return list(registry)
+    return [e for e in registry if e.get("data_type") == data_type]

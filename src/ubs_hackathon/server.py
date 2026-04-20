@@ -59,10 +59,12 @@ class SourceRegistry:
         meta_db_path: str | Path | None,
         catalog_path: Path,
         yaml_sources: list[DataSourceConfig],
+        registry: list[dict],
     ) -> None:
         self.meta_db_path = meta_db_path
         self.catalog_path = catalog_path
         self.yaml_sources = yaml_sources
+        self.registry = registry
         self._ds_cache: dict[str, DataSource] = {}
         self._configs: dict[str, DataSourceConfig] = {}
         self._connector_configs: dict[str, Any] = {}
@@ -121,7 +123,7 @@ class SourceRegistry:
                 if not connector:
                     continue
                 try:
-                    cfg = build_runtime_source_config(reg, connector)
+                    cfg = build_runtime_source_config(reg, connector, self.registry)
                 except RuntimeResolutionError:
                     continue
                 new_configs[reg.name] = cfg
@@ -152,7 +154,7 @@ class SourceRegistry:
                     connector = store.get_upstream_config(config_id)
                     if connector:
                         try:
-                            cfg = build_runtime_source_config(reg, connector)
+                            cfg = build_runtime_source_config(reg, connector, self.registry)
                         except RuntimeResolutionError:
                             cfg = None
                         if cfg:
@@ -241,11 +243,12 @@ def create_server(
     port: int = 8000,
     meta_db_path: str | Path | None = None,
 ) -> FastMCP:
-    yaml_sources, catalog_path, meta_db_path_from_config, _, _ = load_config(config_path)
+    yaml_sources, catalog_path, meta_db_path_from_config, _, _, connectors_registry = load_config(config_path)
     registry = SourceRegistry(
         meta_db_path=meta_db_path or meta_db_path_from_config,
         catalog_path=Path(catalog_path),
         yaml_sources=yaml_sources,
+        registry=connectors_registry,
     )
     catalog = SchemaCatalog(Path(catalog_path))
 

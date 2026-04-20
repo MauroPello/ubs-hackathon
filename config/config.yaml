@@ -16,6 +16,92 @@ catalog:
 schema_docs_path: config/schema_docs.json
 
 # ---------------------------------------------------------------------------
+# Registry of available connector types
+# ---------------------------------------------------------------------------
+connectors_registry:
+  - id: neo4j
+    name: Neo4j
+    data_type: graph
+    description: >
+      Neo4j graph database MCP server for executing Cypher queries 
+      and exploring graph schema.
+    tools:
+      - name: execute_cypher
+        description: Execute a read-only Cypher query against the Neo4j database.
+      - name: list_labels
+        description: List all node labels present in the graph database.
+      - name: describe_node_type
+        description: Describe the properties and relationships of a node label.
+    requires_auth: true
+    auth_schema:
+      url:
+        type: string
+        description: Bolt URL, e.g. bolt://localhost:7687
+        secret: false
+      username:
+        type: string
+        description: Neo4j database username
+        secret: false
+      password:
+        type: string
+        description: Neo4j database password
+        secret: true
+    is_local: true
+    status: available
+  - id: notion
+    name: Notion
+    data_type: documents
+    description: >
+      Notion workspace MCP server for reading pages, databases, 
+      and block content.
+    tools:
+      - name: search_pages
+        description: Search pages and content in the Notion workspace.
+      - name: get_page_content
+        description: Retrieve the full content of a specific Notion page.
+      - name: list_databases
+        description: List all Notion databases accessible to the integration.
+    requires_auth: true
+    auth_schema:
+      api_key:
+        type: string
+        description: Notion integration token (starts with secret_...)
+        secret: true
+    is_local: false
+    status: unavailable
+  - id: sql-like
+    name: SQL-like
+    data_type: sql
+    description: >
+      Internal SQL connector for relational databases (SQLite, PostgreSQL, etc.). 
+      Allows enabling/disabling SQL analysis tools.
+    tools:
+      - name: search_schema
+        description: Semantic search over indexed schema docs.
+      - name: describe_table
+        description: Return complete table metadata from the schema catalog.
+      - name: execute_query
+        description: Execute a read-only query against a configured source.
+      - name: list_temporary_views
+        description: List temporary views created in the current server session.
+      - name: create_temporary_view
+        description: Create a session-local temporary view for iterative analysis.
+      - name: drop_temporary_view
+        description: Drop a temporary view created by this server session.
+    requires_auth: true
+    auth_schema:
+      dialect:
+        type: string
+        description: SQL dialect (sqlite, postgresql, mysql, etc.)
+        secret: false
+      connection:
+        type: string
+        description: SQLAlchemy connection string
+        secret: false
+    is_local: true
+    status: available
+
+# ---------------------------------------------------------------------------
 # Upstream connector configurations
 # ---------------------------------------------------------------------------
 # Every data source must reference one entry from this list using
