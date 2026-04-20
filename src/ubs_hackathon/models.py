@@ -9,6 +9,7 @@ class DataSourceConfig:
     name: str
     type: str
     connection: str
+    description: str | None = None
     adapter: str | None = None
     options: dict[str, Any] | None = None
 
@@ -51,6 +52,7 @@ class DataSourceRegistration:
     connection: str
     created_at: str
     updated_at: str
+    description: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

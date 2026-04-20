@@ -7,4 +7,5 @@ dependencies:
   - pip:
       - fastapi>=0.110
       - uvicorn[standard]>=0.29
+      - black>=24.0
       - -e .

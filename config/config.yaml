@@ -46,6 +46,7 @@ data_sources:
   - name: demo_sqlite
     type: sqlite
     connection: data/demo_business.db
+    description: Demo SQLite business source used for the hackathon walkthrough.
   # Example delegated graph source (MCP/adapter gateway):
   # - name: demo_graph
   #   type: graph

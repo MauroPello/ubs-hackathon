@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS data_sources (
     name TEXT PRIMARY KEY,
     type TEXT NOT NULL,
     connection TEXT NOT NULL,
+    description TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -37,6 +38,11 @@ CREATE TABLE IF NOT EXISTS source_docs (
 """
 
 
+def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(row[1] == column for row in rows)
+
+
 class MetaStore:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
@@ -52,6 +58,8 @@ class MetaStore:
     def _ensure_schema(self) -> None:
         with self._connect() as conn:
             conn.executescript(META_SCHEMA)
+            if not _column_exists(conn, "data_sources", "description"):
+                conn.execute("ALTER TABLE data_sources ADD COLUMN description TEXT")
 
     def _now(self) -> str:
         return datetime.now(timezone.utc).isoformat()
@@ -59,27 +67,33 @@ class MetaStore:
     def list_data_sources(self) -> list[DataSourceRegistration]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT name, type, connection, created_at, updated_at FROM data_sources ORDER BY name"
+                "SELECT name, type, connection, description, created_at, updated_at FROM data_sources ORDER BY name"
             ).fetchall()
         return [DataSourceRegistration(**dict(row)) for row in rows]
 
     def get_data_source(self, name: str) -> DataSourceRegistration | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT name, type, connection, created_at, updated_at FROM data_sources WHERE name = ?",
+                "SELECT name, type, connection, description, created_at, updated_at FROM data_sources WHERE name = ?",
                 (name,),
             ).fetchone()
         return DataSourceRegistration(**dict(row)) if row else None
 
-    def create_data_source(self, name: str, type_: str, connection: str) -> DataSourceRegistration:
+    def create_data_source(
+        self,
+        name: str,
+        type_: str,
+        connection: str,
+        description: str | None = None,
+    ) -> DataSourceRegistration:
         now = self._now()
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO data_sources (name, type, connection, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO data_sources (name, type, connection, description, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (name, type_, connection, now, now),
+                (name, type_, connection, description, now, now),
             )
         created = self.get_data_source(name)
         if created is None:
@@ -91,21 +105,23 @@ class MetaStore:
         name: str,
         type_: str | None = None,
         connection: str | None = None,
+        description: str | None | _Unset = _UNSET,
     ) -> DataSourceRegistration | None:
         current = self.get_data_source(name)
         if current is None:
             return None
         next_type = type_ if type_ is not None else current.type
         next_connection = connection if connection is not None else current.connection
+        next_description = current.description if description is _UNSET else description
         now = self._now()
         with self._connect() as conn:
             conn.execute(
                 """
                 UPDATE data_sources
-                SET type = ?, connection = ?, updated_at = ?
+                SET type = ?, connection = ?, description = ?, updated_at = ?
                 WHERE name = ?
                 """,
-                (next_type, next_connection, now, name),
+                (next_type, next_connection, next_description, now, name),
             )
         updated = self.get_data_source(name)
         if updated is None:
