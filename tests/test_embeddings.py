@@ -40,7 +40,7 @@ def test_openai_embedding_model_embed_parses_response(monkeypatch: pytest.Monkey
             return self
 
         def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
-            return None
+            pass
 
         def read(self) -> bytes:
             return b'{"data":[{"embedding":[0.1,0.2,0.3]}]}'

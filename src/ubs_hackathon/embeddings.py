@@ -65,7 +65,7 @@ class OpenAIEmbeddingModel:
             ip = ipaddress.ip_address(hostname)
         except ValueError:
             ip = None
-        if ip and (ip.is_private or ip.is_loopback or ip.is_link_local):
+        if ip and (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast):
             raise ValueError("Managed embeddings base URL must not target private/local IPs")
         self.api_key = api_key
         self.model = model
@@ -96,7 +96,12 @@ class OpenAIEmbeddingModel:
         data = parsed.get("data")
         if data is None:
             raise RuntimeError("Managed embedding response missing data field")
-        if not isinstance(data, list) or not data or "embedding" not in data[0]:
+        if (
+            not isinstance(data, list)
+            or not data
+            or not isinstance(data[0], dict)
+            or "embedding" not in data[0]
+        ):
             raise RuntimeError("Managed embedding response missing embedding data")
         return [float(v) for v in data[0]["embedding"]]
 
