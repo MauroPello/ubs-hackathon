@@ -49,6 +49,8 @@ For **non-SQL sources** (graph databases, vector stores, document stores) you ca
 - **Neo4j / Cypher** — [`mcp-neo4j-cypher`](https://github.com/neo4j-contrib/mcp-neo4j)
 - **Vector stores** (Chroma, Weaviate, Pinecone) — their respective MCP servers or the SQLAlchemy `pgvector` dialect for PostgreSQL+pgvector
 
+For a complete Neo4j walkthrough, including how to start a local Neo4j database, run the Neo4j MCP server, and load demo data, see [docs/neo4j.md](docs/neo4j.md).
+
 Example delegated graph source in `config/config.yaml`:
 
 ```yaml

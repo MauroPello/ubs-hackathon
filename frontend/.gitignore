@@ -1,0 +1,39 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+.wrangler
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Sentry Config File
+.env.sentry-build-plugin
+/.gtm/
+
+# iOS build artifacts
+ios/App/App.xcworkspace
+ios/App/build
+ios/App/Pods
+ios/App/Podfile.lock
+ios/App/*.ipa
+ios/App/*.app
+ios/App/.DS_Store
+ios/App/DerivedData
