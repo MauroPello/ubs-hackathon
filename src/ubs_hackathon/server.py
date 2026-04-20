@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import os
+import signal
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -34,6 +37,17 @@ def _extract_exposed_tool_specs(
             continue
         specs.append((name, None))
     return specs
+
+
+def _restart_handler(signum, frame):
+    """Signal handler to trigger a self-restart of the process."""
+    print("🔄 Upstream configuration changed. Restarting MCP server...")
+    # Give a tiny bit of time for logs to flush and the OS to breathe
+    time.sleep(0.2)
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
+signal.signal(signal.SIGHUP, _restart_handler)
 
 
 class SourceRegistry:
@@ -336,6 +350,11 @@ def main() -> None:
         help="Path to metadata DB (enables dynamic upstream MCP proxy tools)",
     )
     args = parser.parse_args()
+
+    # Write PID to file so backend can trigger restarts on config changes
+    pid_file = Path("data/mcp.pid")
+    pid_file.parent.mkdir(parents=True, exist_ok=True)
+    pid_file.write_text(str(os.getpid()))
 
     mcp = create_server(
         args.config,

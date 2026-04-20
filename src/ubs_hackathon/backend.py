@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import re
+import os
+import signal
 import sqlite3
 import uuid
 import time
@@ -23,6 +25,18 @@ from .models import DataSourceConfig
 from .registry import UPSTREAM_MCP_REGISTRY, get_registry_entry, list_registry_entries
 
 _UNSET_SENTINEL = _UNSET
+
+
+def _trigger_mcp_restart():
+    """Signal the MCP server to restart by sending SIGHUP to the recorded PID."""
+    pid_file = Path("data/mcp.pid")
+    if not pid_file.exists():
+        return
+    try:
+        pid = int(pid_file.read_text().strip())
+        os.kill(pid, signal.SIGHUP)
+    except (ValueError, ProcessLookupError, PermissionError):
+        pass
 
 
 def _seed_audit_logs(store: MetaStore):
@@ -344,6 +358,7 @@ def create_app(
             auth=payload.auth,
             exposed_tools=payload.exposed_tools,
         )
+        _trigger_mcp_restart()
         return created.to_dict()
 
     @api_router.get("/upstream-mcp-server-configs/{config_id}")
@@ -376,6 +391,7 @@ def create_app(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Upstream MCP server configuration not found",
             )
+        _trigger_mcp_restart()
         return updated.to_dict()
 
     @api_router.delete(
@@ -390,6 +406,7 @@ def create_app(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Upstream MCP server configuration not found",
             )
+        _trigger_mcp_restart()
 
     # ------------------------------------------------------------------
     # Data sources CRUD
