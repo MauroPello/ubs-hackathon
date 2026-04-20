@@ -59,4 +59,8 @@ def build_runtime_source_config(
         databases=registration.databases,
         sensitive_columns=registration.sensitive_columns,
         upstream_mcp_server_config_id=registration.upstream_mcp_server_config_id,
+        options={
+            "endpoint": connector.endpoint,
+            "exposed_tools": connector.exposed_tools,
+        },
     )

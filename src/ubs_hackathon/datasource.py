@@ -568,16 +568,18 @@ class SQLAlchemyDataSource(DataSource):
             return {"name": view_name, "deleted": True}
 
     def __del__(self) -> None:
-        conn = self._conn
+        conn = getattr(self, "_conn", None)
         if conn is not None:
             try:
                 conn.close()
             except Exception:
                 pass
-        try:
-            self._engine.dispose()
-        except Exception:
-            pass
+        engine = getattr(self, "_engine", None)
+        if engine is not None:
+            try:
+                engine.dispose()
+            except Exception:
+                pass
 
 
 class DelegatedGraphDataSource(DataSource):
@@ -929,6 +931,8 @@ def _default_adapter_key(config: DataSourceConfig) -> str:
     explicit = (config.adapter or "").strip().lower()
     if explicit:
         return explicit
+    if (config.connection or "").startswith("upstream://"):
+        return "upstream"
     source_type = (config.type or "").strip().lower()
     if source_type in GRAPH_ADAPTER_TYPES:
         return "delegated_graph"
@@ -944,7 +948,17 @@ def build_data_source(config: DataSourceConfig) -> DataSource:
     return factory(config)
 
 
+def _build_upstream_adapter(config: DataSourceConfig) -> UpstreamMCPDataSource:
+    opts = config.options or {}
+    return UpstreamMCPDataSource(
+        config,
+        endpoint=str(opts.get("endpoint") or ""),
+        exposed_tools=list(opts.get("exposed_tools") or []),
+    )
+
+
 register_data_source_adapter("sqlalchemy", SQLAlchemyDataSource)
 register_data_source_adapter("sqlite", SQLAlchemyDataSource)
+register_data_source_adapter("upstream", _build_upstream_adapter)
 for _graph_alias in GRAPH_ADAPTER_TYPES:
     register_data_source_adapter(_graph_alias, DelegatedGraphDataSource)

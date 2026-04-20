@@ -12,6 +12,7 @@ DEFAULT_TABLE_COUNT = 260
 DEFAULT_ROWS_PER_TABLE = 2000
 DEFAULT_SEED = 42
 DATA_SOURCE_NAME = "big_demo_sqlite"
+NEO4J_DATA_SOURCE_NAME = "big_demo_neo4j"
 MAX_SETTLEMENT_LAG_DAYS = 5
 
 
@@ -309,6 +310,78 @@ def _table_docs() -> dict[str, dict[str, Any]]:
                 "spread_bps": "Average market spread in basis points.",
                 "stress_level": "Market stress bucket.",
                 "macro_regime": "Macro environment classification.",
+            },
+        },
+    }
+
+
+def _neo4j_docs() -> dict[str, dict[str, Any]]:
+    return {
+        "Region": {
+            "description": "Top-level reporting region node.",
+            "columns": {
+                "region_id": "Unique region identifier.",
+                "name": "Business reporting region label.",
+            },
+        },
+        "Country": {
+            "description": "Country node mapped to reporting regions.",
+            "columns": {
+                "country_id": "Unique country identifier.",
+                "iso_code": "ISO 3166-1 alpha-2 country code (two-letter format).",
+                "name": "Full country name.",
+            },
+        },
+        "Desk": {
+            "description": "Trading/sales desk structure.",
+            "columns": {
+                "desk_id": "Desk identifier.",
+                "name": "Business desk label.",
+                "tier": "Desk criticality tier.",
+            },
+        },
+        "ProductFamily": {
+            "description": "Product family hierarchy root.",
+            "columns": {
+                "family_id": "Product family identifier.",
+                "name": "Product family name.",
+            },
+        },
+        "Product": {
+            "description": "Tradable product reference.",
+            "columns": {
+                "product_id": "Product identifier.",
+                "name": "Product label.",
+                "risk_class": "Risk class category.",
+                "liquidity_tier": "Relative market liquidity bucket.",
+            },
+        },
+        "Customer": {
+            "description": "Customer node.",
+            "columns": {
+                "customer_id": "Customer identifier.",
+                "name": "Synthetic customer legal name.",
+                "segment": "Client segment classification.",
+                "credit_bucket": "Internal credit quality bucket.",
+                "inception_date": "Customer onboarding date.",
+            },
+        },
+        "Counterparty": {
+            "description": "Counterparty node.",
+            "columns": {
+                "counterparty_id": "Counterparty identifier.",
+                "name": "Synthetic counterparty name.",
+                "type": "Counterparty archetype.",
+                "systemic_flag": "1 when counterparty is systemically important.",
+            },
+        },
+        "Trader": {
+            "description": "Trader node.",
+            "columns": {
+                "trader_id": "Trader identifier.",
+                "name": "Synthetic trader name.",
+                "seniority": "Trader seniority level.",
+                "location": "Primary operating location.",
             },
         },
     }
@@ -793,36 +866,8 @@ def main() -> None:
 
     # Initial docs with standard demo sources
     docs = {
-        "demo_sqlite": {
-            "tables": {
-                "regions": {
-                    "description": "Region reference dimension for customer geography.",
-                    "columns": {
-                        "region_id": "Unique region identifier.",
-                        "region_name": "Business reporting region label.",
-                    },
-                },
-                "customers": {
-                    "description": "Customer master with regional assignment.",
-                    "columns": {
-                        "customer_id": "Unique customer identifier.",
-                        "customer_name": "Legal customer name.",
-                        "region_id": "Foreign key to regions.",
-                    },
-                },
-                "orders": {
-                    "description": "Order facts with booked revenue and reporting quarter.",
-                    "columns": {
-                        "order_id": "Unique order identifier.",
-                        "customer_id": "Foreign key to customers.",
-                        "order_date": "Order booking date.",
-                        "revenue": "Booked revenue amount for the order.",
-                        "quarter": "Reporting quarter (for example Q1, Q2.",
-                    },
-                },
-            }
-        },
         DATA_SOURCE_NAME: {"tables": _table_docs()},
+        NEO4J_DATA_SOURCE_NAME: {"tables": _neo4j_docs()},
     }
 
     with sqlite3.connect(db_path) as conn:

@@ -124,6 +124,18 @@ upstream_mcp_server_configs:
       - list_temporary_views
       - create_temporary_view
       - drop_temporary_view
+  - id: local_neo4j_connector
+    server_id: neo4j
+    name: Local Neo4j Connector
+    endpoint: http://127.0.0.1:8001/sse
+    auth:
+      url: bolt://localhost:7687
+      username: neo4j
+      password: ChangeMe123!
+    exposed_tools:
+      - execute_cypher
+      - list_labels
+      - describe_node_type
 
 # ---------------------------------------------------------------------------
 # Data sources
@@ -143,6 +155,11 @@ data_sources:
     sensitive_columns:
       - clients.tax_id
       - clients.email
+  - name: big_demo_neo4j
+    upstream_mcp_server_config_id: local_neo4j_connector
+    databases:
+      - neo4j
+    description: Large synthetic Neo4j dataset mapping relationships.
   # Uncomment and fill in to add a second source alongside the SQLite demo:
   # - name: prod_postgres
   #   upstream_mcp_server_config_id: prod_postgres_connector

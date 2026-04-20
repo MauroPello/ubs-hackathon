@@ -152,13 +152,12 @@ def build_catalog(config_path: str | None = None) -> int:
                     .strip()
                     .lower()
                 )
-                if data_type == "sql":
-                    try:
-                        runtime_cfg = build_runtime_source_config(
-                            registration, connector, connectors_registry
-                        )
-                    except RuntimeResolutionError:
-                        continue
+                try:
+                    runtime_cfg = build_runtime_source_config(
+                        registration, connector, connectors_registry
+                    )
+                except RuntimeResolutionError:
+                    continue
         source = build_data_source(runtime_cfg)
         for doc in source.catalog_docs():
             _apply_schema_docs(doc, docs_map)
