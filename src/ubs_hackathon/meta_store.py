@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from .models import DataSourceRegistration, DocEntry, UpstreamMCPServerConfigRecord
+from .models import DataSourceRegistration, DocEntry, UpstreamMCPServerConfigRecord, AuditLogEntry
 
 
 class _Unset:
@@ -37,6 +37,16 @@ CREATE TABLE IF NOT EXISTS source_docs (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (data_source) REFERENCES data_sources(name) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    action TEXT NOT NULL,
+    details TEXT,
+    actor TEXT NOT NULL DEFAULT 'System',
+    status TEXT NOT NULL DEFAULT 'Success',
+    latency_ms INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS upstream_mcp_server_configs (
@@ -419,3 +429,85 @@ class MetaStore:
                 (config_id,),
             )
         return result.rowcount > 0
+
+    # ------------------------------------------------------------------
+    # Audit Logging
+    # ------------------------------------------------------------------
+
+    def log_action(
+        self,
+        action: str,
+        details: str | None = None,
+        actor: str = "System",
+        status: str = "Success",
+        latency_ms: int | None = None,
+        timestamp: str | None = None,
+    ) -> AuditLogEntry:
+        now = timestamp or self._now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO audit_log (timestamp, action, details, actor, status, latency_ms)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (now, action, details, actor, status, latency_ms),
+            )
+            log_id = int(cursor.lastrowid)
+        return AuditLogEntry(
+            id=log_id,
+            timestamp=now,
+            action=action,
+            details=details,
+            actor=actor,
+            status=status,
+            latency_ms=latency_ms,
+        )
+
+    def list_audit_logs(self, limit: int = 50) -> list[AuditLogEntry]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, timestamp, action, details, actor, status, latency_ms FROM audit_log ORDER BY timestamp DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [AuditLogEntry(**dict(row)) for row in rows]
+
+    def get_usage_metrics(self, days: int = 7) -> dict:
+        """Aggregate usage metrics from audit logs for the last N days."""
+        today = datetime.now(timezone.utc).date()
+        metrics = {
+            "requests_trend_7d": [],
+            "requests_last_24h": 0,
+            "avg_latency_ms": 0,
+            "success_rate_pct": 0,
+        }
+
+        with self._connect() as conn:
+            # Trend data
+            for offset in range(days - 1, -1, -1):
+                day = today - timedelta(days=offset)
+                day_str = day.isoformat()
+                row = conn.execute(
+                    "SELECT COUNT(*) FROM audit_log WHERE date(timestamp) = date(?)",
+                    (day_str,),
+                ).fetchone()
+                metrics["requests_trend_7d"].append(
+                    {"day": day.strftime("%a"), "requests": row[0] if row else 0}
+                )
+
+            # Last 24h stats
+            since_24h = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+            row = conn.execute(
+                "SELECT COUNT(*), AVG(latency_ms) FROM audit_log WHERE timestamp >= ?",
+                (since_24h,),
+            ).fetchone()
+            if row and row[0] > 0:
+                metrics["requests_last_24h"] = row[0]
+                metrics["avg_latency_ms"] = int(row[1]) if row[1] is not None else 0
+
+                success_row = conn.execute(
+                    "SELECT COUNT(*) FROM audit_log WHERE timestamp >= ? AND status = 'Success'",
+                    (since_24h,),
+                ).fetchone()
+                metrics["success_rate_pct"] = round((success_row[0] / row[0]) * 100, 1)
+
+        return metrics

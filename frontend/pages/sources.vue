@@ -83,7 +83,7 @@ function selectSource(source) {
   form.name = source.name
   form.description = source.description || ''
   form.sensitive_columns = (source.sensitive_columns || []).join(', ')
-  
+
   if (source.upstream_mcp_server_config_id) {
     category.value = source.type // might be 'graph' or 'documents'
     form.upstream_mcp_server_config_id = source.upstream_mcp_server_config_id
@@ -92,7 +92,7 @@ function selectSource(source) {
     form.type = source.type
     form.connection = source.connection
   }
-  
+
   fetchDocs(source.name)
 }
 
@@ -130,76 +130,9 @@ const categories = [
         <h2 class="text-2xl font-bold text-gray-900">Sources & Documentation</h2>
         <p class="text-gray-500">Register and enrich your data catalog.</p>
       </div>
-      <UButton
-        icon="i-heroicons-plus"
-        label="New Source"
-        color="red"
-        @click="resetForm"
-      />
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Sources List -->
-      <UCard class="lg:col-span-2">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="font-bold">Registered Data Sources</h3>
-            <UInput
-              icon="i-heroicons-magnifying-glass-20-solid"
-              size="sm"
-              color="white"
-              :trailing="false"
-              placeholder="Search sources..."
-            />
-          </div>
-        </template>
-
-        <UTable
-          :rows="sources"
-          :columns="[
-            { key: 'name', label: 'Name' },
-            { key: 'type', label: 'Type' },
-            { key: 'updated_at', label: 'Last Updated' },
-            { key: 'actions', label: '' }
-          ]"
-          :loading="pending"
-        >
-          <template #name-data="{ row }">
-            <div class="font-medium text-gray-900">{{ row.name }}</div>
-            <div class="text-xs text-gray-500 truncate max-w-[200px]">{{ row.description || 'No description' }}</div>
-          </template>
-          
-          <template #type-data="{ row }">
-            <UBadge :color="row.upstream_mcp_server_config_id ? 'purple' : 'blue'" variant="subtle">
-              {{ row.type }}
-            </UBadge>
-            <span v-if="row.upstream_mcp_server_config_id" class="ml-1 text-[10px] text-gray-400 uppercase font-bold">MCP</span>
-          </template>
-
-          <template #updated_at-data="{ row }">
-            <span class="text-xs text-gray-500">{{ new Date(row.updated_at).toLocaleString() }}</span>
-          </template>
-
-          <template #actions-data="{ row }">
-            <div class="flex justify-end gap-2">
-              <UButton
-                size="xs"
-                color="gray"
-                variant="ghost"
-                icon="i-heroicons-pencil-square"
-                @click="selectSource(row)"
-              />
-              <UButton
-                size="xs"
-                color="red"
-                variant="ghost"
-                icon="i-heroicons-trash"
-              />
-            </div>
-          </template>
-        </UTable>
-      </UCard>
-
       <!-- Source Form / Details -->
       <div class="space-y-6">
         <UCard>
@@ -227,10 +160,10 @@ const categories = [
 
             <div v-else class="space-y-4">
               <UFormGroup label="Upstream MCP Server">
-                <USelectMenu 
-                  v-model="form.upstream_mcp_server_config_id" 
-                  :options="upstreamConfigs || []" 
-                  value-attribute="id" 
+                <USelectMenu
+                  v-model="form.upstream_mcp_server_config_id"
+                  :options="upstreamConfigs || []"
+                  value-attribute="id"
                   option-attribute="name"
                   placeholder="Select server..."
                 />
@@ -262,12 +195,12 @@ const categories = [
               <UButton size="xs" variant="ghost" icon="i-heroicons-plus" />
             </div>
           </template>
-          
+
           <div v-if="docs.length === 0" class="text-center py-4">
             <UIcon name="i-heroicons-document-text" class="w-8 h-8 text-gray-300 mx-auto" />
             <p class="text-sm text-gray-500 mt-1">No docs yet.</p>
           </div>
-          
+
           <div v-else class="space-y-3">
             <div v-for="doc in docs" :key="doc.id" class="p-3 bg-gray-50 rounded-lg border border-gray-100 relative group">
               <div class="flex items-center gap-2 mb-1">
@@ -286,6 +219,67 @@ const categories = [
           </div>
         </UCard>
       </div>
+
+      <!-- Sources List -->
+      <UCard class="lg:col-span-2">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold">Registered Data Sources</h3>
+            <UInput
+              icon="i-heroicons-magnifying-glass-20-solid"
+              size="sm"
+              color="white"
+              :trailing="false"
+              placeholder="Search sources..."
+            />
+          </div>
+        </template>
+
+        <UTable
+          :rows="sources"
+          :columns="[
+            { key: 'name', label: 'Name' },
+            { key: 'type', label: 'Type' },
+            { key: 'updated_at', label: 'Last Updated' },
+            { key: 'actions', label: '' }
+          ]"
+          :loading="pending"
+        >
+          <template #name-data="{ row }">
+            <div class="font-medium text-gray-900">{{ row.name }}</div>
+            <div class="text-xs text-gray-500 truncate max-w-[200px]">{{ row.description || 'No description' }}</div>
+          </template>
+
+          <template #type-data="{ row }">
+            <UBadge :color="row.upstream_mcp_server_config_id ? 'purple' : 'blue'" variant="subtle">
+              {{ row.type }}
+            </UBadge>
+            <span v-if="row.upstream_mcp_server_config_id" class="ml-1 text-[10px] text-gray-400 uppercase font-bold">MCP</span>
+          </template>
+
+          <template #updated_at-data="{ row }">
+            <span class="text-xs text-gray-500">{{ new Date(row.updated_at).toLocaleString() }}</span>
+          </template>
+
+          <template #actions-data="{ row }">
+            <div class="flex justify-end gap-2">
+              <UButton
+                size="xs"
+                color="gray"
+                variant="ghost"
+                icon="i-heroicons-pencil-square"
+                @click="selectSource(row)"
+              />
+              <UButton
+                size="xs"
+                color="red"
+                variant="ghost"
+                icon="i-heroicons-trash"
+              />
+            </div>
+          </template>
+        </UTable>
+      </UCard>
     </div>
   </div>
 </template>

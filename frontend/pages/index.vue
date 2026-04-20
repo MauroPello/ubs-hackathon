@@ -62,9 +62,9 @@ const features = [
 
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <UCard v-for="stat in stats" :key="stat.label" class="overflow-hidden">
+      <UCard v-for="stat in stats" :key="stat.label" class="overflow-hidden group hover:shadow-lg transition-shadow">
         <div class="flex items-center gap-4">
-          <div :class="`p-3 rounded-xl bg-${stat.color}-50 text-${stat.color}-600`">
+          <div :class="`p-3 rounded-xl bg-${stat.color}-50 text-${stat.color}-600 transition-transform group-hover:scale-110 duration-300`">
             <UIcon :name="stat.icon" class="w-6 h-6" />
           </div>
           <div>

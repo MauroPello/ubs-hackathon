@@ -91,3 +91,17 @@ class DocEntry:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(slots=True)
+class AuditLogEntry:
+    id: int | None
+    timestamp: str
+    action: str
+    details: str | None
+    actor: str
+    status: str
+    latency_ms: int | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)

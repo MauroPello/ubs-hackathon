@@ -4,6 +4,8 @@ import argparse
 import re
 import sqlite3
 import uuid
+import time
+import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -23,16 +25,34 @@ from .registry import UPSTREAM_MCP_REGISTRY, get_registry_entry, list_registry_e
 _UNSET_SENTINEL = _UNSET
 
 
+def _seed_audit_logs(store: MetaStore):
+    """Seed the audit log with mock historical data if empty."""
+    logs = store.list_audit_logs(limit=1)
+    if logs:
+        return
 
-
-def _usage_trend(seed: int) -> list[dict]:
-    today = datetime.now(timezone.utc).date()
-    trend: list[dict] = []
-    for offset in range(6, -1, -1):
-        day = today - timedelta(days=offset)
-        daily_requests = max(10, seed - (offset * 3) + ((offset % 3) * 4))
-        trend.append({"day": day.strftime("%a"), "requests": daily_requests})
-    return trend
+    now = datetime.now(timezone.utc)
+    actions = ["search_schema", "describe_table", "execute_query", "list_data_sources", "sync_data_source"]
+    actors = ["User-123", "User-456", "System", "Admin"]
+    
+    # Generate 100 logs over the last 7 days
+    for i in range(100):
+        offset_seconds = random.randint(0, 7 * 24 * 3600)
+        timestamp = (now - timedelta(seconds=offset_seconds)).isoformat()
+        action = random.choice(actions)
+        actor = random.choice(actors)
+        status_val = "Success" if random.random() > 0.05 else "Error"
+        latency = random.randint(20, 500)
+        details = f"Mocked {action} for demonstration"
+        
+        store.log_action(
+            action=action,
+            details=details,
+            actor=actor,
+            status=status_val,
+            latency_ms=latency,
+            timestamp=timestamp
+        )
 
 
 def _collect_mcp_usage_snapshot(store: MetaStore, catalog_path: Path) -> dict:
@@ -44,33 +64,22 @@ def _collect_mcp_usage_snapshot(store: MetaStore, catalog_path: Path) -> dict:
         row = conn.execute("SELECT COUNT(*) FROM table_docs").fetchone()
     catalog_tables = int(row[0]) if row else 0
 
-    base = max(24, source_count * 17 + docs_count * 5 + catalog_tables * 9)
-    requests_last_24h = base
-    search_schema_calls = max(5, int(base * 0.34))
-    describe_table_calls = max(5, int(base * 0.28))
-    execute_query_calls = max(5, int(base * 0.3))
-    list_data_sources_calls = max(4, int(base * 0.08))
-    avg_latency_ms = 95 + (base % 80)
-    success_rate_pct = round(
-        max(95.0, 99.9 - ((docs_count + source_count) % 20) * 0.15), 1
-    )
-
-    return {
+    # Get real metrics from audit log
+    metrics = store.get_usage_metrics()
+    
+    # Merge with static/calculated info
+    snapshot = {
         "registered_sources": source_count,
         "stored_docs": docs_count,
         "catalog_tables": catalog_tables,
-        "requests_last_24h": requests_last_24h,
-        "avg_latency_ms": avg_latency_ms,
-        "success_rate_pct": success_rate_pct,
-        "tool_calls_24h": {
-            "search_schema": search_schema_calls,
-            "describe_table": describe_table_calls,
-            "execute_query": execute_query_calls,
-            "list_data_sources": list_data_sources_calls,
-        },
-        "requests_trend_7d": _usage_trend(requests_last_24h),
+        "requests_last_24h": metrics["requests_last_24h"],
+        "avg_latency_ms": metrics["avg_latency_ms"],
+        "success_rate_pct": metrics["success_rate_pct"],
+        "requests_trend_7d": metrics["requests_trend_7d"],
         "simulated_connectors": ["notion", "google_workspace"],
     }
+    
+    return snapshot
 
 
 class DataSourceCreate(BaseModel):
@@ -231,6 +240,50 @@ def create_app(
         allow_headers=["*"],
     )
 
+    store = MetaStore(Path(meta_db_path))
+    catalog = SchemaCatalog(Path(catalog_path))
+    
+    # Seed mock data
+    _seed_audit_logs(store)
+
+    @app.middleware("http")
+    async def audit_middleware(request: Request, call_next):
+        start_time = time.perf_counter()
+        
+        path = request.url.path
+        if path.startswith("/api"):
+            path = path[4:] or "/"
+            
+        # Skip auditing for the usage dashboard endpoints themselves to avoid loops/noise
+        skip_audit = path in ["/mcp-usage", "/recent-activity"]
+        
+        response = None
+        try:
+            response = await call_next(request)
+            return response
+        finally:
+            if not skip_audit:
+                duration_ms = int((time.perf_counter() - start_time) * 1000)
+                status_str = "Success" if response and response.status_code < 400 else "Error"
+                
+                # Log the action
+                action = f"{request.method} {path}"
+                # Simplify action name for common ones
+                if path == "/data-sources" and request.method == "GET":
+                    action = "list_data_sources"
+                elif path.startswith("/data-sources/") and request.method == "GET":
+                    action = "get_data_source"
+                elif path.endswith("/sync") and request.method == "POST":
+                    action = "sync_data_source"
+                
+                store.log_action(
+                    action=action,
+                    actor="System", # Could be extracted from auth if present
+                    status=status_str,
+                    latency_ms=duration_ms,
+                    details=f"API Request: {request.method} {request.url.path}"
+                )
+
     @app.middleware("http")
     async def strip_api_prefix(request: Request, call_next):
         if request.url.path.startswith("/api"):
@@ -247,13 +300,14 @@ def create_app(
         response = await call_next(request)
         return response
 
-    store = MetaStore(Path(meta_db_path))
-    catalog = SchemaCatalog(Path(catalog_path))
-
 
     @app.get("/mcp-usage")
     def mcp_usage() -> dict:
         return _collect_mcp_usage_snapshot(store, Path(catalog_path))
+
+    @app.get("/recent-activity")
+    def recent_activity(limit: int = 10) -> list[dict]:
+        return [log.to_dict() for log in store.list_audit_logs(limit=limit)]
 
     # ------------------------------------------------------------------
     # Upstream MCP server registry (read-only, hardcoded)

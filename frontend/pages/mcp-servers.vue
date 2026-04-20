@@ -64,46 +64,6 @@ function resetForm() {
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Registry -->
-      <UCard class="lg:col-span-2">
-        <template #header>
-          <h3 class="font-bold">Available Upstream Servers</h3>
-        </template>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div v-for="entry in registry" :key="entry.id" 
-               class="p-4 border rounded-xl hover:border-red-300 transition-colors cursor-pointer relative group"
-               @click="onServerSelect(entry.id)">
-            <div class="flex items-center justify-between mb-3">
-              <UBadge :color="entry.status === 'available' ? 'green' : 'red'" variant="subtle">
-                {{ entry.status }}
-              </UBadge>
-              <UBadge color="gray" variant="solid">{{ entry.data_type }}</UBadge>
-            </div>
-            <h4 class="font-bold text-gray-900">{{ entry.name }}</h4>
-            <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ entry.description }}</p>
-            
-            <div class="mt-4 flex flex-wrap gap-1">
-              <span v-for="tool in entry.tools.slice(0, 3)" :key="tool.name" class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
-                {{ tool.name }}
-              </span>
-              <span v-if="entry.tools.length > 3" class="text-[10px] text-gray-400 font-bold">+{{ entry.tools.length - 3 }} more</span>
-            </div>
-
-            <div class="absolute inset-0 bg-red-600/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
-              <UButton label="Configure" size="xs" color="red" />
-            </div>
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="flex items-center justify-between text-xs text-gray-400">
-            <span>Total registry entries: {{ registry?.length }}</span>
-            <span>Last sync: Just now</span>
-          </div>
-        </template>
-      </UCard>
-
       <!-- Config Form -->
       <div class="space-y-6">
         <UCard v-if="selectedRegistry">
@@ -175,6 +135,46 @@ function resetForm() {
           </div>
         </UCard>
       </div>
+
+      <!-- Registry -->
+      <UCard class="lg:col-span-2">
+        <template #header>
+          <h3 class="font-bold">Available Upstream Servers</h3>
+        </template>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-for="entry in registry" :key="entry.id" 
+               class="p-4 border rounded-xl hover:border-red-300 transition-colors cursor-pointer relative group"
+               @click="onServerSelect(entry.id)">
+            <div class="flex items-center justify-between mb-3">
+              <UBadge :color="entry.status === 'available' ? 'green' : 'red'" variant="subtle">
+                {{ entry.status }}
+              </UBadge>
+              <UBadge color="gray" variant="solid">{{ entry.data_type }}</UBadge>
+            </div>
+            <h4 class="font-bold text-gray-900">{{ entry.name }}</h4>
+            <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ entry.description }}</p>
+            
+            <div class="mt-4 flex flex-wrap gap-1">
+              <span v-for="tool in entry.tools.slice(0, 3)" :key="tool.name" class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
+                {{ tool.name }}
+              </span>
+              <span v-if="entry.tools.length > 3" class="text-[10px] text-gray-400 font-bold">+{{ entry.tools.length - 3 }} more</span>
+            </div>
+
+            <div class="absolute inset-0 bg-red-600/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
+              <UButton label="Configure" size="xs" color="red" />
+            </div>
+          </div>
+        </div>
+
+        <template #footer>
+          <div class="flex items-center justify-between text-xs text-gray-400">
+            <span>Total registry entries: {{ registry?.length }}</span>
+            <span>Last sync: Just now</span>
+          </div>
+        </template>
+      </UCard>
     </div>
   </div>
 </template>
