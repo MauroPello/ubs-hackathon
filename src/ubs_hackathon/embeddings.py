@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import ipaddress
 import math
 import os
 import re
@@ -57,6 +58,15 @@ class OpenAIEmbeddingModel:
         parsed = parse.urlparse(base_url)
         if parsed.scheme != "https":
             raise ValueError("Managed embeddings base URL must use https")
+        hostname = (parsed.hostname or "").strip().lower()
+        if hostname == "localhost":
+            raise ValueError("Managed embeddings base URL must not target localhost")
+        try:
+            ip = ipaddress.ip_address(hostname)
+        except ValueError:
+            ip = None
+        if ip and (ip.is_private or ip.is_loopback or ip.is_link_local):
+            raise ValueError("Managed embeddings base URL must not target private/local IPs")
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
@@ -83,8 +93,10 @@ class OpenAIEmbeddingModel:
             raise RuntimeError(f"Managed embedding request failed: {exc.reason}") from exc
 
         parsed = json.loads(body)
-        data = parsed.get("data") or []
-        if not data or "embedding" not in data[0]:
+        data = parsed.get("data")
+        if data is None:
+            raise RuntimeError("Managed embedding response missing data field")
+        if not isinstance(data, list) or not data or "embedding" not in data[0]:
             raise RuntimeError("Managed embedding response missing embedding data")
         return [float(v) for v in data[0]["embedding"]]
 
