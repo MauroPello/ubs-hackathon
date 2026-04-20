@@ -31,9 +31,9 @@ def test_frontend_homepage(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     assert "Data Source Manager" in response.text
-    assert "href=\"/sources\"" in response.text
-    assert "href=\"/dashboard\"" in response.text
-    assert "href=\"/connectors\"" in response.text
+    assert 'href="/sources"' in response.text
+    assert 'href="/dashboard"' in response.text
+    assert 'href="/connectors"' in response.text
 
     sources = client.get("/sources")
     assert sources.status_code == 200
