@@ -109,9 +109,8 @@ def create_server(
             upstream_source = upstream_sources.get(config_id)
             if upstream_source is None:
                 continue
-            for tool_name, tool_description in upstream_tool_specs_by_config.get(
-                config_id, []
-            ):
+            tool_specs = upstream_tool_specs_by_config[config_id]
+            for tool_name, tool_description in tool_specs:
                 per_tool_routes = upstream_tool_routes.setdefault(tool_name, {})
                 per_tool_routes[registration.name] = upstream_source
                 if tool_description:
@@ -196,7 +195,8 @@ def create_server(
     def list_upstream_mcp_sources() -> list[dict]:
         """List upstream MCP server configurations with routed data sources and exposed tools."""
         tool_names_for_config: dict[str, list[str]] = {
-            cfg_id: src.get_exposed_tools() for cfg_id, src in upstream_sources.items()
+            cfg_id: [name for name, _ in upstream_tool_specs_by_config.get(cfg_id, [])]
+            for cfg_id in upstream_sources
         }
         data_sources_by_config: dict[str, set[str]] = {
             cfg_id: set() for cfg_id in upstream_sources
