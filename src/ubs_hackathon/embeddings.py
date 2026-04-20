@@ -90,17 +90,19 @@ def create_embedding_model(
     base_url: str | None = None,
     local_dims: int = 256,
 ) -> EmbeddingModel:
-    resolved_provider = (provider or os.getenv("UBS_EMBEDDINGS_PROVIDER", "openai")).strip().lower()
+    resolved_provider = (provider or os.getenv("UBS_EMBEDDINGS_PROVIDER", "auto")).strip().lower()
+    resolved_api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+    if resolved_provider == "auto":
+        resolved_provider = "openai" if resolved_api_key else "local"
+
     if resolved_provider in {"openai", "managed"}:
-        resolved_api_key = api_key or os.getenv("OPENAI_API_KEY", "")
         if resolved_api_key:
             return OpenAIEmbeddingModel(
                 api_key=resolved_api_key,
                 model=model or os.getenv("UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"),
                 base_url=base_url or os.getenv("UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"),
             )
-        if provider is not None:
-            raise ValueError("Managed embeddings provider selected but OPENAI_API_KEY is not set")
+        raise ValueError("Managed embeddings provider selected but OPENAI_API_KEY is not set")
     return SimpleEmbeddingModel(dims=local_dims)
 
 

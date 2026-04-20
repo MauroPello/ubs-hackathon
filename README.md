@@ -126,12 +126,12 @@ The server runs in stdio mode and uses the installed package from the Conda envi
 
 ### Embeddings configuration
 
-By default, the catalog uses **managed OpenAI embeddings** when `OPENAI_API_KEY` is present.
-If no API key is available, it automatically falls back to the existing local embedding model.
+By default, the catalog runs in `auto` mode: it uses **managed OpenAI embeddings**
+when `OPENAI_API_KEY` is present, otherwise it falls back to the existing local model.
 
 Optional environment variables:
 
-- `UBS_EMBEDDINGS_PROVIDER` — `openai` (default) or `local`
+- `UBS_EMBEDDINGS_PROVIDER` — `auto` (default), `openai`, or `local`
 - `OPENAI_API_KEY` — required for managed embeddings
 - `UBS_EMBEDDINGS_MODEL` — defaults to `text-embedding-3-small`
 - `UBS_EMBEDDINGS_BASE_URL` — defaults to `https://api.openai.com/v1`
