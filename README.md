@@ -22,12 +22,16 @@ Get the system up and running in minutes:
    ```bash
    bash scripts/init-data.sh
    ```
-3. **Run the System**:
+3. **Build the schema catalog**:
+   ```bash
+   bash scripts/build-catalog.sh
+   ```
+4. **Run the System**:
    ```bash
    bash scripts/run-all.sh
    ```
 
-4. **Wipe Data (Optional)**:
+5. **Wipe Data (Optional)**:
    ```bash
    bash scripts/wipe-data.sh
    ```
