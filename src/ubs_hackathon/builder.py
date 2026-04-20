@@ -11,7 +11,10 @@ from .models import TableDoc
 def _apply_schema_docs(doc: TableDoc, docs_map: dict) -> None:
     source_docs = docs_map.get(doc.data_source, {})
     table_docs = source_docs.get("tables", {})
+    graph_docs = source_docs.get("graph_entities", {})
     table_meta = table_docs.get(doc.table, {})
+    if doc.table_type in {"graph_node", "graph_relationship"}:
+        table_meta = graph_docs.get(doc.table, table_meta)
 
     if table_meta.get("description"):
         doc.description = table_meta["description"]
@@ -30,9 +33,7 @@ def build_catalog(config_path: str | None = None) -> int:
     total_tables = 0
     for source_cfg in sources:
         source = build_data_source(source_cfg)
-        tables = source.list_tables()
-        for table in tables:
-            doc = source.table_doc(table)
+        for doc in source.catalog_docs():
             _apply_schema_docs(doc, docs_map)
             catalog.upsert_table_doc(doc)
             total_tables += 1

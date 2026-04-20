@@ -21,6 +21,7 @@ catalog:
 #   Snowflake : snowflake://user:password@account/database/schema
 #   BigQuery  : bigquery://project/dataset
 #   DuckDB    : duckdb:///path/to/file.duckdb
+#   Delegated graph: use adapter `delegated_graph` with graph options
 #
 # Install the matching dialect driver before using a non-SQLite source:
 #   pip install "ubs-hackathon[postgres]"   # psycopg2-binary
@@ -36,6 +37,28 @@ data_sources:
   - name: demo_sqlite
     type: sqlite
     connection: data/demo_business.db
+  # Example delegated graph source (MCP/adapter gateway):
+  # - name: demo_graph
+  #   type: graph
+  #   connection: delegated://graph
+  #   adapter: delegated_graph
+  #   options:
+  #     delegated_endpoint: http://127.0.0.1:9000/mcp-proxy
+  #     graph_entities:
+  #       - name: Person
+  #         entity_type: graph_node
+  #         description: "Customer/person node."
+  #         columns:
+  #           - name: person_id
+  #             data_type: string
+  #           - name: segment
+  #             data_type: string
+  #       - name: BOUGHT
+  #         entity_type: graph_relationship
+  #         description: "Purchase relationship."
+  #         columns:
+  #           - name: amount
+  #             data_type: float
   # Uncomment and fill in to add a second source alongside the SQLite demo:
   # - name: prod_postgres
   #   type: postgresql
@@ -63,3 +86,9 @@ schema_docs:
           order_date: "Order booking date."
           revenue: "Booked revenue amount for the order."
           quarter: "Reporting quarter (for example Q1, Q2)."
+  # demo_graph:
+  #   graph_entities:
+  #     Person:
+  #       description: "Person graph node."
+  #       columns:
+  #         segment: "Customer segment label."

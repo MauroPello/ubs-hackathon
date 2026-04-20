@@ -4,7 +4,10 @@ import re
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Callable
+from urllib import error as urllib_error
+from urllib import request as urllib_request
+import json
 
 from sqlalchemy import create_engine, inspect as sqlalchemy_inspect, text
 from sqlalchemy.engine import Connection, Engine
@@ -16,6 +19,13 @@ FORBIDDEN_SQL = re.compile(
     re.IGNORECASE,
 )
 ALLOWED_SQL_START = re.compile(r"^\s*(select|with|explain)\b", re.IGNORECASE)
+ALLOWED_CYPHER_START = re.compile(
+    r"^\s*(match|with|call|unwind|return|profile|explain)\b", re.IGNORECASE
+)
+FORBIDDEN_CYPHER = re.compile(
+    r"\b(create|merge|delete|detach|set|drop|remove|load\s+csv)\b",
+    re.IGNORECASE,
+)
 TEMP_VIEW_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SESSION_ID_NAME = re.compile(r"^[A-Za-z0-9_\-]+$")
 
@@ -106,6 +116,37 @@ class DataSource(ABC):
         self, view_name: str, session_id: str | None = None
     ) -> dict[str, Any]:
         raise NotImplementedError
+
+    def list_graph_entities(self) -> list[str]:
+        raise NotImplementedError("Graph schema is not supported by this source")
+
+    def describe_graph_entity(self, entity: str) -> TableDoc:
+        raise NotImplementedError("Graph schema is not supported by this source")
+
+    def execute_graph_read_only(
+        self, query: str, limit: int = 200, session_id: str | None = None
+    ) -> dict[str, Any]:
+        raise NotImplementedError("Graph query is not supported by this source")
+
+    def capabilities(self) -> dict[str, bool]:
+        return {
+            "sql_schema_discovery": True,
+            "sql_read_only_query": True,
+            "temporary_views": True,
+            "graph_schema_discovery": False,
+            "graph_read_only_query": False,
+        }
+
+    def catalog_docs(self) -> list[TableDoc]:
+        docs: dict[str, TableDoc] = {}
+        for name in self.list_tables():
+            docs[name] = self.table_doc(name)
+        try:
+            for entity in self.list_graph_entities():
+                docs[entity] = self.describe_graph_entity(entity)
+        except NotImplementedError:
+            pass
+        return list(docs.values())
 
 
 # ---------------------------------------------------------------------------
@@ -459,6 +500,184 @@ class SQLAlchemyDataSource(DataSource):
             pass
 
 
+class DelegatedGraphDataSource(DataSource):
+    """Graph data source delegating query execution to an external endpoint."""
+
+    def __init__(self, config: DataSourceConfig) -> None:
+        super().__init__(config)
+        self._options: dict[str, Any] = dict(config.options or {})
+        self._entities: list[dict[str, Any]] = list(
+            self._options.get("graph_entities", []) or []
+        )
+
+    @staticmethod
+    def _validate_read_only_graph_query(query: str) -> str:
+        statement = query.strip().rstrip(";")
+        if not statement:
+            raise ValueError("Graph query cannot be empty")
+        if ";" in statement:
+            raise ValueError("Only a single graph statement is allowed")
+        if not ALLOWED_CYPHER_START.search(statement):
+            raise ValueError("Only read-only graph queries are allowed")
+        if FORBIDDEN_CYPHER.search(statement):
+            raise ValueError("Potentially mutating graph query is not allowed")
+        return statement
+
+    def _entity_doc(self, item: dict[str, Any]) -> TableDoc:
+        name = str(item.get("name") or "").strip()
+        if not name:
+            raise ValueError("Graph entity entry must include a non-empty 'name'")
+        entity_type = str(item.get("entity_type") or "graph_node").strip().lower()
+        if entity_type not in {"graph_node", "graph_relationship"}:
+            entity_type = "graph_node"
+        columns = [
+            ColumnDoc(
+                name=str(col.get("name")),
+                data_type=str(col.get("data_type") or "text"),
+                nullable=bool(col.get("nullable", True)),
+                description=col.get("description"),
+                sample_values=list(col.get("sample_values", []) or []),
+            )
+            for col in (item.get("columns", []) or [])
+            if str(col.get("name", "")).strip()
+        ]
+        foreign_keys = [
+            ForeignKeyDoc(
+                column=str(fk.get("column")),
+                ref_table=str(fk.get("ref_table")),
+                ref_column=str(fk.get("ref_column")),
+            )
+            for fk in (item.get("foreign_keys", []) or [])
+            if str(fk.get("column", "")).strip()
+            and str(fk.get("ref_table", "")).strip()
+            and str(fk.get("ref_column", "")).strip()
+        ]
+        return TableDoc(
+            data_source=self.config.name,
+            table=name,
+            table_type=entity_type,
+            description=item.get("description"),
+            row_count_estimate=(
+                int(item["row_count_estimate"])
+                if item.get("row_count_estimate") is not None
+                else None
+            ),
+            columns=columns,
+            foreign_keys=foreign_keys,
+        )
+
+    def _entity_index(self) -> dict[str, dict[str, Any]]:
+        return {
+            doc["name"]: doc
+            for doc in self._entities
+            if isinstance(doc, dict) and str(doc.get("name", "")).strip()
+        }
+
+    def _delegate_tool(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        endpoint = str(self._options.get("delegated_endpoint") or "").strip()
+        if not endpoint:
+            return {
+                "delegated": False,
+                "reason": "No delegated_endpoint configured",
+                "tool": tool,
+                "arguments": arguments,
+            }
+        payload = json.dumps(
+            {
+                "data_source": self.config.name,
+                "tool": tool,
+                "arguments": arguments,
+            }
+        ).encode("utf-8")
+        req = urllib_request.Request(
+            endpoint,
+            data=payload,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib_request.urlopen(req, timeout=30) as resp:
+                body = resp.read().decode("utf-8")
+            data = json.loads(body) if body else {}
+            return {"delegated": True, "tool": tool, "result": data}
+        except (urllib_error.URLError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Delegated MCP call failed for '{tool}': {exc}") from exc
+
+    def list_tables(self) -> list[str]:
+        return self.list_graph_entities()
+
+    def table_doc(self, table: str) -> TableDoc:
+        return self.describe_graph_entity(table)
+
+    def execute_read_only(
+        self, sql: str, limit: int = 200, session_id: str | None = None
+    ) -> dict[str, Any]:
+        raise ValueError(
+            f"Data source '{self.config.name}' does not support SQL queries; use execute_graph_query"
+        )
+
+    def list_temporary_views(
+        self, session_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        return []
+
+    def create_temporary_view(
+        self,
+        sql: str,
+        view_name: str | None = None,
+        ttl_seconds: int = 3600,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        raise TemporaryViewError(
+            f"Data source '{self.config.name}' does not support temporary SQL views"
+        )
+
+    def drop_temporary_view(
+        self, view_name: str, session_id: str | None = None
+    ) -> dict[str, Any]:
+        raise TemporaryViewError(
+            f"Data source '{self.config.name}' does not support temporary SQL views"
+        )
+
+    def list_graph_entities(self) -> list[str]:
+        return sorted(self._entity_index().keys())
+
+    def describe_graph_entity(self, entity: str) -> TableDoc:
+        item = self._entity_index().get(entity)
+        if item is None:
+            raise ValueError(f"Graph entity not found: {entity}")
+        return self._entity_doc(item)
+
+    def execute_graph_read_only(
+        self, query: str, limit: int = 200, session_id: str | None = None
+    ) -> dict[str, Any]:
+        statement = self._validate_read_only_graph_query(query)
+        tool_map = dict(self._options.get("tool_map") or {})
+        execute_tool = str(tool_map.get("execute_graph_query") or "execute_graph_query")
+        delegated = self._delegate_tool(
+            execute_tool,
+            {"query": statement, "limit": max(0, int(limit)), "session_id": session_id},
+        )
+        mock_rows = list(self._options.get("mock_rows", []) or [])
+        return {
+            "query": statement,
+            "limit": max(0, int(limit)),
+            "delegated": delegated,
+            "rows": mock_rows[: max(0, int(limit))],
+            "row_count": min(len(mock_rows), max(0, int(limit))),
+            "truncated": len(mock_rows) > max(0, int(limit)),
+        }
+
+    def capabilities(self) -> dict[str, bool]:
+        return {
+            "sql_schema_discovery": False,
+            "sql_read_only_query": False,
+            "temporary_views": False,
+            "graph_schema_discovery": True,
+            "graph_read_only_query": True,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Backward-compat alias – existing code that imports SQLiteDataSource keeps
 # working; the SQLAlchemy implementation handles SQLite automatically.
@@ -467,16 +686,41 @@ SQLiteDataSource = SQLAlchemyDataSource
 
 
 # ---------------------------------------------------------------------------
-# Factory
+# Adapter registry and factory
 # ---------------------------------------------------------------------------
 
-def build_data_source(config: DataSourceConfig) -> DataSource:
-    """Return a :class:`DataSource` for *config*.
+DataSourceFactory = Callable[[DataSourceConfig], DataSource]
+_ADAPTER_REGISTRY: dict[str, DataSourceFactory] = {}
 
-    Any SQLAlchemy-supported database is accepted.  The ``connection`` field
-    must be a valid `SQLAlchemy database URL
-    <https://docs.sqlalchemy.org/en/20/core/engines.html#database-urls>`_.
-    Legacy ``type: sqlite`` entries with a bare file path are promoted to a
-    ``sqlite:///`` URL automatically.
-    """
-    return SQLAlchemyDataSource(config)
+
+def register_data_source_adapter(name: str, factory: DataSourceFactory) -> None:
+    key = (name or "").strip().lower()
+    if not key:
+        raise ValueError("Adapter name cannot be empty")
+    _ADAPTER_REGISTRY[key] = factory
+
+
+def _default_adapter_key(config: DataSourceConfig) -> str:
+    explicit = (config.adapter or "").strip().lower()
+    if explicit:
+        return explicit
+    source_type = (config.type or "").strip().lower()
+    if source_type in {"delegated_graph", "graph", "mcp_graph"}:
+        return "delegated_graph"
+    return "sqlalchemy"
+
+
+def build_data_source(config: DataSourceConfig) -> DataSource:
+    """Return a registered :class:`DataSource` adapter for *config*."""
+    adapter_key = _default_adapter_key(config)
+    factory = _ADAPTER_REGISTRY.get(adapter_key)
+    if factory is None:
+        raise ValueError(f"Unsupported data source adapter: {adapter_key}")
+    return factory(config)
+
+
+register_data_source_adapter("sqlalchemy", SQLAlchemyDataSource)
+register_data_source_adapter("sqlite", SQLAlchemyDataSource)
+register_data_source_adapter("delegated_graph", DelegatedGraphDataSource)
+register_data_source_adapter("mcp_graph", DelegatedGraphDataSource)
+register_data_source_adapter("graph", DelegatedGraphDataSource)

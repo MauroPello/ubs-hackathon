@@ -41,6 +41,8 @@ def load_config(path: str | Path | None = None) -> tuple[list[DataSourceConfig],
             name=source["name"],
             type=source.get("type", "sqlite").lower(),
             connection=_resolve_env(source["connection"]),
+            adapter=(source.get("adapter") or "").strip().lower() or None,
+            options=source.get("options"),
         )
         sources.append(ds)
 

@@ -221,12 +221,22 @@ class DocUpdate(BaseModel):
 
 def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
     """Map stored doc entries to the schema-doc structure consumed by catalog enrichment."""
-    source_payload: dict = {"tables": {}}
+    source_payload: dict = {"tables": {}, "graph_entities": {}}
     for doc in docs:
         doc_type = doc.get("doc_type", "").lower()
         target = doc.get("target")
         content = doc.get("content")
         if not content:
+            continue
+        if doc_type == "graph_entity" and target:
+            graph_meta = source_payload["graph_entities"].setdefault(target, {})
+            graph_meta["description"] = content
+            continue
+        if doc_type == "graph_property" and target and target.count(".") == 1:
+            entity_name, property_name = target.split(".", 1)
+            graph_meta = source_payload["graph_entities"].setdefault(entity_name, {})
+            property_meta = graph_meta.setdefault("columns", {})
+            property_meta[property_name] = content
             continue
         if doc_type == "table" and target:
             table_meta = source_payload["tables"].setdefault(target, {})
