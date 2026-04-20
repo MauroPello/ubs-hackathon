@@ -27,8 +27,20 @@ const docForm = reactive({
   content: ''
 })
 
-// Upstream configs
+// Upstream configs and servers
 const { data: upstreamConfigs } = await useFetch('/api/upstream-mcp-server-configs')
+const { data: upstreamServers } = await useFetch('/api/upstream-mcp-servers')
+
+const selectedServerSpec = computed(() => {
+  const config = (upstreamConfigs.value || []).find(c => c.id === form.upstream_mcp_server_config_id)
+  if (!config) return null
+  return (upstreamServers.value || []).find(s => s.id === config.server_id)
+})
+
+const hiddenFields = computed(() => {
+  if (!selectedServerSpec.value) return []
+  return selectedServerSpec.value.hidden_source_fields || []
+})
 
 async function fetchData() {
   pending.value = true
@@ -48,11 +60,8 @@ async function fetchData() {
     form.databases = (sourceData.databases || []).join(', ')
 
     form.upstream_mcp_server_config_id = sourceData.upstream_mcp_server_config_id || ''
-    const selectedConnector = (upstreamConfigs.value || []).find(c => c.id === form.upstream_mcp_server_config_id)
-    if (selectedConnector) {
-      category.value = selectedConnector.server_id === 'sql-like'
-        ? 'sql'
-        : (selectedConnector.server_id === 'neo4j' ? 'graph' : 'documents')
+    if (sourceData.data_type) {
+      category.value = sourceData.data_type
     }
   } catch (e) {
     toast.add({ title: 'Error fetching data source', color: 'red' })
@@ -156,8 +165,6 @@ onMounted(() => {
   fetchData()
 })
 
-// No longer needed
-
 const categories = [
   { label: 'SQL-like', value: 'sql' },
   { label: 'Graph', value: 'graph' },
@@ -209,7 +216,7 @@ const docTypes = [
           <UFormGroup :label="`${category.charAt(0).toUpperCase() + category.slice(1)} Connector`" required>
             <USelectMenu
               v-model="form.upstream_mcp_server_config_id"
-              :options="category === 'sql' ? upstreamConfigs.filter(c => c.server_id === 'sql-like') : upstreamConfigs.filter(c => c.server_id === (category === 'graph' ? 'neo4j' : 'notion'))"
+              :options="(upstreamConfigs || []).filter(c => c.data_type === category)"
               value-attribute="id"
               option-attribute="name"
               placeholder="Select connector..."
@@ -218,12 +225,12 @@ const docTypes = [
             <template #hint>Connectors cannot be changed</template>
           </UFormGroup>
 
-          <UFormGroup label="Sensitive Columns">
+          <UFormGroup label="Sensitive Columns" v-if="!hiddenFields.includes('sensitive_columns')">
             <UInput v-model="form.sensitive_columns" placeholder="users.email, users.ssn" />
             <template #hint>Comma separated</template>
           </UFormGroup>
 
-          <UFormGroup label="Databases">
+          <UFormGroup label="Databases" v-if="!hiddenFields.includes('databases')">
             <UInput v-model="form.databases" placeholder="main, analytics" />
             <template #hint>Comma separated</template>
           </UFormGroup>

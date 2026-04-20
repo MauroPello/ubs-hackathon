@@ -23,7 +23,7 @@ connectors_registry:
     name: Neo4j
     data_type: graph
     description: >
-      Neo4j graph database MCP server for executing Cypher queries 
+      Neo4j graph database MCP server for executing Cypher queries
       and exploring graph schema.
     tools:
       - name: execute_cypher
@@ -46,13 +46,13 @@ connectors_registry:
         type: string
         description: Neo4j database password
         secret: true
-    is_local: true
+    is_mcp_tool: true
     status: available
   - id: notion
     name: Notion
     data_type: documents
     description: >
-      Notion workspace MCP server for reading pages, databases, 
+      Notion workspace MCP server for reading pages, databases,
       and block content.
     tools:
       - name: search_pages
@@ -67,13 +67,16 @@ connectors_registry:
         type: string
         description: Notion integration token (starts with secret_...)
         secret: true
-    is_local: false
+    is_mcp_tool: true
     status: unavailable
+    hidden_source_fields:
+      - databases
+      - sensitive_columns
   - id: sql-like
-    name: SQL-like
+    name: SQL-like DBs
     data_type: sql
     description: >
-      Internal SQL connector for relational databases (SQLite, PostgreSQL, etc.). 
+      Internal SQL connector for relational databases (SQLite, PostgreSQL, etc.).
       Allows enabling/disabling SQL analysis tools.
     tools:
       - name: search_schema
@@ -98,7 +101,7 @@ connectors_registry:
         type: string
         description: SQLAlchemy connection string
         secret: false
-    is_local: true
+    is_mcp_tool: false
     status: available
 
 # ---------------------------------------------------------------------------

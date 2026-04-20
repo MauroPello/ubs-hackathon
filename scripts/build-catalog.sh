@@ -1,6 +1,21 @@
 #!/bin/bash
 set -e
 
+WIPE_DBS=false
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --wipe|-w) WIPE_DBS=true; shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+done
+
+if [ "$WIPE_DBS" = true ]; then
+    echo "🧹 Wiping catalog and meta databases..."
+    rm -f data/catalog.db*
+    rm -f data/meta.db*
+fi
+
 echo "🏗️ Building schema catalog from config..."
 
 # Ensure we are in the root directory

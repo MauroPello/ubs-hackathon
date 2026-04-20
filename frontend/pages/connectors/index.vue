@@ -92,7 +92,7 @@ function resetForm() {
               <UInput v-model="form.name" placeholder="my_neo4j_prod" />
             </UFormGroup>
 
-            <UFormGroup v-if="selectedRegistry.id !== 'sql-like'" label="Endpoint URL">
+            <UFormGroup v-if="selectedRegistry.is_mcp_tool" label="MCP endpoint">
               <UInput v-model="form.endpoint" placeholder="http://..." />
             </UFormGroup>
 

@@ -26,11 +26,12 @@ def resolve_runtime_type_and_connection(
     connector: UpstreamMCPServerConfigRecord,
     registry: list[dict],
 ) -> tuple[str, str]:
-    if connector.server_id == "sql-like":
-        return _resolve_sql_like_runtime(connector)
-
     entry = get_registry_entry(registry, connector.server_id)
     data_type = str((entry or {}).get("data_type") or connector.server_id).strip().lower()
+
+    if data_type == "sql":
+        return _resolve_sql_like_runtime(connector)
+
     if not data_type:
         raise RuntimeResolutionError(
             f"Connector '{connector.id}' has invalid server_id '{connector.server_id}'"

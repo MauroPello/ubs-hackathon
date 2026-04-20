@@ -224,7 +224,9 @@ def _rebuild_catalog_for_data_source(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Connector '{config_id}' not found",
         )
-    if u_cfg.server_id != "sql-like":
+    entry = get_registry_entry(registry, u_cfg.server_id)
+    data_type = str((entry or {}).get("data_type") or u_cfg.server_id).strip().lower()
+    if data_type != "sql":
         return 0
     try:
         runtime_cfg = build_runtime_source_config(registration, u_cfg, registry)
@@ -334,6 +336,27 @@ def create_app(
         return [log.to_dict() for log in store.list_audit_logs(limit=limit)]
 
     # ------------------------------------------------------------------
+    # Data enrichment helpers
+    # ------------------------------------------------------------------
+
+    def _enrich_upstream_config(cfg) -> dict:
+        d = cfg.to_dict()
+        reg = get_registry_entry(connectors_registry, cfg.server_id)
+        if reg and "data_type" in reg:
+            d["data_type"] = reg["data_type"]
+        return d
+
+    def _enrich_data_source(ds) -> dict:
+        d = ds.to_dict()
+        if ds.upstream_mcp_server_config_id:
+            cfg = store.get_upstream_config(ds.upstream_mcp_server_config_id)
+            if cfg:
+                reg = get_registry_entry(connectors_registry, cfg.server_id)
+                if reg and "data_type" in reg:
+                    d["data_type"] = reg["data_type"]
+        return d
+
+    # ------------------------------------------------------------------
     # Upstream MCP server registry (read-only, hardcoded)
     # ------------------------------------------------------------------
 
@@ -360,7 +383,7 @@ def create_app(
     @api_router.get("/upstream-mcp-server-configs")
     def list_upstream_configs() -> list[dict]:
         """List all user-configured upstream MCP server instances."""
-        return [c.to_dict() for c in store.list_upstream_configs()]
+        return [_enrich_upstream_config(c) for c in store.list_upstream_configs()]
 
     @api_router.post("/upstream-mcp-server-configs", status_code=status.HTTP_201_CREATED)
     def create_upstream_config(payload: UpstreamMCPServerConfigCreate) -> dict:
@@ -385,7 +408,7 @@ def create_app(
             exposed_tools=payload.exposed_tools,
         )
         _trigger_mcp_restart()
-        return created.to_dict()
+        return _enrich_upstream_config(created)
 
     @api_router.get("/upstream-mcp-server-configs/{config_id}")
     def get_upstream_config(config_id: str) -> dict:
@@ -396,7 +419,7 @@ def create_app(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Upstream MCP server configuration not found",
             )
-        return found.to_dict()
+        return _enrich_upstream_config(found)
 
     @api_router.put("/upstream-mcp-server-configs/{config_id}")
     def update_upstream_config(
@@ -418,7 +441,7 @@ def create_app(
                 detail="Upstream MCP server configuration not found",
             )
         _trigger_mcp_restart()
-        return updated.to_dict()
+        return _enrich_upstream_config(updated)
 
     @api_router.delete(
         "/upstream-mcp-server-configs/{config_id}",
@@ -440,7 +463,7 @@ def create_app(
 
     @api_router.get("/data-sources")
     def list_data_sources() -> list[dict]:
-        return [row.to_dict() for row in store.list_data_sources()]
+        return [_enrich_data_source(row) for row in store.list_data_sources()]
 
     @api_router.post("/data-sources", status_code=status.HTTP_201_CREATED)
     def create_data_source(payload: DataSourceCreate) -> dict:
@@ -462,7 +485,7 @@ def create_app(
             description=payload.description,
             upstream_mcp_server_config_id=payload.upstream_mcp_server_config_id,
         )
-        return created.to_dict()
+        return _enrich_data_source(created)
 
     @api_router.get("/data-sources/{name}")
     def get_data_source(name: str) -> dict:
@@ -471,7 +494,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
             )
-        return found.to_dict()
+        return _enrich_data_source(found)
 
     @api_router.put("/data-sources/{name}")
     def update_data_source(name: str, payload: DataSourceUpdate) -> dict:
@@ -515,7 +538,7 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
             )
-        return updated.to_dict()
+        return _enrich_data_source(updated)
 
     @api_router.delete("/data-sources/{name}", status_code=status.HTTP_204_NO_CONTENT)
     def delete_data_source(name: str) -> None:

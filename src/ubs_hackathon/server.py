@@ -11,7 +11,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from .catalog import SchemaCatalog
-from .config import load_config
+from .config import load_config, get_registry_entry
 from .datasource import DataSource, build_data_source, UpstreamMCPDataSource
 from .meta_store import MetaStore
 from .models import DataSourceConfig
@@ -45,7 +45,7 @@ def _restart_handler(signum, frame):
     print("🔄 Upstream configuration changed. Restarting MCP server...")
     # Give a tiny bit of time for logs to flush and the OS to breathe
     time.sleep(0.2)
-    os.execv(sys.executable, [sys.executable] + sys.argv)
+    os.execv(sys.executable, [sys.executable, "-m", "ubs_hackathon.server"] + sys.argv[1:])
 
 
 signal.signal(signal.SIGHUP, _restart_handler)
@@ -96,7 +96,9 @@ class SourceRegistry:
 
                 self._upstream_tool_specs[upstream_cfg.id] = tool_specs
 
-                if upstream_cfg.server_id == "sql-like":
+                entry = get_registry_entry(store.list_registry_entries() if hasattr(store, 'list_registry_entries') else self.registry, upstream_cfg.server_id)
+                data_type = str((entry or {}).get("data_type") or upstream_cfg.server_id).strip().lower()
+                if data_type == "sql":
                     # Internal SQL-like connector doesn't need an UpstreamMCPDataSource proxy
                     continue
 
@@ -271,7 +273,6 @@ def create_server(
             )
         return results
 
-    @mcp.tool()
     def search_schema(query: str, top_k: int = 5, data_source: str | None = None) -> list[dict]:
         """Semantic search over indexed schema docs. Optionally filter by data_source."""
         if data_source:
@@ -279,14 +280,12 @@ def create_server(
                 raise ValueError(f"Tool 'search_schema' is disabled for source '{data_source}'")
         return catalog.search(query=query, top_k=top_k, data_source=data_source)
 
-    @mcp.tool()
     def describe_table(data_source: str, table: str) -> dict:
         """Return complete table metadata from the schema catalog."""
         if not registry.is_tool_allowed(data_source, "describe_table"):
             raise ValueError(f"Tool 'describe_table' is disabled for source '{data_source}'")
         return catalog.describe_table(data_source=data_source, table=table)
 
-    @mcp.tool()
     def execute_query(
         data_source: str,
         sql: str,
@@ -301,7 +300,6 @@ def create_server(
             raise ValueError(f"Unknown data source: {data_source}")
         return source.execute_read_only(sql=sql, limit=limit, session_id=session_id)
 
-    @mcp.tool()
     def list_temporary_views(
         data_source: str, session_id: str | None = None
     ) -> list[dict]:
@@ -313,7 +311,6 @@ def create_server(
             raise ValueError(f"Unknown data source: {data_source}")
         return source.list_temporary_views(session_id=session_id)
 
-    @mcp.tool()
     def create_temporary_view(
         data_source: str,
         sql: str,
@@ -331,7 +328,6 @@ def create_server(
             sql=sql, view_name=view_name, ttl_seconds=ttl_seconds, session_id=session_id
         )
 
-    @mcp.tool()
     def drop_temporary_view(
         data_source: str, view_name: str, session_id: str | None = None
     ) -> dict:
@@ -369,9 +365,22 @@ def create_server(
             for cfg_id, src in upstreams.items()
         ]
 
+    internal_sql_tools = {
+        "search_schema": search_schema,
+        "describe_table": describe_table,
+        "execute_query": execute_query,
+        "list_temporary_views": list_temporary_views,
+        "create_temporary_view": create_temporary_view,
+        "drop_temporary_view": drop_temporary_view,
+    }
+
     # Register one proxy tool per upstream tool name.
     # If multiple upstream servers expose the same tool name, route by data_source.
     for _tool_name in registry.get_upstream_tool_names():
+        if _tool_name in internal_sql_tools:
+            mcp.tool(name=_tool_name)(internal_sql_tools[_tool_name])
+            continue
+
         _proxy = _make_upstream_proxy(
             _tool_name,
             registry,

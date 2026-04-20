@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 
 from .catalog import SchemaCatalog
-from .config import load_config
+from .config import load_config, get_registry_entry
 from .datasource import build_data_source
 from .models import DataSourceConfig, TableDoc
 from .source_runtime import RuntimeResolutionError, build_runtime_source_config
@@ -133,11 +133,14 @@ def build_catalog(config_path: str | None = None) -> int:
         if config_id:
             connector = store.get_upstream_config(config_id)
             registration = registration_by_name.get(source_cfg.name)
-            if connector and registration and connector.server_id == "sql-like":
-                try:
-                    runtime_cfg = build_runtime_source_config(registration, connector, connectors_registry)
-                except RuntimeResolutionError:
-                    continue
+            if connector and registration:
+                entry = get_registry_entry(connectors_registry, connector.server_id)
+                data_type = str((entry or {}).get("data_type") or connector.server_id).strip().lower()
+                if data_type == "sql":
+                    try:
+                        runtime_cfg = build_runtime_source_config(registration, connector, connectors_registry)
+                    except RuntimeResolutionError:
+                        continue
         source = build_data_source(runtime_cfg)
         for doc in source.catalog_docs():
             _apply_schema_docs(doc, docs_map)

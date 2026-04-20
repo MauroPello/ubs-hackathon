@@ -17,8 +17,20 @@ const form = reactive({
   upstream_mcp_server_config_id: ''
 })
 
-// Upstream configs
+// Upstream configs and servers
 const { data: upstreamConfigs } = await useFetch('/api/upstream-mcp-server-configs')
+const { data: upstreamServers } = await useFetch('/api/upstream-mcp-servers')
+
+const selectedServerSpec = computed(() => {
+  const config = (upstreamConfigs.value || []).find(c => c.id === form.upstream_mcp_server_config_id)
+  if (!config) return null
+  return (upstreamServers.value || []).find(s => s.id === config.server_id)
+})
+
+const hiddenFields = computed(() => {
+  if (!selectedServerSpec.value) return []
+  return selectedServerSpec.value.hidden_source_fields || []
+})
 
 // Fetch sources
 async function fetchSources() {
@@ -98,8 +110,6 @@ const filteredSources = computed(() => {
   })
 })
 
-const sqlConnectors = computed(() => (upstreamConfigs.value || []).filter(c => c.server_id === 'sql-like'))
-const otherConnectors = computed(() => (upstreamConfigs.value || []).filter(c => c.server_id !== 'sql-like'))
 </script>
 
 <template>
@@ -146,19 +156,19 @@ const otherConnectors = computed(() => (upstreamConfigs.value || []).filter(c =>
           <UFormGroup :label="`${category.charAt(0).toUpperCase() + category.slice(1)} Connector`" required>
             <USelectMenu
               v-model="form.upstream_mcp_server_config_id"
-              :options="category === 'sql' ? sqlConnectors : otherConnectors.filter(c => c.server_id === (category === 'graph' ? 'neo4j' : 'notion'))"
+              :options="(upstreamConfigs || []).filter(c => c.data_type === category)"
               value-attribute="id"
               option-attribute="name"
               placeholder="Select connector..."
             />
           </UFormGroup>
 
-          <UFormGroup label="Sensitive Columns">
+          <UFormGroup label="Sensitive Columns" v-if="!hiddenFields.includes('sensitive_columns')">
             <UInput v-model="form.sensitive_columns" placeholder="users.email, users.ssn" />
             <template #hint>Comma separated</template>
           </UFormGroup>
 
-          <UFormGroup label="Databases">
+          <UFormGroup label="Databases" v-if="!hiddenFields.includes('databases')">
             <UInput v-model="form.databases" placeholder="main, analytics" />
             <template #hint>Comma separated</template>
           </UFormGroup>
