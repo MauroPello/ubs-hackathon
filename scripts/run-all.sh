@@ -6,8 +6,29 @@ echo "🚀 Starting UBS Hackathon System..."
 
 # Function to kill all background processes on exit
 cleanup() {
+    echo ""
     echo "🛑 Shutting down..."
-    kill $(jobs -p)
+
+    # Get all background PIDs
+    PIDS=$(jobs -p)
+
+    if [ -n "$PIDS" ]; then
+        echo "📡 Stopping background processes..."
+        # Try graceful shutdown first
+        kill $PIDS 2>/dev/null
+
+        # Wait a moment for processes to exit
+        sleep 1
+
+        # Force kill any remaining processes
+        REMAINING=$(jobs -p)
+        if [ -n "$REMAINING" ]; then
+            echo "⚠️  Some processes didn't stop gracefully, forcing shutdown..."
+            kill -9 $REMAINING 2>/dev/null
+        fi
+    fi
+
+    echo "✅ Shutdown complete."
     exit
 }
 
@@ -44,10 +65,12 @@ echo "✅ Neo4j is ready!"
 # 1. Start Backend
 echo "📡 Starting Backend (REST API) on port 8080..."
 python3 -m ubs_hackathon.backend --meta-db data/meta.db --catalog data/catalog.db --host 127.0.0.1 --port 8080 > backend.log 2>&1 &
+BACKEND_PID=$!
 
 # 2. Start MCP Server (SSE)
 echo "🔌 Starting MCP Server (SSE) on port 8000..."
 python3 -m ubs_hackathon.server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000 > mcp.log 2>&1 &
+MCP_PID=$!
 
 # 3. Start Neo4j MCP (SSE)
 echo "🌳 Starting Neo4j MCP Server (SSE) on port 8001..."
@@ -58,16 +81,19 @@ uvx mcp-neo4j-cypher@0.6.0 \
   --username "${NEO4J_USERNAME:-neo4j}" \
   --password "${NEO4J_PASSWORD:-ChangeMe123!}" \
   > neo4j_mcp.log 2>&1 &
+NEO4J_MCP_PID=$!
 
 # 4. Start Frontend
 echo "💻 Starting Frontend..."
-cd frontend
-if command -v pnpm &> /dev/null; then
-    pnpm run dev > ../frontend.log 2>&1 &
-else
-    npm run dev > ../frontend.log 2>&1 &
-fi
-cd ..
+(
+    cd frontend
+    if command -v pnpm &> /dev/null; then
+        exec pnpm run dev > ../frontend.log 2>&1
+    else
+        exec npm run dev > ../frontend.log 2>&1
+    fi
+) &
+FRONTEND_PID=$!
 
 echo "✅ System is running!"
 echo "   - Backend: http://127.0.0.1:8080"

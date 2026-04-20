@@ -87,6 +87,56 @@ UPSTREAM_MCP_REGISTRY: list[dict[str, Any]] = [
         "is_local": False,
         "status": "unavailable",
     },
+    {
+        "id": "sql-like",
+        "name": "SQL-like",
+        "data_type": "sql",
+        "description": (
+            "Internal SQL connector for relational databases (SQLite, PostgreSQL, etc.). "
+            "Allows enabling/disabling SQL analysis tools."
+        ),
+        "tools": [
+            {
+                "name": "search_schema",
+                "description": "Semantic search over indexed schema docs.",
+            },
+            {
+                "name": "describe_table",
+                "description": "Return complete table metadata from the schema catalog.",
+            },
+            {
+                "name": "execute_query",
+                "description": "Execute a read-only query against a configured source.",
+            },
+            {
+                "name": "list_temporary_views",
+                "description": "List temporary views created in the current server session.",
+            },
+            {
+                "name": "create_temporary_view",
+                "description": "Create a session-local temporary view for iterative analysis.",
+            },
+            {
+                "name": "drop_temporary_view",
+                "description": "Drop a temporary view created by this server session.",
+            },
+        ],
+        "requires_auth": True,
+        "auth_schema": {
+            "dialect": {
+                "type": "string",
+                "description": "SQL dialect (sqlite, postgresql, mysql, etc.)",
+                "secret": False,
+            },
+            "connection": {
+                "type": "string",
+                "description": "SQLAlchemy connection string",
+                "secret": False,
+            },
+        },
+        "is_local": True,
+        "status": "available",
+    },
 ]
 
 # Fast lookup by id.

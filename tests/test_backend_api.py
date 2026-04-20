@@ -21,6 +21,27 @@ def _seed_sqlite_source(path: Path) -> None:
         conn.execute("INSERT INTO orders (order_id, revenue) VALUES (1, 100.0)")
 
 
+def _create_sql_like_connector(client: TestClient, source_db: Path, name: str = "sql_connector") -> str:
+    resp = client.post(
+        "/upstream-mcp-server-configs",
+        json={
+            "server_id": "sql-like",
+            "name": name,
+            "auth": {"dialect": "sqlite", "connection": str(source_db)},
+            "exposed_tools": [
+                "search_schema",
+                "describe_table",
+                "execute_query",
+                "list_temporary_views",
+                "create_temporary_view",
+                "drop_temporary_view",
+            ],
+        },
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
 def test_frontend_homepage(tmp_path: Path) -> None:
     app = create_app(
         meta_db_path=tmp_path / "meta.db", catalog_path=tmp_path / "catalog.db"
@@ -71,12 +92,14 @@ def test_data_sources_crud(tmp_path: Path) -> None:
 
     assert client.get("/data-sources").json() == []
 
+    connector_id = _create_sql_like_connector(client, source_db)
+
     payload = {
         "name": "demo_sqlite",
-        "type": "sqlite",
-        "connection": str(source_db),
+        "databases": ["main"],
         "sensitive_columns": ["orders.revenue"],
         "description": "Primary demo sales source",
+        "upstream_mcp_server_config_id": connector_id,
     }
     created = client.post("/data-sources", json=payload)
     assert created.status_code == 201
@@ -90,21 +113,21 @@ def test_data_sources_crud(tmp_path: Path) -> None:
 
     fetched = client.get("/data-sources/demo_sqlite")
     assert fetched.status_code == 200
-    assert fetched.json()["connection"] == str(source_db)
+    assert fetched.json()["upstream_mcp_server_config_id"] == connector_id
+    assert fetched.json()["databases"] == ["main"]
     assert fetched.json()["sensitive_columns"] == ["orders.revenue"]
     assert fetched.json()["description"] == "Primary demo sales source"
 
     updated = client.put(
         "/data-sources/demo_sqlite",
         json={
-            "connection": str(source_db),
-            "type": "sqlite",
+            "databases": ["main", "analytics"],
             "sensitive_columns": ["orders.order_id"],
             "description": "Updated source summary",
         },
     )
     assert updated.status_code == 200
-    assert updated.json()["type"] == "sqlite"
+    assert updated.json()["databases"] == ["main", "analytics"]
     assert updated.json()["sensitive_columns"] == ["orders.order_id"]
     assert updated.json()["description"] == "Updated source summary"
 
@@ -122,7 +145,12 @@ def test_docs_crud_and_cascade_delete(tmp_path: Path) -> None:
     client = TestClient(app)
     catalog = SchemaCatalog(catalog_db)
 
-    payload = {"name": "demo_sqlite", "type": "sqlite", "connection": str(source_db)}
+    connector_id = _create_sql_like_connector(client, source_db)
+
+    payload = {
+        "name": "demo_sqlite",
+        "upstream_mcp_server_config_id": connector_id,
+    }
     assert client.post("/data-sources", json=payload).status_code == 201
 
     first_doc = client.post(
@@ -224,6 +252,8 @@ def test_mcp_usage_endpoint(tmp_path: Path) -> None:
     )
     client = TestClient(app)
 
+    connector_id = _create_sql_like_connector(client, source_db)
+
     initial = client.get("/mcp-usage")
     assert initial.status_code == 200
     payload = initial.json()
@@ -235,7 +265,10 @@ def test_mcp_usage_endpoint(tmp_path: Path) -> None:
 
     create_source = client.post(
         "/data-sources",
-        json={"name": "demo_sqlite", "type": "sqlite", "connection": str(source_db)},
+        json={
+            "name": "demo_sqlite",
+            "upstream_mcp_server_config_id": connector_id,
+        },
     )
     assert create_source.status_code == 201
 
@@ -386,15 +419,12 @@ def test_data_source_with_upstream_mcp_config(tmp_path: Path) -> None:
         "/data-sources",
         json={
             "name": "graph_source",
-            "type": "graph",
-            "connection": f"upstream://{config_id}",
             "upstream_mcp_server_config_id": config_id,
         },
     )
     assert ds_resp.status_code == 201
     ds = ds_resp.json()
     assert ds["upstream_mcp_server_config_id"] == config_id
-    assert ds["type"] == "graph"
 
     # Sync should return 0 tables (upstream MCP sources have no SQL schema).
     sync_resp = client.post("/data-sources/graph_source/sync")
@@ -406,8 +436,6 @@ def test_data_source_with_upstream_mcp_config(tmp_path: Path) -> None:
         "/data-sources",
         json={
             "name": "bad_graph",
-            "type": "graph",
-            "connection": "upstream://nonexistent",
             "upstream_mcp_server_config_id": "nonexistent",
         },
     )

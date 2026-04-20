@@ -11,8 +11,7 @@ const q = ref('')
 // Form state
 const form = reactive({
   name: '',
-  type: 'sqlite',
-  connection: '',
+  databases: '',
   sensitive_columns: '',
   description: '',
   upstream_mcp_server_config_id: ''
@@ -43,17 +42,11 @@ async function createSource() {
   const payload = {
     name: form.name,
     description: form.description || null,
+    databases: form.databases ? form.databases.split(',').map(s => s.trim()).filter(Boolean) : [],
     sensitive_columns: form.sensitive_columns ? form.sensitive_columns.split(',').map(s => s.trim()) : []
   }
 
-  if (category.value === 'sql') {
-    payload.type = form.type
-    payload.connection = form.connection
-  } else {
-    payload.type = category.value
-    payload.connection = `upstream://${form.upstream_mcp_server_config_id}`
-    payload.upstream_mcp_server_config_id = form.upstream_mcp_server_config_id
-  }
+  payload.upstream_mcp_server_config_id = form.upstream_mcp_server_config_id
 
   try {
     await $fetch('/api/data-sources', {
@@ -83,21 +76,14 @@ async function deleteSource(name) {
 function resetForm() {
   Object.assign(form, {
     name: '',
-    type: 'sqlite',
-    connection: '',
+    databases: '',
     sensitive_columns: '',
     description: '',
     upstream_mcp_server_config_id: ''
   })
 }
 
-const sqlDialects = [
-  { label: 'SQLite', value: 'sqlite' },
-  { label: 'PostgreSQL', value: 'postgresql' },
-  { label: 'MySQL', value: 'mysql' },
-  { label: 'Oracle', value: 'oracle' },
-  { label: 'Snowflake', value: 'snowflake' }
-]
+// No longer needed
 
 const categories = [
   { label: 'SQL-like', value: 'sql' },
@@ -111,6 +97,9 @@ const filteredSources = computed(() => {
     return Object.values(s).some(v => String(v).toLowerCase().includes(q.value.toLowerCase()))
   })
 })
+
+const sqlConnectors = computed(() => (upstreamConfigs.value || []).filter(c => c.server_id === 'sql-like'))
+const otherConnectors = computed(() => (upstreamConfigs.value || []).filter(c => c.server_id !== 'sql-like'))
 </script>
 
 <template>
@@ -154,29 +143,23 @@ const filteredSources = computed(() => {
             <UInput v-model="form.name" placeholder="sales_prod" />
           </UFormGroup>
 
-          <div v-if="category === 'sql'" class="space-y-4">
-            <UFormGroup label="Dialect">
-              <USelectMenu v-model="form.type" :options="sqlDialects" value-attribute="value" option-attribute="label" />
-            </UFormGroup>
-            <UFormGroup label="Connection String">
-              <UInput v-model="form.connection" placeholder="sqlite:///data/demo.db" />
-            </UFormGroup>
-          </div>
-
-          <div v-else class="space-y-4">
-            <UFormGroup label="Upstream Connector">
-              <USelectMenu
-                v-model="form.upstream_mcp_server_config_id"
-                :options="upstreamConfigs || []"
-                value-attribute="id"
-                option-attribute="name"
-                placeholder="Select connector..."
-              />
-            </UFormGroup>
-          </div>
+          <UFormGroup :label="`${category.charAt(0).toUpperCase() + category.slice(1)} Connector`" required>
+            <USelectMenu
+              v-model="form.upstream_mcp_server_config_id"
+              :options="category === 'sql' ? sqlConnectors : otherConnectors.filter(c => c.server_id === (category === 'graph' ? 'neo4j' : 'notion'))"
+              value-attribute="id"
+              option-attribute="name"
+              placeholder="Select connector..."
+            />
+          </UFormGroup>
 
           <UFormGroup label="Sensitive Columns">
             <UInput v-model="form.sensitive_columns" placeholder="users.email, users.ssn" />
+            <template #hint>Comma separated</template>
+          </UFormGroup>
+
+          <UFormGroup label="Databases">
+            <UInput v-model="form.databases" placeholder="main, analytics" />
             <template #hint>Comma separated</template>
           </UFormGroup>
 
@@ -214,7 +197,7 @@ const filteredSources = computed(() => {
           :rows="filteredSources"
           :columns="[
             { key: 'name', label: 'Name' },
-            { key: 'type', label: 'Type' },
+            { key: 'upstream_mcp_server_config_id', label: 'Connector' },
             { key: 'updated_at', label: 'Last Updated' },
             { key: 'actions', label: '' }
           ]"
@@ -226,11 +209,10 @@ const filteredSources = computed(() => {
             <div class="text-xs text-gray-500 truncate max-w-[200px]">{{ row.description || 'No description' }}</div>
           </template>
 
-          <template #type-data="{ row }">
-            <UBadge :color="row.upstream_mcp_server_config_id ? 'purple' : 'blue'" variant="subtle">
-              {{ row.type }}
+          <template #upstream_mcp_server_config_id-data="{ row }">
+            <UBadge color="purple" variant="subtle">
+              {{ row.upstream_mcp_server_config_id }}
             </UBadge>
-            <span v-if="row.upstream_mcp_server_config_id" class="ml-1 text-[10px] text-gray-400 uppercase font-bold">Connector</span>
           </template>
 
           <template #updated_at-data="{ row }">

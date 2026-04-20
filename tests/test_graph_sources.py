@@ -15,12 +15,23 @@ def _write_graph_config(path: Path) -> Path:
     catalog_path = path.parent / "graph_catalog.db"
     payload = {
         "catalog": {"db_path": str(catalog_path)},
+        "upstream_mcp_server_configs": [
+            {
+                "id": "graph_connector",
+                "server_id": "neo4j",
+                "name": "Graph Connector",
+                "endpoint": "http://localhost:9000/mcp",
+                "auth": {"url": "bolt://localhost:7687", "username": "neo4j", "password": "pw"},
+                "exposed_tools": ["execute_cypher", "list_labels", "describe_node_type"],
+            }
+        ],
         "data_sources": [
             {
                 "name": "demo_graph",
                 "type": "graph",
                 "connection": "delegated://graph",
                 "adapter": "delegated_graph",
+                "upstream_mcp_server_config_id": "graph_connector",
                 "sensitive_columns": ["Person.segment"],
                 "options": {
                     "graph_entities": [
@@ -71,7 +82,7 @@ def test_delegated_graph_source_capabilities_and_query_validation(
 ) -> None:
     config_path = tmp_path / "graph_config.yaml"
     _write_graph_config(config_path)
-    sources, _, _ = load_config(config_path)
+    sources, _, _, _, _ = load_config(config_path)
     source = build_data_source(sources[0])
 
     capabilities = source.capabilities()

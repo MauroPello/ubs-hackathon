@@ -23,6 +23,7 @@ from .datasource import build_data_source
 from .meta_store import MetaStore, _UNSET
 from .models import DataSourceConfig
 from .registry import UPSTREAM_MCP_REGISTRY, get_registry_entry, list_registry_entries
+from .source_runtime import RuntimeResolutionError, build_runtime_source_config
 
 _UNSET_SENTINEL = _UNSET
 
@@ -48,7 +49,7 @@ def _seed_audit_logs(store: MetaStore):
     now = datetime.now(timezone.utc)
     actions = ["search_schema", "describe_table", "execute_query", "list_data_sources", "sync_data_source"]
     actors = ["User-123", "User-456", "System", "Admin"]
-    
+
     # Generate 100 logs over the last 7 days
     for i in range(100):
         offset_seconds = random.randint(0, 7 * 24 * 3600)
@@ -58,7 +59,7 @@ def _seed_audit_logs(store: MetaStore):
         status_val = "Success" if random.random() > 0.05 else "Error"
         latency = random.randint(20, 500)
         details = f"Mocked {action} for demonstration"
-        
+
         store.log_action(
             action=action,
             details=details,
@@ -80,7 +81,7 @@ def _collect_mcp_usage_snapshot(store: MetaStore, catalog_path: Path) -> dict:
 
     # Get real metrics from audit log
     metrics = store.get_usage_metrics()
-    
+
     # Merge with static/calculated info
     snapshot = {
         "registered_sources": source_count,
@@ -92,24 +93,22 @@ def _collect_mcp_usage_snapshot(store: MetaStore, catalog_path: Path) -> dict:
         "requests_trend_7d": metrics["requests_trend_7d"],
         "simulated_connectors": ["notion", "google_workspace"],
     }
-    
+
     return snapshot
 
 
 class DataSourceCreate(BaseModel):
     name: str
-    type: str
-    connection: str
+    databases: list[str] = Field(default_factory=list)
     sensitive_columns: list[str] = Field(default_factory=list)
     description: str | None = None
-    upstream_mcp_server_config_id: str | None = None
+    upstream_mcp_server_config_id: str
 
     model_config = ConfigDict(extra="forbid")
 
 
 class DataSourceUpdate(BaseModel):
-    type: str | None = None
-    connection: str | None = None
+    databases: list[str] | None = None
     sensitive_columns: list[str] | None = None
     description: str | None = None
     upstream_mcp_server_config_id: str | None = None
@@ -214,17 +213,37 @@ def _rebuild_catalog_for_data_source(
             status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
         )
 
-    # Upstream MCP data sources do not have catalogueable SQL tables.
-    if registration.upstream_mcp_server_config_id:
+    config_id = registration.upstream_mcp_server_config_id
+    if not config_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Data source '{name}' must reference an upstream connector",
+        )
+    u_cfg = store.get_upstream_config(config_id)
+    if not u_cfg:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Connector '{config_id}' not found",
+        )
+    if u_cfg.server_id != "sql-like":
         return 0
+    try:
+        runtime_cfg = build_runtime_source_config(registration, u_cfg)
+    except RuntimeResolutionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
 
     source = build_data_source(
         DataSourceConfig(
-            name=registration.name,
-            type=registration.type,
-            connection=registration.connection,
-            sensitive_columns=registration.sensitive_columns,
-            description=registration.description,
+            name=runtime_cfg.name,
+            type=runtime_cfg.type,
+            connection=runtime_cfg.connection,
+            sensitive_columns=runtime_cfg.sensitive_columns,
+            description=runtime_cfg.description,
+            databases=runtime_cfg.databases,
+            upstream_mcp_server_config_id=runtime_cfg.upstream_mcp_server_config_id,
         )
     )
     docs_map = _docs_to_schema_map(
@@ -245,7 +264,7 @@ def create_app(
     catalog_path: str | Path = "data/catalog.db",
 ) -> FastAPI:
     app = FastAPI(title="UBS Hackathon Data Source Backend")
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -256,21 +275,21 @@ def create_app(
 
     store = MetaStore(Path(meta_db_path))
     catalog = SchemaCatalog(Path(catalog_path))
-    
+
     # Seed mock data
     _seed_audit_logs(store)
 
     @app.middleware("http")
     async def audit_middleware(request: Request, call_next):
         start_time = time.perf_counter()
-        
+
         path = request.url.path
         if path.startswith("/api"):
             path = path[4:] or "/"
-            
+
         # Skip auditing for the usage dashboard endpoints themselves to avoid loops/noise
         skip_audit = path in ["/mcp-usage", "/recent-activity"]
-        
+
         response = None
         try:
             response = await call_next(request)
@@ -279,7 +298,7 @@ def create_app(
             if not skip_audit:
                 duration_ms = int((time.perf_counter() - start_time) * 1000)
                 status_str = "Success" if response and response.status_code < 400 else "Error"
-                
+
                 # Log the action
                 action = f"{request.method} {path}"
                 # Simplify action name for common ones
@@ -289,7 +308,7 @@ def create_app(
                     action = "get_data_source"
                 elif path.endswith("/sync") and request.method == "POST":
                     action = "sync_data_source"
-                
+
                 store.log_action(
                     action=action,
                     actor="System", # Could be extracted from auth if present
@@ -423,17 +442,15 @@ def create_app(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Data source '{payload.name}' already exists",
             )
-        # Validate upstream config reference if provided.
-        if payload.upstream_mcp_server_config_id:
-            if not store.get_upstream_config(payload.upstream_mcp_server_config_id):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail=f"Upstream MCP server config '{payload.upstream_mcp_server_config_id}' not found",
-                )
+        if not store.get_upstream_config(payload.upstream_mcp_server_config_id):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Upstream MCP server config '{payload.upstream_mcp_server_config_id}' not found",
+            )
+
         created = store.create_data_source(
             payload.name,
-            payload.type,
-            payload.connection,
+            databases=payload.databases,
             sensitive_columns=payload.sensitive_columns,
             description=payload.description,
             upstream_mcp_server_config_id=payload.upstream_mcp_server_config_id,
@@ -451,6 +468,12 @@ def create_app(
 
     @api_router.put("/data-sources/{name}")
     def update_data_source(name: str, payload: DataSourceUpdate) -> dict:
+        found = store.get_data_source(name)
+        if not found:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
+            )
+
         updates = payload.model_dump(exclude_unset=True)
         # Validate upstream config reference if explicitly provided.
         upstream_id = updates.get("upstream_mcp_server_config_id")
@@ -465,13 +488,18 @@ def create_app(
             if "upstream_mcp_server_config_id" in updates
             else _UNSET_SENTINEL
         )
+        if upstream_id is None and "upstream_mcp_server_config_id" in updates:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="upstream_mcp_server_config_id cannot be null",
+            )
+
         desc_sentinel = (
             updates["description"] if "description" in updates else _UNSET_SENTINEL
         )
         updated = store.update_data_source(
             name,
-            type_=updates.get("type"),
-            connection=updates.get("connection"),
+            databases=updates.get("databases"),
             sensitive_columns=updates.get("sensitive_columns"),
             description=desc_sentinel,
             upstream_mcp_server_config_id=upstream_id_sentinel,
@@ -577,7 +605,7 @@ def main() -> None:
     args = parser.parse_args()
 
     app = "ubs_hackathon.backend:create_app" if args.reload else create_app(meta_db_path=args.meta_db, catalog_path=args.catalog)
-    
+
     if args.reload:
         uvicorn.run(app, host=args.host, port=args.port, reload=True, factory=True)
     else:

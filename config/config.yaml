@@ -16,39 +16,45 @@ catalog:
 schema_docs_path: config/schema_docs.json
 
 # ---------------------------------------------------------------------------
+# Upstream connector configurations
+# ---------------------------------------------------------------------------
+# Every data source must reference one entry from this list using
+# `upstream_mcp_server_config_id`.
+upstream_mcp_server_configs:
+  - id: local_sqlite_connector
+    server_id: sql-like
+    name: Local SQLite Connector
+    endpoint:
+    auth:
+      dialect: sqlite
+      connection: data/big_demo.db
+    exposed_tools:
+      - search_schema
+      - describe_table
+      - execute_query
+      - list_temporary_views
+      - create_temporary_view
+      - drop_temporary_view
+
+# ---------------------------------------------------------------------------
 # Data sources
 # ---------------------------------------------------------------------------
-# The `connection` field accepts any SQLAlchemy database URL.
-# Legacy SQLite entries that use a bare file path are auto-promoted to a
-# sqlite:/// URL so existing configs keep working without modification.
-#
-# Common URL formats:
-#   SQLite    : sqlite:///path/to/file.db
-#   PostgreSQL: postgresql+psycopg2://user:password@host:5432/dbname
-#   MySQL     : mysql+pymysql://user:password@host:3306/dbname
-#   SQL Server: mssql+pyodbc://user:password@host/dbname?driver=ODBC+Driver+18+for+SQL+Server
-#   Oracle    : oracle+oracledb://user:password@host:1521/?service_name=svcname
-#   Snowflake : snowflake://user:password@account/database/schema
-#   BigQuery  : bigquery://project/dataset
-#   DuckDB    : duckdb:///path/to/file.duckdb
-#   Delegated graph: use adapter `delegated_graph` with graph options
-#
-# Install the matching dialect driver before using a non-SQLite source:
-#   pip install "ubs-hackathon[postgres]"   # psycopg2-binary
-#   pip install "ubs-hackathon[mysql]"      # pymysql
-#   pip install "ubs-hackathon[mssql]"      # pyodbc
-#   pip install "ubs-hackathon[oracle]"     # oracledb
-#   pip install "ubs-hackathon[snowflake]"  # snowflake-sqlalchemy
-#   pip install "ubs-hackathon[bigquery]"   # sqlalchemy-bigquery
-#   pip install "ubs-hackathon[duckdb]"     # duckdb-engine
+# Data sources no longer include direct connection or dialect details.
+# Those are resolved from the connector referenced by
+# `upstream_mcp_server_config_id`.
 # ---------------------------------------------------------------------------
 
 data_sources:
   - name: big_demo_sqlite
-    type: sqlite
-    connection: data/big_demo.db
+    upstream_mcp_server_config_id: local_sqlite_connector
+    databases:
+      - main
+      - temp
     description: Large synthetic SQLite dataset with hundreds of tables.
+    sensitive_columns:
+      - clients.tax_id
+      - clients.email
   # Uncomment and fill in to add a second source alongside the SQLite demo:
   # - name: prod_postgres
-  #   type: postgresql
-  #   connection: postgresql+psycopg2://user:password@localhost:5432/mydb
+  #   upstream_mcp_server_config_id: prod_postgres_connector
+  #   databases: [sales, risk]

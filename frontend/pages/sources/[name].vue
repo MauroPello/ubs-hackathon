@@ -12,8 +12,7 @@ const pending = ref(true)
 const category = ref('sql')
 const form = reactive({
   name: '',
-  type: 'sqlite',
-  connection: '',
+  databases: '',
   sensitive_columns: '',
   description: '',
   upstream_mcp_server_config_id: ''
@@ -46,14 +45,14 @@ async function fetchData() {
     form.name = sourceData.name
     form.description = sourceData.description || ''
     form.sensitive_columns = (sourceData.sensitive_columns || []).join(', ')
+    form.databases = (sourceData.databases || []).join(', ')
 
-    if (sourceData.upstream_mcp_server_config_id) {
-      category.value = sourceData.type
-      form.upstream_mcp_server_config_id = sourceData.upstream_mcp_server_config_id
-    } else {
-      category.value = 'sql'
-      form.type = sourceData.type
-      form.connection = sourceData.connection
+    form.upstream_mcp_server_config_id = sourceData.upstream_mcp_server_config_id || ''
+    const selectedConnector = (upstreamConfigs.value || []).find(c => c.id === form.upstream_mcp_server_config_id)
+    if (selectedConnector) {
+      category.value = selectedConnector.server_id === 'sql-like'
+        ? 'sql'
+        : (selectedConnector.server_id === 'neo4j' ? 'graph' : 'documents')
     }
   } catch (e) {
     toast.add({ title: 'Error fetching data source', color: 'red' })
@@ -66,17 +65,11 @@ async function fetchData() {
 async function updateSource() {
   const payload = {
     description: form.description || null,
+    databases: form.databases ? form.databases.split(',').map(s => s.trim()).filter(Boolean) : [],
     sensitive_columns: form.sensitive_columns ? form.sensitive_columns.split(',').map(s => s.trim()) : []
   }
 
-  if (category.value === 'sql') {
-    payload.type = form.type
-    payload.connection = form.connection
-  } else {
-    payload.type = category.value
-    payload.connection = `upstream://${form.upstream_mcp_server_config_id}`
-    payload.upstream_mcp_server_config_id = form.upstream_mcp_server_config_id
-  }
+  payload.upstream_mcp_server_config_id = form.upstream_mcp_server_config_id
 
   try {
     await $fetch(`/api/data-sources/${name}`, {
@@ -163,13 +156,7 @@ onMounted(() => {
   fetchData()
 })
 
-const sqlDialects = [
-  { label: 'SQLite', value: 'sqlite' },
-  { label: 'PostgreSQL', value: 'postgresql' },
-  { label: 'MySQL', value: 'mysql' },
-  { label: 'Oracle', value: 'oracle' },
-  { label: 'Snowflake', value: 'snowflake' }
-]
+// No longer needed
 
 const categories = [
   { label: 'SQL-like', value: 'sql' },
@@ -218,29 +205,23 @@ const docTypes = [
             <template #hint>Names cannot be changed</template>
           </UFormGroup>
 
-          <div v-if="category === 'sql'" class="space-y-4">
-            <UFormGroup label="Dialect">
-              <USelectMenu v-model="form.type" :options="sqlDialects" value-attribute="value" option-attribute="label" />
-            </UFormGroup>
-            <UFormGroup label="Connection String">
-              <UInput v-model="form.connection" placeholder="sqlite:///data/demo.db" />
-            </UFormGroup>
-          </div>
-
-          <div v-else class="space-y-4">
-            <UFormGroup label="Upstream Connector">
-              <USelectMenu
-                v-model="form.upstream_mcp_server_config_id"
-                :options="upstreamConfigs || []"
-                value-attribute="id"
-                option-attribute="name"
-                placeholder="Select connector..."
-              />
-            </UFormGroup>
-          </div>
+          <UFormGroup :label="`${category.charAt(0).toUpperCase() + category.slice(1)} Connector`" required>
+            <USelectMenu
+              v-model="form.upstream_mcp_server_config_id"
+              :options="category === 'sql' ? upstreamConfigs.filter(c => c.server_id === 'sql-like') : upstreamConfigs.filter(c => c.server_id === (category === 'graph' ? 'neo4j' : 'notion'))"
+              value-attribute="id"
+              option-attribute="name"
+              placeholder="Select connector..."
+            />
+          </UFormGroup>
 
           <UFormGroup label="Sensitive Columns">
             <UInput v-model="form.sensitive_columns" placeholder="users.email, users.ssn" />
+            <template #hint>Comma separated</template>
+          </UFormGroup>
+
+          <UFormGroup label="Databases">
+            <UInput v-model="form.databases" placeholder="main, analytics" />
             <template #hint>Comma separated</template>
           </UFormGroup>
 

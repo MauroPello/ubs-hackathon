@@ -15,6 +15,7 @@ from .config import load_config
 from .datasource import DataSource, build_data_source, UpstreamMCPDataSource
 from .meta_store import MetaStore
 from .models import DataSourceConfig
+from .source_runtime import RuntimeResolutionError, build_runtime_source_config
 
 
 def _extract_exposed_tool_specs(
@@ -64,6 +65,7 @@ class SourceRegistry:
         self.yaml_sources = yaml_sources
         self._ds_cache: dict[str, DataSource] = {}
         self._configs: dict[str, DataSourceConfig] = {}
+        self._connector_configs: dict[str, Any] = {}
         self._upstream_sources: dict[str, UpstreamMCPDataSource] = {}
         self._upstream_tool_specs: dict[str, list[tuple[str, str | None]]] = {}
         self._last_refresh = 0.0
@@ -81,12 +83,21 @@ class SourceRegistry:
             # Load upstreams for proxy tools
             self._upstream_sources = {}
             self._upstream_tool_specs = {}
+            self._connector_configs = {}
             for upstream_cfg in store.list_upstream_configs():
+                self._connector_configs[upstream_cfg.id] = upstream_cfg
                 if not upstream_cfg.exposed_tools:
                     continue
                 tool_specs = _extract_exposed_tool_specs(upstream_cfg.exposed_tools)
                 if not tool_specs:
                     continue
+
+                self._upstream_tool_specs[upstream_cfg.id] = tool_specs
+
+                if upstream_cfg.server_id == "sql-like":
+                    # Internal SQL-like connector doesn't need an UpstreamMCPDataSource proxy
+                    continue
+
                 endpoint = upstream_cfg.endpoint or ""
                 upstream_source = UpstreamMCPDataSource(
                     DataSourceConfig(
@@ -99,19 +110,20 @@ class SourceRegistry:
                     [name for name, _ in tool_specs],
                 )
                 self._upstream_sources[upstream_cfg.id] = upstream_source
-                self._upstream_tool_specs[upstream_cfg.id] = tool_specs
 
             # Load sources
             new_configs = {}
             for reg in store.list_data_sources():
-                cfg = DataSourceConfig(
-                    name=reg.name,
-                    type=reg.type,
-                    connection=reg.connection,
-                    description=reg.description,
-                    sensitive_columns=reg.sensitive_columns,
-                    upstream_mcp_server_config_id=reg.upstream_mcp_server_config_id,
-                )
+                config_id = reg.upstream_mcp_server_config_id
+                if not config_id:
+                    continue
+                connector = store.get_upstream_config(config_id)
+                if not connector:
+                    continue
+                try:
+                    cfg = build_runtime_source_config(reg, connector)
+                except RuntimeResolutionError:
+                    continue
                 new_configs[reg.name] = cfg
             self._configs = new_configs
         else:
@@ -135,15 +147,16 @@ class SourceRegistry:
             store = MetaStore(Path(self.meta_db_path))
             reg = store.get_data_source(name)
             if reg:
-                cfg = DataSourceConfig(
-                    name=reg.name,
-                    type=reg.type,
-                    connection=reg.connection,
-                    description=reg.description,
-                    sensitive_columns=reg.sensitive_columns,
-                    upstream_mcp_server_config_id=reg.upstream_mcp_server_config_id,
-                )
-                self._configs[name] = cfg
+                config_id = reg.upstream_mcp_server_config_id
+                if config_id:
+                    connector = store.get_upstream_config(config_id)
+                    if connector:
+                        try:
+                            cfg = build_runtime_source_config(reg, connector)
+                        except RuntimeResolutionError:
+                            cfg = None
+                        if cfg:
+                            self._configs[name] = cfg
 
         if cfg:
             config_id = cfg.upstream_mcp_server_config_id
@@ -154,6 +167,24 @@ class SourceRegistry:
             self._ds_cache[name] = ds
             return ds
         return None
+
+    def is_tool_allowed(self, source_name: str, tool_name: str) -> bool:
+        """Check if a tool is allowed for a given data source based on its connector config."""
+        self._refresh_if_needed()
+        cfg = self._configs.get(source_name)
+        if not cfg:
+            return True
+
+        config_id = cfg.upstream_mcp_server_config_id
+        if not config_id:
+            return True
+
+        # If it's a connector with explicit tool specs, check the whitelist
+        if config_id in self._upstream_tool_specs:
+            allowed = [name for name, _ in self._upstream_tool_specs[config_id]]
+            return tool_name in allowed
+
+        return True
 
     def get_upstream_tool_descriptions(self) -> dict[str, str]:
         self._refresh_if_needed()
@@ -207,7 +238,7 @@ def create_server(
     port: int = 8000,
     meta_db_path: str | Path | None = None,
 ) -> FastMCP:
-    yaml_sources, catalog_path, meta_db_path_from_config, _ = load_config(config_path)
+    yaml_sources, catalog_path, meta_db_path_from_config, _, _ = load_config(config_path)
     registry = SourceRegistry(
         meta_db_path=meta_db_path or meta_db_path_from_config,
         catalog_path=Path(catalog_path),
@@ -236,13 +267,18 @@ def create_server(
         return results
 
     @mcp.tool()
-    def search_schema(query: str, top_k: int = 5) -> list[dict]:
-        """Semantic search over indexed schema docs."""
-        return catalog.search(query=query, top_k=top_k)
+    def search_schema(query: str, top_k: int = 5, data_source: str | None = None) -> list[dict]:
+        """Semantic search over indexed schema docs. Optionally filter by data_source."""
+        if data_source:
+            if not registry.is_tool_allowed(data_source, "search_schema"):
+                raise ValueError(f"Tool 'search_schema' is disabled for source '{data_source}'")
+        return catalog.search(query=query, top_k=top_k, data_source=data_source)
 
     @mcp.tool()
     def describe_table(data_source: str, table: str) -> dict:
         """Return complete table metadata from the schema catalog."""
+        if not registry.is_tool_allowed(data_source, "describe_table"):
+            raise ValueError(f"Tool 'describe_table' is disabled for source '{data_source}'")
         return catalog.describe_table(data_source=data_source, table=table)
 
     @mcp.tool()
@@ -253,6 +289,8 @@ def create_server(
         session_id: str | None = None,
     ) -> dict:
         """Execute a read-only query against a configured source."""
+        if not registry.is_tool_allowed(data_source, "execute_query"):
+            raise ValueError(f"Tool 'execute_query' is disabled for source '{data_source}'")
         source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
@@ -263,6 +301,8 @@ def create_server(
         data_source: str, session_id: str | None = None
     ) -> list[dict]:
         """List temporary views created in the current server session."""
+        if not registry.is_tool_allowed(data_source, "list_temporary_views"):
+            raise ValueError(f"Tool 'list_temporary_views' is disabled for source '{data_source}'")
         source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
@@ -277,6 +317,8 @@ def create_server(
         session_id: str | None = None,
     ) -> dict:
         """Create a session-local temporary view for iterative analysis."""
+        if not registry.is_tool_allowed(data_source, "create_temporary_view"):
+            raise ValueError(f"Tool 'create_temporary_view' is disabled for source '{data_source}'")
         source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
@@ -289,6 +331,8 @@ def create_server(
         data_source: str, view_name: str, session_id: str | None = None
     ) -> dict:
         """Drop a temporary view created by this server session."""
+        if not registry.is_tool_allowed(data_source, "drop_temporary_view"):
+            raise ValueError(f"Tool 'drop_temporary_view' is disabled for source '{data_source}'")
         source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")

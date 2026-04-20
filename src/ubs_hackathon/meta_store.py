@@ -19,8 +19,7 @@ UpdateField = str | None | _Unset
 META_SCHEMA = """
 CREATE TABLE IF NOT EXISTS data_sources (
     name TEXT PRIMARY KEY,
-    type TEXT NOT NULL,
-    connection TEXT NOT NULL,
+    databases TEXT NOT NULL DEFAULT '[]',
     sensitive_columns TEXT NOT NULL DEFAULT '[]',
     description TEXT,
     upstream_mcp_server_config_id TEXT,
@@ -67,6 +66,11 @@ def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
     return any(row[1] == column for row in rows)
 
 
+def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return {str(row[1]) for row in rows}
+
+
 class MetaStore:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
@@ -92,6 +96,63 @@ class MetaStore:
                 conn.execute(
                     "ALTER TABLE data_sources ADD COLUMN upstream_mcp_server_config_id TEXT"
                 )
+            if not _column_exists(conn, "data_sources", "databases"):
+                conn.execute(
+                    "ALTER TABLE data_sources ADD COLUMN databases TEXT NOT NULL DEFAULT '[]'"
+                )
+            self._drop_legacy_data_source_columns(conn)
+
+    def _drop_legacy_data_source_columns(self, conn: sqlite3.Connection) -> None:
+        columns = _table_columns(conn, "data_sources")
+        if "type" not in columns and "connection" not in columns:
+            return
+
+        conn.execute("PRAGMA foreign_keys = OFF")
+        conn.execute("BEGIN")
+        try:
+            conn.execute(
+                """
+                CREATE TABLE data_sources__new (
+                    name TEXT PRIMARY KEY,
+                    databases TEXT NOT NULL DEFAULT '[]',
+                    sensitive_columns TEXT NOT NULL DEFAULT '[]',
+                    description TEXT,
+                    upstream_mcp_server_config_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO data_sources__new (
+                    name,
+                    databases,
+                    sensitive_columns,
+                    description,
+                    upstream_mcp_server_config_id,
+                    created_at,
+                    updated_at
+                )
+                SELECT
+                    name,
+                    COALESCE(databases, '[]'),
+                    COALESCE(sensitive_columns, '[]'),
+                    description,
+                    upstream_mcp_server_config_id,
+                    created_at,
+                    updated_at
+                FROM data_sources
+                """
+            )
+            conn.execute("DROP TABLE data_sources")
+            conn.execute("ALTER TABLE data_sources__new RENAME TO data_sources")
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+        finally:
+            conn.execute("PRAGMA foreign_keys = ON")
 
     def _now(self) -> str:
         return datetime.now(timezone.utc).isoformat()
@@ -121,8 +182,29 @@ class MetaStore:
         return MetaStore._normalize_sensitive_columns([str(item) for item in parsed])
 
     @staticmethod
+    def _decode_string_list(raw: str | None) -> list[str]:
+        if not raw:
+            return []
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(parsed, list):
+            return []
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in parsed:
+            value = str(item).strip()
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            normalized.append(value)
+        return normalized
+
+    @staticmethod
     def _row_to_registration(row: sqlite3.Row) -> DataSourceRegistration:
         payload = dict(row)
+        payload["databases"] = MetaStore._decode_string_list(payload.get("databases"))
         payload["sensitive_columns"] = MetaStore._decode_sensitive_columns(
             payload.get("sensitive_columns")
         )
@@ -131,14 +213,14 @@ class MetaStore:
     def list_data_sources(self) -> list[DataSourceRegistration]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT name, type, connection, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at FROM data_sources ORDER BY name"
+                "SELECT name, databases, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at FROM data_sources ORDER BY name"
             ).fetchall()
         return [self._row_to_registration(row) for row in rows]
 
     def get_data_source(self, name: str) -> DataSourceRegistration | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT name, type, connection, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at FROM data_sources WHERE name = ?",
+                "SELECT name, databases, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at FROM data_sources WHERE name = ?",
                 (name,),
             ).fetchone()
         return self._row_to_registration(row) if row else None
@@ -146,25 +228,22 @@ class MetaStore:
     def upsert_data_source(
         self,
         name: str,
-        type_: str,
-        connection: str,
+        databases: list[str] | None = None,
         sensitive_columns: list[str] | None = None,
         description: str | None = None,
         upstream_mcp_server_config_id: str | None = None,
-    ) -> DataSourceRegistration:
+    ) -> DataSourceRegistration | None:
         if self.get_data_source(name):
             return self.update_data_source(
                 name,
-                type_=type_,
-                connection=connection,
+                databases=databases,
                 sensitive_columns=sensitive_columns,
                 description=description,
                 upstream_mcp_server_config_id=upstream_mcp_server_config_id,
             )
         return self.create_data_source(
             name,
-            type_,
-            connection,
+            databases=databases,
             sensitive_columns=sensitive_columns,
             description=description,
             upstream_mcp_server_config_id=upstream_mcp_server_config_id,
@@ -173,26 +252,27 @@ class MetaStore:
     def create_data_source(
         self,
         name: str,
-        type_: str,
-        connection: str,
+        databases: list[str] | None = None,
         sensitive_columns: list[str] | None = None,
         description: str | None = None,
         upstream_mcp_server_config_id: str | None = None,
     ) -> DataSourceRegistration:
+        if not upstream_mcp_server_config_id:
+            raise ValueError("upstream_mcp_server_config_id is required")
         now = self._now()
         encoded_sensitive_columns = json.dumps(
             self._normalize_sensitive_columns(sensitive_columns)
         )
+        encoded_databases = json.dumps(self._decode_string_list(json.dumps(databases or [])))
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO data_sources (name, type, connection, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO data_sources (name, databases, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     name,
-                    type_,
-                    connection,
+                    encoded_databases,
                     encoded_sensitive_columns,
                     description,
                     upstream_mcp_server_config_id,
@@ -208,8 +288,7 @@ class MetaStore:
     def update_data_source(
         self,
         name: str,
-        type_: str | None = None,
-        connection: str | None = None,
+        databases: list[str] | None = None,
         sensitive_columns: list[str] | None = None,
         description: str | None | _Unset = _UNSET,
         upstream_mcp_server_config_id: str | None | _Unset = _UNSET,
@@ -217,8 +296,11 @@ class MetaStore:
         current = self.get_data_source(name)
         if current is None:
             return None
-        next_type = type_ if type_ is not None else current.type
-        next_connection = connection if connection is not None else current.connection
+        next_databases = (
+            self._decode_string_list(json.dumps(databases))
+            if databases is not None
+            else current.databases
+        )
         next_sensitive_columns = (
             self._normalize_sensitive_columns(sensitive_columns)
             if sensitive_columns is not None
@@ -230,17 +312,18 @@ class MetaStore:
             if upstream_mcp_server_config_id is _UNSET
             else upstream_mcp_server_config_id
         )
+        if not next_upstream_id:
+            raise ValueError("upstream_mcp_server_config_id is required")
         now = self._now()
         with self._connect() as conn:
             conn.execute(
                 """
                 UPDATE data_sources
-                SET type = ?, connection = ?, sensitive_columns = ?, description = ?, upstream_mcp_server_config_id = ?, updated_at = ?
+                SET databases = ?, sensitive_columns = ?, description = ?, upstream_mcp_server_config_id = ?, updated_at = ?
                 WHERE name = ?
                 """,
                 (
-                    next_type,
-                    next_connection,
+                    json.dumps(next_databases),
                     json.dumps(next_sensitive_columns),
                     next_description,
                     next_upstream_id,
@@ -295,6 +378,8 @@ class MetaStore:
                 """,
                 (data_source, doc_type, target, content, now, now),
             )
+            if cursor.lastrowid is None:
+                raise RuntimeError("Failed to create doc entry: missing row id")
             doc_id = int(cursor.lastrowid)
         created = self.get_doc(data_source, doc_id)
         if created is None:
@@ -336,7 +421,7 @@ class MetaStore:
 
     def upsert_doc(
         self, data_source: str, doc_type: str, target: str | None, content: str
-    ) -> DocEntry:
+    ) -> DocEntry | None:
         with self._connect() as conn:
             if target is None:
                 row = conn.execute(
@@ -498,6 +583,8 @@ class MetaStore:
                 """,
                 (now, action, details, actor, status, latency_ms),
             )
+            if cursor.lastrowid is None:
+                raise RuntimeError("Failed to insert audit log entry: missing row id")
             log_id = int(cursor.lastrowid)
         return AuditLogEntry(
             id=log_id,

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 import logging
+from pathlib import Path
 
 from .catalog import SchemaCatalog
 from .config import load_config
 from .datasource import build_data_source
-from .models import TableDoc
+from .models import DataSourceConfig, TableDoc
+from .source_runtime import RuntimeResolutionError, build_runtime_source_config
 
 
 def _apply_schema_docs(doc: TableDoc, docs_map: dict) -> None:
@@ -32,18 +34,51 @@ def _apply_schema_docs(doc: TableDoc, docs_map: dict) -> None:
 
 
 def sync_meta_from_config(
-    sources: list[DataSourceConfig], docs_map: dict, meta_db_path: Path
+    sources: list[DataSourceConfig],
+    docs_map: dict,
+    meta_db_path: Path,
+    upstream_configs: list[dict],
 ) -> None:
     from .meta_store import MetaStore
 
     store = MetaStore(meta_db_path)
 
+    # 0. Sync upstream connector configs.
+    for connector in upstream_configs:
+        config_id = str(connector.get("id") or "").strip()
+        if not config_id:
+            continue
+        existing = store.get_upstream_config(config_id)
+        payload = {
+            "server_id": str(connector.get("server_id") or "").strip(),
+            "name": str(connector.get("name") or config_id).strip() or config_id,
+            "endpoint": connector.get("endpoint"),
+            "auth": dict(connector.get("auth") or {}),
+            "exposed_tools": list(connector.get("exposed_tools") or []),
+        }
+        if existing:
+            store.update_upstream_config(
+                config_id,
+                name=payload["name"],
+                endpoint=payload["endpoint"],
+                auth=payload["auth"],
+                exposed_tools=payload["exposed_tools"],
+            )
+            continue
+        store.create_upstream_config(
+            config_id=config_id,
+            server_id=payload["server_id"],
+            name=payload["name"],
+            endpoint=payload["endpoint"],
+            auth=payload["auth"],
+            exposed_tools=payload["exposed_tools"],
+        )
+
     # 1. Sync data sources
     for src in sources:
         store.upsert_data_source(
             name=src.name,
-            type_=src.type,
-            connection=src.connection,
+            databases=src.databases,
             sensitive_columns=src.sensitive_columns,
             description=src.description,
             upstream_mcp_server_config_id=src.upstream_mcp_server_config_id,
@@ -79,16 +114,31 @@ def sync_meta_from_config(
 
 
 def build_catalog(config_path: str | None = None) -> int:
-    sources, catalog_path, meta_db_path, docs_map = load_config(config_path)
-    
+    sources, catalog_path, meta_db_path, docs_map, upstream_configs = load_config(config_path)
+
     print(f"🔄 Syncing configuration to meta-db at {meta_db_path}...")
-    sync_meta_from_config(sources, docs_map, meta_db_path)
-    
+    sync_meta_from_config(sources, docs_map, meta_db_path, upstream_configs)
+
     catalog = SchemaCatalog(catalog_path)
+    from .meta_store import MetaStore
+
+    store = MetaStore(meta_db_path)
+
+    registration_by_name = {row.name: row for row in store.list_data_sources()}
 
     total_tables = 0
     for source_cfg in sources:
-        source = build_data_source(source_cfg)
+        runtime_cfg = source_cfg
+        config_id = source_cfg.upstream_mcp_server_config_id
+        if config_id:
+            connector = store.get_upstream_config(config_id)
+            registration = registration_by_name.get(source_cfg.name)
+            if connector and registration and connector.server_id == "sql-like":
+                try:
+                    runtime_cfg = build_runtime_source_config(registration, connector)
+                except RuntimeResolutionError:
+                    continue
+        source = build_data_source(runtime_cfg)
         for doc in source.catalog_docs():
             _apply_schema_docs(doc, docs_map)
             catalog.upsert_table_doc(doc)

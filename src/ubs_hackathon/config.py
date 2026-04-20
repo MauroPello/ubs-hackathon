@@ -30,7 +30,7 @@ def _load_docs(path: Path) -> dict:
 
 def load_config(
     path: str | Path | None = None,
-) -> tuple[list[DataSourceConfig], Path, Path, dict]:
+) -> tuple[list[DataSourceConfig], Path, Path, dict, list[dict]]:
     config_path = Path(path) if path else DEFAULT_CONFIG_PATH
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     catalog_path = Path(raw.get("catalog", {}).get("db_path", "data/catalog.db"))
@@ -39,14 +39,23 @@ def load_config(
 
     sources: list[DataSourceConfig] = []
     for source in raw.get("data_sources", []):
+        upstream_id = (source.get("upstream_mcp_server_config_id") or "").strip()
+        if not upstream_id:
+            raise ValueError(
+                f"Data source '{source.get('name', '<unnamed>')}' must set upstream_mcp_server_config_id"
+            )
         ds = DataSourceConfig(
             name=source["name"],
-            type=source.get("type", "sqlite").lower(),
-            connection=_resolve_env(source["connection"]),
+            type=(source.get("type") or "managed").lower(),
+            connection=_resolve_env(
+                source.get("connection", f"managed://{upstream_id}")
+            ),
             description=source.get("description"),
             adapter=(source.get("adapter") or "").strip().lower() or None,
             options=source.get("options"),
+            databases=list(source.get("databases", []) or []),
             sensitive_columns=list(source.get("sensitive_columns", []) or []),
+            upstream_mcp_server_config_id=upstream_id,
         )
         sources.append(ds)
 
@@ -54,4 +63,10 @@ def load_config(
     if docs_path:
         docs_map = _load_docs(Path(docs_path))
 
-    return sources, catalog_path, meta_db_path, docs_map
+    return (
+        sources,
+        catalog_path,
+        meta_db_path,
+        docs_map,
+        list(raw.get("upstream_mcp_server_configs", []) or []),
+    )

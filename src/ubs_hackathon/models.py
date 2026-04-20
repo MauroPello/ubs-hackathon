@@ -12,6 +12,7 @@ class DataSourceConfig:
     description: str | None = None
     adapter: str | None = None
     options: dict[str, Any] | None = None
+    databases: list[str] | None = None
     sensitive_columns: list[str] | None = None
     upstream_mcp_server_config_id: str | None = None
 
@@ -50,8 +51,7 @@ class TableDoc:
 @dataclass(slots=True)
 class DataSourceRegistration:
     name: str
-    type: str
-    connection: str
+    databases: list[str]
     sensitive_columns: list[str]
     created_at: str
     updated_at: str
