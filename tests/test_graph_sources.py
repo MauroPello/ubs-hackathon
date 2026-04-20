@@ -21,6 +21,7 @@ def _write_graph_config(path: Path) -> Path:
                 "type": "graph",
                 "connection": "delegated://graph",
                 "adapter": "delegated_graph",
+                "sensitive_columns": ["Person.segment"],
                 "options": {
                     "graph_entities": [
                         {
@@ -38,7 +39,11 @@ def _write_graph_config(path: Path) -> Path:
                             "description": "Purchase edge",
                             "columns": [{"name": "amount", "data_type": "float"}],
                         },
-                    ]
+                    ],
+                    "sample_rows": [
+                        {"person_id": "p-1", "segment": "private", "amount": 120.0},
+                        {"person_id": "p-2", "segment": "mass_affluent", "amount": 80.0},
+                    ],
                 },
             }
         ],
@@ -72,13 +77,19 @@ def test_delegated_graph_source_capabilities_and_query_validation(tmp_path: Path
     person = source.describe_graph_entity("Person")
     assert person.table_type == "graph_node"
     assert person.table == "Person"
+    assert person.columns[1].sample_values == []
 
     out = source.execute_graph_read_only("MATCH (p:Person) RETURN p LIMIT 5", limit=5)
     assert out["query"].startswith("MATCH")
     assert out["limit"] == 5
     assert out["delegated"]["delegated"] is False
-    assert out["rows"] == []
-    assert out["row_count"] == 0
+    assert out["columns"] == ["amount", "person_id"]
+    assert out["masked_columns"] == ["segment"]
+    assert out["rows"] == [
+        {"amount": 120.0, "person_id": "p-1"},
+        {"amount": 80.0, "person_id": "p-2"},
+    ]
+    assert out["row_count"] == 2
     assert out["truncated"] is False
 
     with pytest.raises(ValueError, match="mutating"):

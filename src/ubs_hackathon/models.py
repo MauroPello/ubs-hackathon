@@ -12,6 +12,7 @@ class DataSourceConfig:
     description: str | None = None
     adapter: str | None = None
     options: dict[str, Any] | None = None
+    sensitive_columns: list[str] | None = None
 
 
 @dataclass(slots=True)
@@ -50,6 +51,7 @@ class DataSourceRegistration:
     name: str
     type: str
     connection: str
+    sensitive_columns: list[str]
     created_at: str
     updated_at: str
     description: str | None = None

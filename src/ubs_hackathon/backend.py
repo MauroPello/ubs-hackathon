@@ -8,7 +8,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .builder import _apply_schema_docs
 from .catalog import SchemaCatalog
@@ -112,6 +112,11 @@ FRONTEND_HTML = """
             <label for="src-conn">Connection string / path</label>
             <input id="src-conn" placeholder="sqlite:///data/demo.db or postgresql+psycopg2://..." />
             <div class="hint">For legacy sqlite paths, plain file paths are still accepted.</div>
+          </div>
+          <div class="field">
+            <label for="src-sensitive-cols">Sensitive columns</label>
+            <input id="src-sensitive-cols" placeholder="e.g. users.email, users.ssn, credit_card_number" />
+            <div class="hint">Comma-separated column names (column or table.column) that must be masked in query results.</div>
           </div>
           <div class="field">
             <label for="src-desc">Documentation description</label>
@@ -227,6 +232,11 @@ FRONTEND_HTML = """
       return data;
     };
 
+    const parseSensitiveColumns = () => {
+      const raw = document.getElementById("src-sensitive-cols").value.trim();
+      return raw ? raw.split(",").map((v) => v.trim()).filter(Boolean) : [];
+    };
+
     const updateDocTargetHint = () => {
       const docType = document.getElementById("doc-type").value;
       const hint = document.getElementById("doc-target-hint");
@@ -247,6 +257,7 @@ FRONTEND_HTML = """
       document.getElementById("src-name").value = "";
       document.getElementById("src-type").value = "sqlite";
       document.getElementById("src-conn").value = "";
+      document.getElementById("src-sensitive-cols").value = "";
       document.getElementById("src-desc").value = "";
       document.getElementById("form-mode").textContent = "create mode";
     };
@@ -269,6 +280,7 @@ FRONTEND_HTML = """
       document.getElementById("src-name").value = source.name;
       document.getElementById("src-type").value = source.type;
       document.getElementById("src-conn").value = source.connection;
+      document.getElementById("src-sensitive-cols").value = (source.sensitive_columns || []).join(", ");
       document.getElementById("src-desc").value = source.description || "";
       document.getElementById("form-mode").textContent = `editing ${source.name}`;
     };
@@ -305,6 +317,7 @@ FRONTEND_HTML = """
           </div>
           <div class="small">${s.description || "No description yet."}</div>
           <div class="small">${s.connection}</div>
+          <div class="small">Sensitive columns: ${(s.sensitive_columns || []).length}</div>
           <div class="actions" style="margin-top:8px">
             <button class="secondary" data-action="select">Select</button>
             <button class="ok" data-action="sync" ${isFake ? "disabled" : ""}>${isFake ? "Sync N/A" : "Sync catalog"}</button>
@@ -360,10 +373,20 @@ FRONTEND_HTML = """
       const name = document.getElementById("src-name").value.trim();
       const type = document.getElementById("src-type").value.trim();
       const connection = document.getElementById("src-conn").value.trim();
+      const sensitive_columns = parseSensitiveColumns();
       const description = document.getElementById("src-desc").value.trim();
       if (!name || !type || !connection) return msg("Please fill name, type, and connection.", true);
       try {
-        await req("/data-sources", {method:"POST", body: JSON.stringify({name, type, connection, description: description || null})});
+        await req("/data-sources", {
+          method:"POST",
+          body: JSON.stringify({
+            name,
+            type,
+            connection,
+            sensitive_columns,
+            description: description || null
+          })
+        });
         await refreshSources();
         await refreshUsageDashboard();
         msg(`Created source '${name}'`);
@@ -376,12 +399,13 @@ FRONTEND_HTML = """
       const name = document.getElementById("src-name").value.trim();
       const type = document.getElementById("src-type").value.trim();
       const connection = document.getElementById("src-conn").value.trim();
+      const sensitive_columns = parseSensitiveColumns();
       const description = document.getElementById("src-desc").value.trim();
       if (!name || !type || !connection) return msg("Please fill name, type, and connection.", true);
       try {
         await req(`/data-sources/${encodeURIComponent(name)}`, {
           method:"PUT",
-          body: JSON.stringify({type, connection, description: description || null}),
+          body: JSON.stringify({type, connection, sensitive_columns, description: description || null}),
         });
         selectedSourceType = type;
         await refreshSources();
@@ -523,6 +547,7 @@ class DataSourceCreate(BaseModel):
     name: str
     type: str
     connection: str
+    sensitive_columns: list[str] = Field(default_factory=list)
     description: str | None = None
 
     model_config = ConfigDict(extra="forbid")
@@ -531,6 +556,7 @@ class DataSourceCreate(BaseModel):
 class DataSourceUpdate(BaseModel):
     type: str | None = None
     connection: str | None = None
+    sensitive_columns: list[str] | None = None
     description: str | None = None
 
     model_config = ConfigDict(extra="forbid")
@@ -606,6 +632,7 @@ def _rebuild_catalog_for_data_source(store: MetaStore, catalog: SchemaCatalog, n
             name=registration.name,
             type=registration.type,
             connection=registration.connection,
+            sensitive_columns=registration.sensitive_columns,
             description=registration.description,
         )
     )
@@ -644,7 +671,13 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Data source '{payload.name}' already exists",
             )
-        created = store.create_data_source(payload.name, payload.type, payload.connection, payload.description)
+        created = store.create_data_source(
+            payload.name,
+            payload.type,
+            payload.connection,
+            sensitive_columns=payload.sensitive_columns,
+            description=payload.description,
+        )
         return created.to_dict()
 
     @app.get("/data-sources/{name}")
@@ -660,6 +693,7 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
             name,
             type_=payload.type,
             connection=payload.connection,
+            sensitive_columns=payload.sensitive_columns,
             description=payload.description,
         )
         if not updated:
