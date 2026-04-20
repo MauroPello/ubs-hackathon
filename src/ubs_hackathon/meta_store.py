@@ -312,12 +312,12 @@ class MetaStore:
     @staticmethod
     def _row_to_upstream_config(row: sqlite3.Row) -> UpstreamMCPServerConfigRecord:
         payload = dict(row)
-        for json_field in ("auth", "exposed_tools"):
+        for json_field, default in (("auth", {}), ("exposed_tools", [])):
             raw = payload.get(json_field)
             try:
-                payload[json_field] = json.loads(raw) if raw else ({} if json_field == "auth" else [])
+                payload[json_field] = json.loads(raw) if raw else default
             except (json.JSONDecodeError, TypeError):
-                payload[json_field] = {} if json_field == "auth" else []
+                payload[json_field] = default
         return UpstreamMCPServerConfigRecord(**payload)
 
     def list_upstream_configs(self) -> list[UpstreamMCPServerConfigRecord]:
