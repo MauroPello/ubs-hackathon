@@ -219,6 +219,15 @@ class DocUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+def _split_dotted_target(target: str | None) -> tuple[str, str] | None:
+    if not target or target.count(".") != 1:
+        return None
+    left, right = target.split(".", 1)
+    if not left or not right:
+        return None
+    return left, right
+
+
 def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
     """Map stored doc entries to the schema-doc structure consumed by catalog enrichment."""
     source_payload: dict = {"tables": {}, "graph_entities": {}}
@@ -232,8 +241,9 @@ def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
             graph_meta = source_payload["graph_entities"].setdefault(target, {})
             graph_meta["description"] = content
             continue
-        if doc_type == "graph_property" and target and target.count(".") == 1:
-            entity_name, property_name = target.split(".", 1)
+        graph_target = _split_dotted_target(target)
+        if doc_type == "graph_property" and graph_target is not None:
+            entity_name, property_name = graph_target
             graph_meta = source_payload["graph_entities"].setdefault(entity_name, {})
             property_meta = graph_meta.setdefault("columns", {})
             property_meta[property_name] = content
@@ -242,8 +252,13 @@ def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
             table_meta = source_payload["tables"].setdefault(target, {})
             table_meta["description"] = content
             continue
-        if doc_type == "column" and target and target.count(".") == 1:
-            table_name, column_name = target.split(".", 1)
+        if doc_type == "table" and not target:
+            # Fallback description for non-graph tables without explicit docs.
+            source_payload["default_table_description"] = content
+            continue
+        table_target = _split_dotted_target(target)
+        if doc_type == "column" and table_target is not None:
+            table_name, column_name = table_target
             table_meta = source_payload["tables"].setdefault(table_name, {})
             column_meta = table_meta.setdefault("columns", {})
             column_meta[column_name] = content

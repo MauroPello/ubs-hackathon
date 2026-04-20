@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import threading
 import time
@@ -7,7 +8,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable
 from urllib import error as urllib_error
 from urllib import request as urllib_request
-import json
 
 from sqlalchemy import create_engine, inspect as sqlalchemy_inspect, text
 from sqlalchemy.engine import Connection, Engine
@@ -28,6 +28,10 @@ FORBIDDEN_CYPHER = re.compile(
 )
 TEMP_VIEW_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 SESSION_ID_NAME = re.compile(r"^[A-Za-z0-9_\-]+$")
+# Supported graph source type aliases (including legacy `mcp_graph` spelling).
+GRAPH_ADAPTER_TYPES: frozenset[str] = frozenset(
+    {"delegated_graph", "graph", "mcp_graph"}
+)
 
 
 class TemporaryViewError(ValueError):
@@ -595,8 +599,9 @@ class DelegatedGraphDataSource(DataSource):
             method="POST",
             headers={"Content-Type": "application/json"},
         )
+        timeout_seconds = float(self._options.get("request_timeout", 30))
         try:
-            with urllib_request.urlopen(req, timeout=30) as resp:
+            with urllib_request.urlopen(req, timeout=timeout_seconds) as resp:
                 body = resp.read().decode("utf-8")
             data = json.loads(body) if body else {}
             return {"delegated": True, "tool": tool, "result": data}
@@ -652,20 +657,24 @@ class DelegatedGraphDataSource(DataSource):
         self, query: str, limit: int = 200, session_id: str | None = None
     ) -> dict[str, Any]:
         statement = self._validate_read_only_graph_query(query)
+        safe_limit = max(0, int(limit))
         tool_map = dict(self._options.get("tool_map") or {})
         execute_tool = str(tool_map.get("execute_graph_query") or "execute_graph_query")
         delegated = self._delegate_tool(
             execute_tool,
-            {"query": statement, "limit": max(0, int(limit)), "session_id": session_id},
+            {"query": statement, "limit": safe_limit, "session_id": session_id},
         )
-        mock_rows = list(self._options.get("mock_rows", []) or [])
+        # Keep `mock_rows` as a backward-compatible alias for existing configs.
+        sample_rows = list(
+            self._options.get("sample_rows", self._options.get("mock_rows", [])) or []
+        )
         return {
             "query": statement,
-            "limit": max(0, int(limit)),
+            "limit": safe_limit,
             "delegated": delegated,
-            "rows": mock_rows[: max(0, int(limit))],
-            "row_count": min(len(mock_rows), max(0, int(limit))),
-            "truncated": len(mock_rows) > max(0, int(limit)),
+            "rows": sample_rows[:safe_limit],
+            "row_count": min(len(sample_rows), safe_limit),
+            "truncated": len(sample_rows) > safe_limit,
         }
 
     def capabilities(self) -> dict[str, bool]:
@@ -705,7 +714,7 @@ def _default_adapter_key(config: DataSourceConfig) -> str:
     if explicit:
         return explicit
     source_type = (config.type or "").strip().lower()
-    if source_type in {"delegated_graph", "graph", "mcp_graph"}:
+    if source_type in GRAPH_ADAPTER_TYPES:
         return "delegated_graph"
     return "sqlalchemy"
 
@@ -721,6 +730,5 @@ def build_data_source(config: DataSourceConfig) -> DataSource:
 
 register_data_source_adapter("sqlalchemy", SQLAlchemyDataSource)
 register_data_source_adapter("sqlite", SQLAlchemyDataSource)
-register_data_source_adapter("delegated_graph", DelegatedGraphDataSource)
-register_data_source_adapter("mcp_graph", DelegatedGraphDataSource)
-register_data_source_adapter("graph", DelegatedGraphDataSource)
+for _graph_alias in GRAPH_ADAPTER_TYPES:
+    register_data_source_adapter(_graph_alias, DelegatedGraphDataSource)

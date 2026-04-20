@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from ubs_hackathon.builder import build_catalog
@@ -75,13 +76,13 @@ def test_delegated_graph_source_capabilities_and_query_validation(tmp_path: Path
     out = source.execute_graph_read_only("MATCH (p:Person) RETURN p LIMIT 5", limit=5)
     assert out["query"].startswith("MATCH")
     assert out["limit"] == 5
+    assert out["delegated"]["delegated"] is False
+    assert out["rows"] == []
+    assert out["row_count"] == 0
+    assert out["truncated"] is False
 
-    try:
+    with pytest.raises(ValueError, match="mutating"):
         source.execute_graph_read_only("MATCH (p:Person) DELETE p")
-    except ValueError as exc:
-        assert "mutating" in str(exc).lower()
-    else:
-        raise AssertionError("Expected mutating graph query to be rejected")
 
 
 def test_build_catalog_indexes_graph_entities_and_docs(tmp_path: Path) -> None:

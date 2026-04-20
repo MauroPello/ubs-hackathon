@@ -12,12 +12,16 @@ def _apply_schema_docs(doc: TableDoc, docs_map: dict) -> None:
     source_docs = docs_map.get(doc.data_source, {})
     table_docs = source_docs.get("tables", {})
     graph_docs = source_docs.get("graph_entities", {})
+    default_table_description = source_docs.get("default_table_description")
+    is_graph_entity = doc.table_type in {"graph_node", "graph_relationship"}
     table_meta = table_docs.get(doc.table, {})
-    if doc.table_type in {"graph_node", "graph_relationship"}:
+    if is_graph_entity:
         table_meta = graph_docs.get(doc.table, table_meta)
 
     if table_meta.get("description"):
         doc.description = table_meta["description"]
+    elif (not is_graph_entity) and default_table_description:
+        doc.description = default_table_description
 
     column_docs = table_meta.get("columns", {})
     for column in doc.columns:
