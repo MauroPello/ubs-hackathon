@@ -1,16 +1,8 @@
 {
   "servers": {
     "ubs-hackathon": {
-      "type": "stdio",
-      "command": "/home/mpello/.conda/envs/ubs-hackathon/bin/python",
-      "args": [
-        "-m",
-        "ubs_hackathon.server",
-        "--config",
-        "${workspaceFolder}/config/config.yaml",
-        "--transport",
-        "stdio"
-      ]
+      "type": "sse",
+      "url": "http://127.0.0.1:8000/sse"
     }
   }
 }

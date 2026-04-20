@@ -225,15 +225,19 @@ def create_embedding_model(
     local_dims: int = 256,
 ) -> EmbeddingModel:
     resolved_provider = (
-        (provider or os.getenv("UBS_EMBEDDINGS_PROVIDER", "auto")).strip().lower()
+        (provider or os.getenv("UBS_EMBEDDINGS_PROVIDER") or "auto").strip().lower()
     )
     resolved_openai_api_key = api_key or os.getenv("OPENAI_API_KEY", "")
     resolved_hf_token = os.getenv("HF_API_TOKEN", "")
-    resolved_hf_model = model or os.getenv(
-        "UBS_HF_EMBEDDINGS_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+    resolved_hf_model = (
+        model
+        or os.getenv("UBS_HF_EMBEDDINGS_MODEL")
+        or "sentence-transformers/all-MiniLM-L6-v2"
     )
-    resolved_hf_base_url = base_url or os.getenv(
-        "UBS_HF_EMBEDDINGS_BASE_URL", "https://api-inference.huggingface.co"
+    resolved_hf_base_url = (
+        base_url
+        or os.getenv("UBS_HF_EMBEDDINGS_BASE_URL")
+        or "https://api-inference.huggingface.co"
     )
     if resolved_provider == "auto":
         if resolved_openai_api_key:
@@ -267,11 +271,13 @@ def create_embedding_model(
 
     if resolved_provider in {"openai", "managed"}:
         if resolved_openai_api_key:
-            selected_model = model or os.getenv(
-                "UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"
+            selected_model = (
+                model or os.getenv("UBS_EMBEDDINGS_MODEL") or "text-embedding-3-small"
             )
-            selected_base_url = base_url or os.getenv(
-                "UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"
+            selected_base_url = (
+                base_url
+                or os.getenv("UBS_EMBEDDINGS_BASE_URL")
+                or "https://api.openai.com/v1"
             )
             LOGGER.info(
                 "Using embedding backend: provider=%s, model=%s, base_url=%s",
@@ -302,7 +308,10 @@ def create_embedding_model(
     if resolved_provider == "local":
         LOGGER.info("Using embedding backend: provider=local, dims=%s", local_dims)
         return SimpleEmbeddingModel(dims=local_dims)
-    LOGGER.info("Using embedding backend: provider=local (default fallback), dims=%s", local_dims)
+    LOGGER.info(
+        "Using embedding backend: provider=local (default fallback), dims=%s",
+        local_dims,
+    )
     return SimpleEmbeddingModel(dims=local_dims)
 
 

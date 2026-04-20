@@ -90,7 +90,9 @@ class SchemaCatalog:
             raise ValueError(f"Table not found in catalog: {data_source}.{table}")
         return json.loads(row["doc_json"])
 
-    def search(self, query: str, top_k: int = 5, data_source: str | None = None) -> list[dict]:
+    def search(
+        self, query: str, top_k: int = 5, data_source: str | None = None
+    ) -> list[dict]:
         q_vec = self.embedding_model.embed(query)
         with self._connect() as conn:
             if data_source:

@@ -4,8 +4,14 @@ import json
 import sqlite3
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Any
 
-from .models import DataSourceRegistration, DocEntry, UpstreamMCPServerConfigRecord, AuditLogEntry
+from .models import (
+    DataSourceRegistration,
+    DocEntry,
+    UpstreamMCPServerConfigRecord,
+    AuditLogEntry,
+)
 
 
 class _Unset:
@@ -92,7 +98,9 @@ class MetaStore:
                 conn.execute(
                     "ALTER TABLE data_sources ADD COLUMN sensitive_columns TEXT NOT NULL DEFAULT '[]'"
                 )
-            if not _column_exists(conn, "data_sources", "upstream_mcp_server_config_id"):
+            if not _column_exists(
+                conn, "data_sources", "upstream_mcp_server_config_id"
+            ):
                 conn.execute(
                     "ALTER TABLE data_sources ADD COLUMN upstream_mcp_server_config_id TEXT"
                 )
@@ -110,8 +118,7 @@ class MetaStore:
         conn.execute("PRAGMA foreign_keys = OFF")
         conn.execute("BEGIN")
         try:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE data_sources__new (
                     name TEXT PRIMARY KEY,
                     databases TEXT NOT NULL DEFAULT '[]',
@@ -121,10 +128,8 @@ class MetaStore:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
-                """
-            )
-            conn.execute(
-                """
+                """)
+            conn.execute("""
                 INSERT INTO data_sources__new (
                     name,
                     databases,
@@ -143,8 +148,7 @@ class MetaStore:
                     created_at,
                     updated_at
                 FROM data_sources
-                """
-            )
+                """)
             conn.execute("DROP TABLE data_sources")
             conn.execute("ALTER TABLE data_sources__new RENAME TO data_sources")
             conn.execute("COMMIT")
@@ -263,7 +267,9 @@ class MetaStore:
         encoded_sensitive_columns = json.dumps(
             self._normalize_sensitive_columns(sensitive_columns)
         )
-        encoded_databases = json.dumps(self._decode_string_list(json.dumps(databases or [])))
+        encoded_databases = json.dumps(
+            self._decode_string_list(json.dumps(databases or []))
+        )
         with self._connect() as conn:
             conn.execute(
                 """
@@ -468,7 +474,9 @@ class MetaStore:
             ).fetchall()
         return [self._row_to_upstream_config(row) for row in rows]
 
-    def list_upstream_configs_for_server(self, server_id: str) -> list[UpstreamMCPServerConfigRecord]:
+    def list_upstream_configs_for_server(
+        self, server_id: str
+    ) -> list[UpstreamMCPServerConfigRecord]:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT id, server_id, name, endpoint, auth, exposed_tools, created_at, updated_at FROM upstream_mcp_server_configs WHERE server_id = ? ORDER BY name",
@@ -476,7 +484,9 @@ class MetaStore:
             ).fetchall()
         return [self._row_to_upstream_config(row) for row in rows]
 
-    def get_upstream_config(self, config_id: str) -> UpstreamMCPServerConfigRecord | None:
+    def get_upstream_config(
+        self, config_id: str
+    ) -> UpstreamMCPServerConfigRecord | None:
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT id, server_id, name, endpoint, auth, exposed_tools, created_at, updated_at FROM upstream_mcp_server_configs WHERE id = ?",
@@ -530,7 +540,9 @@ class MetaStore:
         next_name = name if name is not None else current.name
         next_endpoint = current.endpoint if endpoint is _UNSET else endpoint
         next_auth = auth if auth is not None else current.auth
-        next_exposed_tools = exposed_tools if exposed_tools is not None else current.exposed_tools
+        next_exposed_tools = (
+            exposed_tools if exposed_tools is not None else current.exposed_tools
+        )
         now = self._now()
         with self._connect() as conn:
             conn.execute(
@@ -607,7 +619,7 @@ class MetaStore:
     def get_usage_metrics(self, days: int = 7) -> dict:
         """Aggregate usage metrics from audit logs for the last N days."""
         today = datetime.now(timezone.utc).date()
-        metrics = {
+        metrics: dict[str, Any] = {
             "requests_trend_7d": [],
             "requests_last_24h": 0,
             "avg_latency_ms": 0,

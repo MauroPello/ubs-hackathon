@@ -47,7 +47,13 @@ def _seed_audit_logs(store: MetaStore):
         return
 
     now = datetime.now(timezone.utc)
-    actions = ["search_schema", "describe_table", "execute_query", "list_data_sources", "sync_data_source"]
+    actions = [
+        "search_schema",
+        "describe_table",
+        "execute_query",
+        "list_data_sources",
+        "sync_data_source",
+    ]
     actors = ["User-123", "User-456", "System", "Admin"]
 
     # Generate 100 logs over the last 7 days
@@ -66,7 +72,7 @@ def _seed_audit_logs(store: MetaStore):
             actor=actor,
             status=status_val,
             latency_ms=latency,
-            timestamp=timestamp
+            timestamp=timestamp,
         )
 
 
@@ -301,7 +307,9 @@ def create_app(
         finally:
             if not skip_audit:
                 duration_ms = int((time.perf_counter() - start_time) * 1000)
-                status_str = "Success" if response and response.status_code < 400 else "Error"
+                status_str = (
+                    "Success" if response and response.status_code < 400 else "Error"
+                )
 
                 # Log the action
                 action = f"{request.method} {path}"
@@ -315,13 +323,11 @@ def create_app(
 
                 store.log_action(
                     action=action,
-                    actor="System", # Could be extracted from auth if present
+                    actor="System",  # Could be extracted from auth if present
                     status=status_str,
                     latency_ms=duration_ms,
-                    details=f"API Request: {request.method} {request.url.path}"
+                    details=f"API Request: {request.method} {request.url.path}",
                 )
-
-
 
     from fastapi import APIRouter
 
@@ -351,6 +357,7 @@ def create_app(
         if ds.upstream_mcp_server_config_id:
             cfg = store.get_upstream_config(ds.upstream_mcp_server_config_id)
             if cfg:
+                d["upstream_mcp_server_config_name"] = cfg.name
                 reg = get_registry_entry(connectors_registry, cfg.server_id)
                 if reg and "data_type" in reg:
                     d["data_type"] = reg["data_type"]
@@ -385,7 +392,9 @@ def create_app(
         """List all user-configured upstream MCP server instances."""
         return [_enrich_upstream_config(c) for c in store.list_upstream_configs()]
 
-    @api_router.post("/upstream-mcp-server-configs", status_code=status.HTTP_201_CREATED)
+    @api_router.post(
+        "/upstream-mcp-server-configs", status_code=status.HTTP_201_CREATED
+    )
     def create_upstream_config(payload: UpstreamMCPServerConfigCreate) -> dict:
         """Create a new upstream MCP server configuration."""
         if get_registry_entry(connectors_registry, payload.server_id) is None:
@@ -427,7 +436,9 @@ def create_app(
     ) -> dict:
         """Update an existing upstream MCP server configuration."""
         updates = payload.model_dump(exclude_unset=True)
-        endpoint_value = updates["endpoint"] if "endpoint" in updates else _UNSET_SENTINEL
+        endpoint_value = (
+            updates["endpoint"] if "endpoint" in updates else _UNSET_SENTINEL
+        )
         updated = store.update_upstream_config(
             config_id,
             name=updates.get("name"),
@@ -610,7 +621,9 @@ def create_app(
 
     @api_router.post("/data-sources/{name}/sync")
     def sync_data_source(name: str) -> dict:
-        total_tables = _rebuild_catalog_for_data_source(store, catalog, name, connectors_registry)
+        total_tables = _rebuild_catalog_for_data_source(
+            store, catalog, name, connectors_registry
+        )
         return {"data_source": name, "indexed_tables": total_tables}
 
     # Include the router twice: once with /api prefix and once without.
@@ -635,7 +648,15 @@ def main() -> None:
     parser.add_argument("--reload", action="store_true", help="Enable uvicorn reload")
     args = parser.parse_args()
 
-    app = "ubs_hackathon.backend:create_app" if args.reload else create_app(meta_db_path=args.meta_db, catalog_path=args.catalog, config_path=args.config)
+    app = (
+        "ubs_hackathon.backend:create_app"
+        if args.reload
+        else create_app(
+            meta_db_path=args.meta_db,
+            catalog_path=args.catalog,
+            config_path=args.config,
+        )
+    )
 
     if args.reload:
         uvicorn.run(app, host=args.host, port=args.port, reload=True, factory=True)

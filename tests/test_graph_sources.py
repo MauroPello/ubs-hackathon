@@ -21,8 +21,16 @@ def _write_graph_config(path: Path) -> Path:
                 "server_id": "neo4j",
                 "name": "Graph Connector",
                 "endpoint": "http://localhost:9000/mcp",
-                "auth": {"url": "bolt://localhost:7687", "username": "neo4j", "password": "pw"},
-                "exposed_tools": ["execute_cypher", "list_labels", "describe_node_type"],
+                "auth": {
+                    "url": "bolt://localhost:7687",
+                    "username": "neo4j",
+                    "password": "pw",
+                },
+                "exposed_tools": [
+                    "execute_cypher",
+                    "list_labels",
+                    "describe_node_type",
+                ],
             }
         ],
         "data_sources": [

@@ -21,7 +21,9 @@ def _seed_sqlite_source(path: Path) -> None:
         conn.execute("INSERT INTO orders (order_id, revenue) VALUES (1, 100.0)")
 
 
-def _create_sql_like_connector(client: TestClient, source_db: Path, name: str = "sql_connector") -> str:
+def _create_sql_like_connector(
+    client: TestClient, source_db: Path, name: str = "sql_connector"
+) -> str:
     resp = client.post(
         "/upstream-mcp-server-configs",
         json={
@@ -67,7 +69,10 @@ def test_frontend_homepage(tmp_path: Path) -> None:
 
     mcp_servers = client.get("/mcp-servers")
     assert mcp_servers.status_code == 200
-    assert "upstream MCP" in mcp_servers.text.lower() or "mcp server" in mcp_servers.text.lower()
+    assert (
+        "upstream MCP" in mcp_servers.text.lower()
+        or "mcp server" in mcp_servers.text.lower()
+    )
 
     # The registry API should return Neo4j and Notion entries.
     registry = client.get("/upstream-mcp-servers")
@@ -79,7 +84,9 @@ def test_frontend_homepage(tmp_path: Path) -> None:
     # Legacy /connectors URL still works (redirects to MCP Servers page).
     connectors = client.get("/connectors")
     assert connectors.status_code == 200
-    assert "mcp server" in connectors.text.lower() or "upstream" in connectors.text.lower()
+    assert (
+        "mcp server" in connectors.text.lower() or "upstream" in connectors.text.lower()
+    )
 
 
 def test_data_sources_crud(tmp_path: Path) -> None:
@@ -349,7 +356,11 @@ def test_upstream_mcp_server_config_crud(tmp_path: Path) -> None:
         "server_id": "neo4j",
         "name": "my_neo4j",
         "endpoint": "http://localhost:9000/mcp",
-        "auth": {"url": "bolt://localhost:7687", "username": "neo4j", "password": "s3cr3t"},
+        "auth": {
+            "url": "bolt://localhost:7687",
+            "username": "neo4j",
+            "password": "s3cr3t",
+        },
         "exposed_tools": ["execute_cypher", "list_labels"],
     }
     created = client.post("/upstream-mcp-server-configs", json=payload)
@@ -407,7 +418,11 @@ def test_data_source_with_upstream_mcp_config(tmp_path: Path) -> None:
             "server_id": "neo4j",
             "name": "test_neo4j",
             "endpoint": "http://localhost:9000/mcp",
-            "auth": {"url": "bolt://localhost:7687", "username": "neo4j", "password": "pw"},
+            "auth": {
+                "url": "bolt://localhost:7687",
+                "username": "neo4j",
+                "password": "pw",
+            },
             "exposed_tools": ["execute_cypher"],
         },
     )

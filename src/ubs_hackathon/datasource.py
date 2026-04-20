@@ -5,7 +5,7 @@ import re
 import threading
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
@@ -200,7 +200,7 @@ class DataSource(ABC):
         return False
 
     def _sanitize_result_rows(
-        self, columns: list[str], rows: list[Any], table: str | None = None
+        self, columns: list[str], rows: Sequence[Any], table: str | None = None
     ) -> tuple[list[str], list[dict[str, Any]], list[str]]:
         safe_indexes: list[int] = []
         safe_columns: list[str] = []
@@ -805,7 +805,9 @@ class UpstreamMCPDataSource(DataSource):
     handles document-type upstream sources.
     """
 
-    def __init__(self, config: DataSourceConfig, endpoint: str, exposed_tools: list[str]) -> None:
+    def __init__(
+        self, config: DataSourceConfig, endpoint: str, exposed_tools: list[str]
+    ) -> None:
         super().__init__(config)
         self._endpoint = endpoint.strip()
         self._exposed_tools: list[str] = list(exposed_tools)
@@ -851,7 +853,9 @@ class UpstreamMCPDataSource(DataSource):
         return []
 
     def table_doc(self, table: str) -> TableDoc:
-        raise ValueError(f"Data source '{self.config.name}' does not support SQL schema discovery")
+        raise ValueError(
+            f"Data source '{self.config.name}' does not support SQL schema discovery"
+        )
 
     def execute_read_only(
         self, sql: str, limit: int = 200, session_id: str | None = None

@@ -6,7 +6,7 @@ import signal
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from mcp.server.fastmcp import FastMCP
 
@@ -45,7 +45,9 @@ def _restart_handler(signum, frame):
     print("🔄 Upstream configuration changed. Restarting MCP server...")
     # Give a tiny bit of time for logs to flush and the OS to breathe
     time.sleep(0.2)
-    os.execv(sys.executable, [sys.executable, "-m", "ubs_hackathon.server"] + sys.argv[1:])
+    os.execv(
+        sys.executable, [sys.executable, "-m", "ubs_hackathon.server"] + sys.argv[1:]
+    )
 
 
 signal.signal(signal.SIGHUP, _restart_handler)
@@ -96,8 +98,12 @@ class SourceRegistry:
 
                 self._upstream_tool_specs[upstream_cfg.id] = tool_specs
 
-                entry = get_registry_entry(store.list_registry_entries() if hasattr(store, 'list_registry_entries') else self.registry, upstream_cfg.server_id)
-                data_type = str((entry or {}).get("data_type") or upstream_cfg.server_id).strip().lower()
+                entry = get_registry_entry(self.registry, upstream_cfg.server_id)
+                data_type = (
+                    str((entry or {}).get("data_type") or upstream_cfg.server_id)
+                    .strip()
+                    .lower()
+                )
                 if data_type == "sql":
                     # Internal SQL-like connector doesn't need an UpstreamMCPDataSource proxy
                     continue
@@ -156,7 +162,9 @@ class SourceRegistry:
                     connector = store.get_upstream_config(config_id)
                     if connector:
                         try:
-                            cfg = build_runtime_source_config(reg, connector, self.registry)
+                            cfg = build_runtime_source_config(
+                                reg, connector, self.registry
+                            )
                         except RuntimeResolutionError:
                             cfg = None
                         if cfg:
@@ -229,12 +237,9 @@ def _make_upstream_proxy(
         return source.call_upstream_tool(tool_name, arguments or {})
 
     proxy_tool.__name__ = tool_name
-    proxy_tool.__doc__ = (
-        description
-        or (
-            f"Proxy tool for upstream MCP tool '{tool_name}'. "
-            f"Select the target with data_source."
-        )
+    proxy_tool.__doc__ = description or (
+        f"Proxy tool for upstream MCP tool '{tool_name}'. "
+        f"Select the target with data_source."
     )
     return proxy_tool
 
@@ -245,7 +250,9 @@ def create_server(
     port: int = 8000,
     meta_db_path: str | Path | None = None,
 ) -> FastMCP:
-    yaml_sources, catalog_path, meta_db_path_from_config, _, _, connectors_registry = load_config(config_path)
+    yaml_sources, catalog_path, meta_db_path_from_config, _, _, connectors_registry = (
+        load_config(config_path)
+    )
     registry = SourceRegistry(
         meta_db_path=meta_db_path or meta_db_path_from_config,
         catalog_path=Path(catalog_path),
@@ -273,17 +280,23 @@ def create_server(
             )
         return results
 
-    def search_schema(query: str, top_k: int = 5, data_source: str | None = None) -> list[dict]:
+    def search_schema(
+        query: str, top_k: int = 5, data_source: str | None = None
+    ) -> list[dict]:
         """Semantic search over indexed schema docs. Optionally filter by data_source."""
         if data_source:
             if not registry.is_tool_allowed(data_source, "search_schema"):
-                raise ValueError(f"Tool 'search_schema' is disabled for source '{data_source}'")
+                raise ValueError(
+                    f"Tool 'search_schema' is disabled for source '{data_source}'"
+                )
         return catalog.search(query=query, top_k=top_k, data_source=data_source)
 
     def describe_table(data_source: str, table: str) -> dict:
         """Return complete table metadata from the schema catalog."""
         if not registry.is_tool_allowed(data_source, "describe_table"):
-            raise ValueError(f"Tool 'describe_table' is disabled for source '{data_source}'")
+            raise ValueError(
+                f"Tool 'describe_table' is disabled for source '{data_source}'"
+            )
         return catalog.describe_table(data_source=data_source, table=table)
 
     def execute_query(
@@ -294,7 +307,9 @@ def create_server(
     ) -> dict:
         """Execute a read-only query against a configured source."""
         if not registry.is_tool_allowed(data_source, "execute_query"):
-            raise ValueError(f"Tool 'execute_query' is disabled for source '{data_source}'")
+            raise ValueError(
+                f"Tool 'execute_query' is disabled for source '{data_source}'"
+            )
         source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
@@ -305,7 +320,9 @@ def create_server(
     ) -> list[dict]:
         """List temporary views created in the current server session."""
         if not registry.is_tool_allowed(data_source, "list_temporary_views"):
-            raise ValueError(f"Tool 'list_temporary_views' is disabled for source '{data_source}'")
+            raise ValueError(
+                f"Tool 'list_temporary_views' is disabled for source '{data_source}'"
+            )
         source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
@@ -320,7 +337,9 @@ def create_server(
     ) -> dict:
         """Create a session-local temporary view for iterative analysis."""
         if not registry.is_tool_allowed(data_source, "create_temporary_view"):
-            raise ValueError(f"Tool 'create_temporary_view' is disabled for source '{data_source}'")
+            raise ValueError(
+                f"Tool 'create_temporary_view' is disabled for source '{data_source}'"
+            )
         source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
@@ -333,7 +352,9 @@ def create_server(
     ) -> dict:
         """Drop a temporary view created by this server session."""
         if not registry.is_tool_allowed(data_source, "drop_temporary_view"):
-            raise ValueError(f"Tool 'drop_temporary_view' is disabled for source '{data_source}'")
+            raise ValueError(
+                f"Tool 'drop_temporary_view' is disabled for source '{data_source}'"
+            )
         source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
@@ -359,13 +380,15 @@ def create_server(
             {
                 "config_id": cfg_id,
                 "exposed_tools": [name for name, _ in specs_by_config.get(cfg_id, [])],
-                "routed_data_sources": sorted(data_sources_by_config.get(cfg_id, set())),
+                "routed_data_sources": sorted(
+                    data_sources_by_config.get(cfg_id, set())
+                ),
                 "capabilities": [name for name, _ in specs_by_config.get(cfg_id, [])],
             }
             for cfg_id, src in upstreams.items()
         ]
 
-    internal_sql_tools = {
+    internal_sql_tools: dict[str, Callable[..., Any]] = {
         "search_schema": search_schema,
         "describe_table": describe_table,
         "execute_query": execute_query,

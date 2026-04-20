@@ -49,29 +49,28 @@ def sync_meta_from_config(
         if not config_id:
             continue
         existing = store.get_upstream_config(config_id)
-        payload = {
-            "server_id": str(connector.get("server_id") or "").strip(),
-            "name": str(connector.get("name") or config_id).strip() or config_id,
-            "endpoint": connector.get("endpoint"),
-            "auth": dict(connector.get("auth") or {}),
-            "exposed_tools": list(connector.get("exposed_tools") or []),
-        }
+        server_id: str = str(connector.get("server_id") or "").strip()
+        name: str = str(connector.get("name") or config_id).strip() or config_id
+        endpoint: str | None = connector.get("endpoint")
+        auth: dict = dict(connector.get("auth") or {})
+        exposed_tools: list[str] = list(connector.get("exposed_tools") or [])
+
         if existing:
             store.update_upstream_config(
                 config_id,
-                name=payload["name"],
-                endpoint=payload["endpoint"],
-                auth=payload["auth"],
-                exposed_tools=payload["exposed_tools"],
+                name=name,
+                endpoint=endpoint,
+                auth=auth,
+                exposed_tools=exposed_tools,
             )
             continue
         store.create_upstream_config(
             config_id=config_id,
-            server_id=payload["server_id"],
-            name=payload["name"],
-            endpoint=payload["endpoint"],
-            auth=payload["auth"],
-            exposed_tools=payload["exposed_tools"],
+            server_id=server_id,
+            name=name,
+            endpoint=endpoint,
+            auth=auth,
+            exposed_tools=exposed_tools,
         )
 
     # 1. Sync data sources
@@ -92,14 +91,20 @@ def sync_meta_from_config(
 
         # Default table description
         if ds_docs.get("default_table_description"):
-            store.upsert_doc(ds_name, "table", None, ds_docs["default_table_description"])
+            store.upsert_doc(
+                ds_name, "table", None, ds_docs["default_table_description"]
+            )
 
         # Tables docs
         for table_name, table_meta in ds_docs.get("tables", {}).items():
             if table_meta.get("description"):
-                store.upsert_doc(ds_name, "table", table_name, table_meta["description"])
+                store.upsert_doc(
+                    ds_name, "table", table_name, table_meta["description"]
+                )
             for col_name, col_desc in table_meta.get("columns", {}).items():
-                store.upsert_doc(ds_name, "column", f"{table_name}.{col_name}", col_desc)
+                store.upsert_doc(
+                    ds_name, "column", f"{table_name}.{col_name}", col_desc
+                )
 
         # Graph entities
         for entity_name, entity_meta in ds_docs.get("graph_entities", {}).items():
@@ -114,7 +119,14 @@ def sync_meta_from_config(
 
 
 def build_catalog(config_path: str | None = None) -> int:
-    sources, catalog_path, meta_db_path, docs_map, upstream_configs, connectors_registry = load_config(config_path)
+    (
+        sources,
+        catalog_path,
+        meta_db_path,
+        docs_map,
+        upstream_configs,
+        connectors_registry,
+    ) = load_config(config_path)
 
     print(f"🔄 Syncing configuration to meta-db at {meta_db_path}...")
     sync_meta_from_config(sources, docs_map, meta_db_path, upstream_configs)
@@ -135,10 +147,16 @@ def build_catalog(config_path: str | None = None) -> int:
             registration = registration_by_name.get(source_cfg.name)
             if connector and registration:
                 entry = get_registry_entry(connectors_registry, connector.server_id)
-                data_type = str((entry or {}).get("data_type") or connector.server_id).strip().lower()
+                data_type = (
+                    str((entry or {}).get("data_type") or connector.server_id)
+                    .strip()
+                    .lower()
+                )
                 if data_type == "sql":
                     try:
-                        runtime_cfg = build_runtime_source_config(registration, connector, connectors_registry)
+                        runtime_cfg = build_runtime_source_config(
+                            registration, connector, connectors_registry
+                        )
                     except RuntimeResolutionError:
                         continue
         source = build_data_source(runtime_cfg)

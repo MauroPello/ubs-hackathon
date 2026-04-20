@@ -1,4 +1,8 @@
-from .models import DataSourceConfig, DataSourceRegistration, UpstreamMCPServerConfigRecord
+from .models import (
+    DataSourceConfig,
+    DataSourceRegistration,
+    UpstreamMCPServerConfigRecord,
+)
 from .config import get_registry_entry
 
 
@@ -27,7 +31,9 @@ def resolve_runtime_type_and_connection(
     registry: list[dict],
 ) -> tuple[str, str]:
     entry = get_registry_entry(registry, connector.server_id)
-    data_type = str((entry or {}).get("data_type") or connector.server_id).strip().lower()
+    data_type = (
+        str((entry or {}).get("data_type") or connector.server_id).strip().lower()
+    )
 
     if data_type == "sql":
         return _resolve_sql_like_runtime(connector)

@@ -221,7 +221,7 @@ const filteredSources = computed(() => {
 
           <template #upstream_mcp_server_config_id-data="{ row }">
             <UBadge color="purple" variant="subtle">
-              {{ row.upstream_mcp_server_config_id }}
+              {{ row.upstream_mcp_server_config_name || row.upstream_mcp_server_config_id }}
             </UBadge>
           </template>
 

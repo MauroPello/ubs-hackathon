@@ -73,9 +73,7 @@ def load_config(
     )
 
 
-def get_registry_entry(
-    registry: list[dict], server_id: str
-) -> dict | None:
+def get_registry_entry(registry: list[dict], server_id: str) -> dict | None:
     """Return the registry entry for *server_id*, or ``None`` if not found."""
     for entry in registry:
         if entry.get("id") == server_id:

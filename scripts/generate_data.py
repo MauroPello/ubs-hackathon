@@ -695,7 +695,7 @@ def _generate_cypher(
             f'MERGE (c:Country {{country_id: {c_id}, iso_code: "{iso}", name: "{c_name}"}});'
         )
         lines.append(
-            f'MATCH (c:Country {{country_id: {c_id}}}), (r:Region {{region_id: {r_id}}}) '
+            f"MATCH (c:Country {{country_id: {c_id}}}), (r:Region {{region_id: {r_id}}}) "
             f"MERGE (c)-[:IN_REGION]->(r);"
         )
     lines.append("")
@@ -706,7 +706,7 @@ def _generate_cypher(
             f'MERGE (d:Desk {{desk_id: {d_id}, name: "{d_name}", tier: "{tier}"}});'
         )
         lines.append(
-            f'MATCH (d:Desk {{desk_id: {d_id}}}), (c:Country {{country_id: {c_id}}}) '
+            f"MATCH (d:Desk {{desk_id: {d_id}}}), (c:Country {{country_id: {c_id}}}) "
             f"MERGE (d)-[:LOCATED_IN]->(c);"
         )
     lines.append("")
@@ -722,7 +722,7 @@ def _generate_cypher(
             f'MERGE (p:Product {{product_id: {p_id}, name: "{p_name}", risk_class: "{risk}", liquidity_tier: "{liq}"}});'
         )
         lines.append(
-            f'MATCH (p:Product {{product_id: {p_id}}}), (f:ProductFamily {{family_id: {f_id}}}) '
+            f"MATCH (p:Product {{product_id: {p_id}}}), (f:ProductFamily {{family_id: {f_id}}}) "
             f"MERGE (p)-[:PART_OF_FAMILY]->(f);"
         )
     lines.append("")
@@ -733,7 +733,7 @@ def _generate_cypher(
             f'MERGE (c:Customer {{customer_id: {c_id}, name: "{name}", segment: "{seg}", credit_bucket: "{credit}", inception_date: "{inc}"}});'
         )
         lines.append(
-            f'MATCH (c:Customer {{customer_id: {c_id}}}), (co:Country {{country_id: {co_id}}}) '
+            f"MATCH (c:Customer {{customer_id: {c_id}}}), (co:Country {{country_id: {co_id}}}) "
             f"MERGE (c)-[:BASED_IN]->(co);"
         )
     lines.append("")
@@ -744,7 +744,7 @@ def _generate_cypher(
             f'MERGE (cp:Counterparty {{counterparty_id: {cp_id}, name: "{name}", type: "{c_type}", systemic_flag: {sys_flag}}});'
         )
         lines.append(
-            f'MATCH (cp:Counterparty {{counterparty_id: {cp_id}}}), (co:Country {{country_id: {co_id}}}) '
+            f"MATCH (cp:Counterparty {{counterparty_id: {cp_id}}}), (co:Country {{country_id: {co_id}}}) "
             f"MERGE (cp)-[:BASED_IN]->(co);"
         )
     lines.append("")
@@ -755,7 +755,7 @@ def _generate_cypher(
             f'MERGE (t:Trader {{trader_id: {t_id}, name: "{name}", seniority: "{seniority}", location: "{location}"}});'
         )
         lines.append(
-            f'MATCH (t:Trader {{trader_id: {t_id}}}), (d:Desk {{desk_id: {d_id}}}) '
+            f"MATCH (t:Trader {{trader_id: {t_id}}}), (d:Desk {{desk_id: {d_id}}}) "
             f"MERGE (t)-[:WORKS_AT]->(d);"
         )
     lines.append("")
@@ -850,22 +850,48 @@ def main() -> None:
     # For simplicity, we could modify _seed_dimensions or just re-read the DB if needed.
     # Better: let's wrap the logic to capture the data lists.
     # Since we already ran the seeding, we can just extract from the DB for Cypher.
-    
+
     with sqlite3.connect(db_path) as conn:
         cur = conn.cursor()
-        regions = cur.execute("SELECT region_id, region_name FROM dim_region").fetchall()
-        countries = cur.execute("SELECT country_id, region_id, iso_code, country_name FROM dim_country").fetchall()
-        desks = cur.execute("SELECT desk_id, country_id, desk_name, desk_tier FROM dim_desk").fetchall()
-        families = cur.execute("SELECT family_id, family_name FROM dim_product_family").fetchall()
-        products = cur.execute("SELECT product_id, family_id, product_name, risk_class, liquidity_tier FROM dim_product").fetchall()
-        customers = cur.execute("SELECT customer_id, country_id, customer_name, customer_segment, credit_bucket, inception_date FROM dim_customer").fetchall()
-        counterparties = cur.execute("SELECT counterparty_id, country_id, counterparty_name, counterparty_type, systemic_flag FROM dim_counterparty").fetchall()
-        traders = cur.execute("SELECT trader_id, desk_id, trader_name, seniority, location FROM dim_trader").fetchall()
-        bridge = cur.execute("SELECT bridge_id, customer_id, counterparty_id, relationship_type, relationship_since FROM bridge_customer_counterparty").fetchall()
+        regions = cur.execute(
+            "SELECT region_id, region_name FROM dim_region"
+        ).fetchall()
+        countries = cur.execute(
+            "SELECT country_id, region_id, iso_code, country_name FROM dim_country"
+        ).fetchall()
+        desks = cur.execute(
+            "SELECT desk_id, country_id, desk_name, desk_tier FROM dim_desk"
+        ).fetchall()
+        families = cur.execute(
+            "SELECT family_id, family_name FROM dim_product_family"
+        ).fetchall()
+        products = cur.execute(
+            "SELECT product_id, family_id, product_name, risk_class, liquidity_tier FROM dim_product"
+        ).fetchall()
+        customers = cur.execute(
+            "SELECT customer_id, country_id, customer_name, customer_segment, credit_bucket, inception_date FROM dim_customer"
+        ).fetchall()
+        counterparties = cur.execute(
+            "SELECT counterparty_id, country_id, counterparty_name, counterparty_type, systemic_flag FROM dim_counterparty"
+        ).fetchall()
+        traders = cur.execute(
+            "SELECT trader_id, desk_id, trader_name, seniority, location FROM dim_trader"
+        ).fetchall()
+        bridge = cur.execute(
+            "SELECT bridge_id, customer_id, counterparty_id, relationship_type, relationship_since FROM bridge_customer_counterparty"
+        ).fetchall()
 
     _generate_cypher(
         cypher_path,
-        regions, countries, desks, families, products, customers, counterparties, traders, bridge
+        regions,
+        countries,
+        desks,
+        families,
+        products,
+        customers,
+        counterparties,
+        traders,
+        bridge,
     )
 
     total_tables = len(docs[DATA_SOURCE_NAME]["tables"])

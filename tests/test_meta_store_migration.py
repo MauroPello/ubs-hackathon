@@ -8,8 +8,7 @@ from ubs_hackathon.meta_store import MetaStore
 
 def _create_legacy_meta_db(path: Path) -> None:
     with sqlite3.connect(path) as conn:
-        conn.executescript(
-            """
+        conn.executescript("""
             CREATE TABLE data_sources (
                 name TEXT PRIMARY KEY,
                 type TEXT NOT NULL,
@@ -43,8 +42,7 @@ def _create_legacy_meta_db(path: Path) -> None:
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
-            """
-        )
+            """)
         conn.execute(
             """
             INSERT INTO data_sources (
@@ -63,8 +61,8 @@ def _create_legacy_meta_db(path: Path) -> None:
                 "legacy_source",
                 "sqlite",
                 "sqlite:///tmp/demo.db",
-                "[\"main\"]",
-                "[\"users.email\"]",
+                '["main"]',
+                '["users.email"]',
                 "Legacy",
                 "connector_1",
                 "2026-01-01T00:00:00+00:00",
@@ -80,7 +78,9 @@ def test_meta_store_drops_legacy_data_source_columns(tmp_path: Path) -> None:
     store = MetaStore(db_path)
 
     with sqlite3.connect(db_path) as conn:
-        columns = [row[1] for row in conn.execute("PRAGMA table_info(data_sources)").fetchall()]
+        columns = [
+            row[1] for row in conn.execute("PRAGMA table_info(data_sources)").fetchall()
+        ]
 
     assert "type" not in columns
     assert "connection" not in columns
