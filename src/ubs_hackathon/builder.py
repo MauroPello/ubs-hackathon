@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 
 from .catalog import SchemaCatalog
 from .config import load_config
@@ -47,6 +48,7 @@ def build_catalog(config_path: str | None = None) -> int:
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(
         description="Build schema catalog from configured data sources"
     )

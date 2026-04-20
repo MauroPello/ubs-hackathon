@@ -1,19 +1,7 @@
 catalog:
   db_path: data/big_catalog.db
-# Embeddings env vars (same as config/config.yaml) are also respected here,
-# including auto/openai/huggingface/local provider selection.
 data_sources:
   - name: big_demo_sqlite
     type: sqlite
     connection: data/big_demo.db
-    description: Demo SQLite business source used for the hackathon walkthrough.
-  # - name: big_demo_graph
-  #   type: graph
-  #   connection: delegated://graph
-  #   adapter: delegated_graph
-  #   options:
-  #     delegated_endpoint: http://127.0.0.1:9000/mcp-proxy
-  #     graph_entities:
-  #       - name: Counterparty
-  #         entity_type: graph_node
 schema_docs_path: config/big_schema_docs.json

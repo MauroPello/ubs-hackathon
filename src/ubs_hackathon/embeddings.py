@@ -5,12 +5,14 @@ import ipaddress
 import math
 import os
 import re
+import logging
 from typing import Protocol
 from urllib import error as urlerror
 from urllib import parse
 from urllib import request
 
 TOKEN_RE = re.compile(r"[a-zA-Z0-9_]+")
+LOGGER = logging.getLogger(__name__)
 
 
 class EmbeddingModel(Protocol):
@@ -235,13 +237,25 @@ def create_embedding_model(
     )
     if resolved_provider == "auto":
         if resolved_openai_api_key:
+            selected_model = os.getenv("UBS_EMBEDDINGS_MODEL", "text-embedding-3-small")
+            selected_base_url = os.getenv(
+                "UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"
+            )
+            LOGGER.info(
+                "Using embedding backend: provider=openai (auto), model=%s, base_url=%s",
+                selected_model,
+                selected_base_url,
+            )
             return OpenAIEmbeddingModel(
                 api_key=resolved_openai_api_key,
-                model=os.getenv("UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"),
-                base_url=os.getenv(
-                    "UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"
-                ),
+                model=selected_model,
+                base_url=selected_base_url,
             )
+        LOGGER.info(
+            "Using embedding backend: provider=huggingface (auto fallback to local), model=%s, base_url=%s",
+            resolved_hf_model,
+            resolved_hf_base_url,
+        )
         return FallbackEmbeddingModel(
             primary=HuggingFaceEmbeddingModel(
                 model=resolved_hf_model,
@@ -253,25 +267,42 @@ def create_embedding_model(
 
     if resolved_provider in {"openai", "managed"}:
         if resolved_openai_api_key:
+            selected_model = model or os.getenv(
+                "UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"
+            )
+            selected_base_url = base_url or os.getenv(
+                "UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"
+            )
+            LOGGER.info(
+                "Using embedding backend: provider=%s, model=%s, base_url=%s",
+                resolved_provider,
+                selected_model,
+                selected_base_url,
+            )
             return OpenAIEmbeddingModel(
                 api_key=resolved_openai_api_key,
-                model=model
-                or os.getenv("UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"),
-                base_url=base_url
-                or os.getenv("UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"),
+                model=selected_model,
+                base_url=selected_base_url,
             )
         raise ValueError(
             "Managed embeddings provider selected but OPENAI_API_KEY is not set. "
             "Set OPENAI_API_KEY or change UBS_EMBEDDINGS_PROVIDER to 'local'."
         )
     if resolved_provider in {"huggingface", "hf", "huggingface_public", "free_online"}:
+        LOGGER.info(
+            "Using embedding backend: provider=huggingface, model=%s, base_url=%s",
+            resolved_hf_model,
+            resolved_hf_base_url,
+        )
         return HuggingFaceEmbeddingModel(
             model=resolved_hf_model,
             base_url=resolved_hf_base_url,
             api_token=resolved_hf_token,
         )
     if resolved_provider == "local":
+        LOGGER.info("Using embedding backend: provider=local, dims=%s", local_dims)
         return SimpleEmbeddingModel(dims=local_dims)
+    LOGGER.info("Using embedding backend: provider=local (default fallback), dims=%s", local_dims)
     return SimpleEmbeddingModel(dims=local_dims)
 
 
