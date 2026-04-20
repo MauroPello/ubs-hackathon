@@ -23,7 +23,9 @@ def _extract_exposed_tool_specs(
             name = str(item.get("name") or "").strip()
             if not name:
                 continue
-            description = str(item.get("description") or "").strip() or None
+            raw_description = item.get("description")
+            description_text = str(raw_description or "").strip()
+            description = description_text or None
             specs.append((name, description))
             continue
         name = str(item or "").strip()
@@ -196,21 +198,21 @@ def create_server(
         tool_names_for_config: dict[str, list[str]] = {
             cfg_id: src.get_exposed_tools() for cfg_id, src in upstream_sources.items()
         }
-        data_sources_by_config: dict[str, list[str]] = {cfg_id: [] for cfg_id in upstream_sources}
+        data_sources_by_config: dict[str, set[str]] = {
+            cfg_id: set() for cfg_id in upstream_sources
+        }
         for tool_name, routes in upstream_tool_routes.items():
-            _ = tool_name
             for data_source_name, src in routes.items():
                 config_id = src.config.upstream_mcp_server_config_id
                 if not config_id:
                     continue
-                bucket = data_sources_by_config.setdefault(config_id, [])
-                if data_source_name not in bucket:
-                    bucket.append(data_source_name)
+                bucket = data_sources_by_config.setdefault(config_id, set())
+                bucket.add(data_source_name)
         return [
             {
                 "config_id": cfg_id,
                 "exposed_tools": tool_names_for_config.get(cfg_id, []),
-                "routed_data_sources": sorted(data_sources_by_config.get(cfg_id, [])),
+                "routed_data_sources": sorted(data_sources_by_config.get(cfg_id, set())),
                 "capabilities": src.capabilities(),
             }
             for cfg_id, src in upstream_sources.items()
