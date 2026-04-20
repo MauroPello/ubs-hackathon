@@ -284,28 +284,17 @@ def create_app(
                     details=f"API Request: {request.method} {request.url.path}"
                 )
 
-    @app.middleware("http")
-    async def strip_api_prefix(request: Request, call_next):
-        if request.url.path.startswith("/api"):
-            # Create a new scope with the modified path
-            scope = request.scope.copy()
-            scope["path"] = request.url.path[4:]
-            if not scope["path"]:
-                scope["path"] = "/"
-            
-            # Re-create the request from the new scope
-            from starlette.requests import Request as StarletteRequest
-            request = StarletteRequest(scope, receive=request.receive)
-            
-        response = await call_next(request)
-        return response
 
 
-    @app.get("/mcp-usage")
+    from fastapi import APIRouter
+
+    api_router = APIRouter()
+
+    @api_router.get("/mcp-usage")
     def mcp_usage() -> dict:
         return _collect_mcp_usage_snapshot(store, Path(catalog_path))
 
-    @app.get("/recent-activity")
+    @api_router.get("/recent-activity")
     def recent_activity(limit: int = 10) -> list[dict]:
         return [log.to_dict() for log in store.list_audit_logs(limit=limit)]
 
@@ -313,12 +302,12 @@ def create_app(
     # Upstream MCP server registry (read-only, hardcoded)
     # ------------------------------------------------------------------
 
-    @app.get("/upstream-mcp-servers")
+    @api_router.get("/upstream-mcp-servers")
     def list_upstream_mcp_servers(data_type: str | None = None) -> list[dict]:
         """List available upstream MCP servers from the hardcoded registry."""
         return list_registry_entries(data_type=data_type)
 
-    @app.get("/upstream-mcp-servers/{server_id}")
+    @api_router.get("/upstream-mcp-servers/{server_id}")
     def get_upstream_mcp_server(server_id: str) -> dict:
         """Get a single upstream MCP server entry from the registry."""
         entry = get_registry_entry(server_id)
@@ -333,12 +322,12 @@ def create_app(
     # Upstream MCP server configs (user-configured instances)
     # ------------------------------------------------------------------
 
-    @app.get("/upstream-mcp-server-configs")
+    @api_router.get("/upstream-mcp-server-configs")
     def list_upstream_configs() -> list[dict]:
         """List all user-configured upstream MCP server instances."""
         return [c.to_dict() for c in store.list_upstream_configs()]
 
-    @app.post("/upstream-mcp-server-configs", status_code=status.HTTP_201_CREATED)
+    @api_router.post("/upstream-mcp-server-configs", status_code=status.HTTP_201_CREATED)
     def create_upstream_config(payload: UpstreamMCPServerConfigCreate) -> dict:
         """Create a new upstream MCP server configuration."""
         if get_registry_entry(payload.server_id) is None:
@@ -357,7 +346,7 @@ def create_app(
         )
         return created.to_dict()
 
-    @app.get("/upstream-mcp-server-configs/{config_id}")
+    @api_router.get("/upstream-mcp-server-configs/{config_id}")
     def get_upstream_config(config_id: str) -> dict:
         """Get a single upstream MCP server configuration."""
         found = store.get_upstream_config(config_id)
@@ -368,7 +357,7 @@ def create_app(
             )
         return found.to_dict()
 
-    @app.put("/upstream-mcp-server-configs/{config_id}")
+    @api_router.put("/upstream-mcp-server-configs/{config_id}")
     def update_upstream_config(
         config_id: str, payload: UpstreamMCPServerConfigUpdate
     ) -> dict:
@@ -389,7 +378,7 @@ def create_app(
             )
         return updated.to_dict()
 
-    @app.delete(
+    @api_router.delete(
         "/upstream-mcp-server-configs/{config_id}",
         status_code=status.HTTP_204_NO_CONTENT,
     )
@@ -406,11 +395,11 @@ def create_app(
     # Data sources CRUD
     # ------------------------------------------------------------------
 
-    @app.get("/data-sources")
+    @api_router.get("/data-sources")
     def list_data_sources() -> list[dict]:
         return [row.to_dict() for row in store.list_data_sources()]
 
-    @app.post("/data-sources", status_code=status.HTTP_201_CREATED)
+    @api_router.post("/data-sources", status_code=status.HTTP_201_CREATED)
     def create_data_source(payload: DataSourceCreate) -> dict:
         if store.get_data_source(payload.name):
             raise HTTPException(
@@ -434,7 +423,7 @@ def create_app(
         )
         return created.to_dict()
 
-    @app.get("/data-sources/{name}")
+    @api_router.get("/data-sources/{name}")
     def get_data_source(name: str) -> dict:
         found = store.get_data_source(name)
         if not found:
@@ -443,7 +432,7 @@ def create_app(
             )
         return found.to_dict()
 
-    @app.put("/data-sources/{name}")
+    @api_router.put("/data-sources/{name}")
     def update_data_source(name: str, payload: DataSourceUpdate) -> dict:
         updates = payload.model_dump(exclude_unset=True)
         # Validate upstream config reference if explicitly provided.
@@ -476,7 +465,7 @@ def create_app(
             )
         return updated.to_dict()
 
-    @app.delete("/data-sources/{name}", status_code=status.HTTP_204_NO_CONTENT)
+    @api_router.delete("/data-sources/{name}", status_code=status.HTTP_204_NO_CONTENT)
     def delete_data_source(name: str) -> None:
         deleted = store.delete_data_source(name)
         if not deleted:
@@ -484,7 +473,7 @@ def create_app(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
             )
 
-    @app.get("/data-sources/{name}/docs")
+    @api_router.get("/data-sources/{name}/docs")
     def list_docs(name: str) -> list[dict]:
         if not store.get_data_source(name):
             raise HTTPException(
@@ -492,7 +481,7 @@ def create_app(
             )
         return [row.to_dict() for row in store.list_docs(name)]
 
-    @app.post("/data-sources/{name}/docs", status_code=status.HTTP_201_CREATED)
+    @api_router.post("/data-sources/{name}/docs", status_code=status.HTTP_201_CREATED)
     def create_doc(name: str, payload: DocCreate) -> dict:
         if not store.get_data_source(name):
             raise HTTPException(
@@ -504,7 +493,7 @@ def create_app(
         _rebuild_catalog_for_data_source(store, catalog, name)
         return created.to_dict()
 
-    @app.get("/data-sources/{name}/docs/{doc_id}")
+    @api_router.get("/data-sources/{name}/docs/{doc_id}")
     def get_doc(name: str, doc_id: int) -> dict:
         found = store.get_doc(name, doc_id)
         if not found:
@@ -513,7 +502,7 @@ def create_app(
             )
         return found.to_dict()
 
-    @app.put("/data-sources/{name}/docs/{doc_id}")
+    @api_router.put("/data-sources/{name}/docs/{doc_id}")
     def update_doc(name: str, doc_id: int, payload: DocUpdate) -> dict:
         if not store.get_data_source(name):
             raise HTTPException(
@@ -533,7 +522,7 @@ def create_app(
         _rebuild_catalog_for_data_source(store, catalog, name)
         return updated.to_dict()
 
-    @app.delete(
+    @api_router.delete(
         "/data-sources/{name}/docs/{doc_id}", status_code=status.HTTP_204_NO_CONTENT
     )
     def delete_doc(name: str, doc_id: int) -> None:
@@ -544,10 +533,15 @@ def create_app(
             )
         _rebuild_catalog_for_data_source(store, catalog, name)
 
-    @app.post("/data-sources/{name}/sync")
+    @api_router.post("/data-sources/{name}/sync")
     def sync_data_source(name: str) -> dict:
         total_tables = _rebuild_catalog_for_data_source(store, catalog, name)
         return {"data_source": name, "indexed_tables": total_tables}
+
+    # Include the router twice: once with /api prefix and once without.
+    # This ensures both /api/recent-activity and /recent-activity work correctly.
+    app.include_router(api_router, prefix="/api")
+    app.include_router(api_router)
 
     return app
 
@@ -562,10 +556,15 @@ def main() -> None:
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--reload", action="store_true", help="Enable uvicorn reload")
     args = parser.parse_args()
 
-    app = create_app(meta_db_path=args.meta_db, catalog_path=args.catalog)
-    uvicorn.run(app, host=args.host, port=args.port)
+    app = "ubs_hackathon.backend:create_app" if args.reload else create_app(meta_db_path=args.meta_db, catalog_path=args.catalog)
+    
+    if args.reload:
+        uvicorn.run(app, host=args.host, port=args.port, reload=True, factory=True)
+    else:
+        uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

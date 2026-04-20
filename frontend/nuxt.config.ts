@@ -18,6 +18,11 @@ export default defineNuxtConfig({
     global: true,
   },
 
+  // Icon configuration to avoid conflict with backend proxy
+  icon: {
+    localApiEndpoint: '/_nuxt_icon'
+  },
+
   // Nitro proxy for backend API during development
   nitro: {
     devProxy: {
