@@ -149,14 +149,15 @@ class DataSource(ABC):
     ) -> dict[str, Any]:
         raise NotImplementedError("Graph query is not supported by this source")
 
-    def capabilities(self) -> dict[str, bool]:
-        return {
-            "sql_schema_discovery": True,
-            "sql_read_only_query": True,
-            "temporary_views": True,
-            "graph_schema_discovery": False,
-            "graph_read_only_query": False,
-        }
+    def capabilities(self) -> list[str]:
+        return [
+            "search_schema",
+            "describe_table",
+            "execute_query",
+            "list_temporary_views",
+            "create_temporary_view",
+            "drop_temporary_view",
+        ]
 
     @staticmethod
     def _normalize_identifier_token(identifier: str | None) -> str:
@@ -775,14 +776,8 @@ class DelegatedGraphDataSource(DataSource):
             "masked_columns": masked_columns,
         }
 
-    def capabilities(self) -> dict[str, bool]:
-        return {
-            "sql_schema_discovery": False,
-            "sql_read_only_query": False,
-            "temporary_views": False,
-            "graph_schema_discovery": True,
-            "graph_read_only_query": True,
-        }
+    def capabilities(self) -> list[str]:
+        return ["list_graph_entities", "describe_graph_entity", "execute_graph_query"]
 
 
 # ---------------------------------------------------------------------------
@@ -907,17 +902,8 @@ class UpstreamMCPDataSource(DataSource):
             )
         return self._delegate_tool(tool_name, arguments)
 
-    def capabilities(self) -> dict[str, bool]:
-        data_type = (self.config.type or "").strip().lower()
-        return {
-            "sql_schema_discovery": False,
-            "sql_read_only_query": False,
-            "temporary_views": False,
-            "graph_schema_discovery": data_type == "graph",
-            "graph_read_only_query": data_type == "graph",
-            "upstream_mcp": True,
-            "exposed_tools": self._exposed_tools,  # type: ignore[dict-item]
-        }
+    def capabilities(self) -> list[str]:
+        return list(self._exposed_tools)
 
 
 # ---------------------------------------------------------------------------

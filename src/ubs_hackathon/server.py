@@ -168,23 +168,26 @@ class SourceRegistry:
             return ds
         return None
 
-    def is_tool_allowed(self, source_name: str, tool_name: str) -> bool:
-        """Check if a tool is allowed for a given data source based on its connector config."""
+    def get_allowed_tools(self, source_name: str) -> list[str]:
+        """Return the list of allowed tool names for a given data source."""
         self._refresh_if_needed()
         cfg = self._configs.get(source_name)
         if not cfg:
-            return True
+            return []
 
         config_id = cfg.upstream_mcp_server_config_id
         if not config_id:
-            return True
+            return []
 
-        # If it's a connector with explicit tool specs, check the whitelist
+        # If it's a connector with explicit tool specs, return the whitelist
         if config_id in self._upstream_tool_specs:
-            allowed = [name for name, _ in self._upstream_tool_specs[config_id]]
-            return tool_name in allowed
+            return [name for name, _ in self._upstream_tool_specs[config_id]]
 
-        return True
+        return []
+
+    def is_tool_allowed(self, source_name: str, tool_name: str) -> bool:
+        """Check if a tool is allowed for a given data source based on its connector config."""
+        return tool_name in self.get_allowed_tools(source_name)
 
     def get_upstream_tool_descriptions(self) -> dict[str, str]:
         self._refresh_if_needed()
@@ -254,14 +257,13 @@ def create_server(
         configs = registry.get_all_configs()
         results = []
         for cfg in configs:
-            source = registry.get_source(cfg.name)
             results.append(
                 {
                     "name": cfg.name,
                     "type": cfg.type,
                     "adapter": cfg.adapter or cfg.type,
                     "sensitive_columns": list(cfg.sensitive_columns or []),
-                    "capabilities": source.capabilities() if source else {},
+                    "capabilities": registry.get_allowed_tools(cfg.name),
                 }
             )
         return results
@@ -359,7 +361,7 @@ def create_server(
                 "config_id": cfg_id,
                 "exposed_tools": [name for name, _ in specs_by_config.get(cfg_id, [])],
                 "routed_data_sources": sorted(data_sources_by_config.get(cfg_id, set())),
-                "capabilities": src.capabilities(),
+                "capabilities": [name for name, _ in specs_by_config.get(cfg_id, [])],
             }
             for cfg_id, src in upstreams.items()
         ]
