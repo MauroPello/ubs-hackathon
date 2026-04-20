@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS data_sources (
     name TEXT PRIMARY KEY,
     type TEXT NOT NULL,
     connection TEXT NOT NULL,
+    sensitive_columns TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -52,34 +54,82 @@ class MetaStore:
     def _ensure_schema(self) -> None:
         with self._connect() as conn:
             conn.executescript(META_SCHEMA)
+            columns = {
+                str(row["name"])
+                for row in conn.execute("PRAGMA table_info(data_sources)").fetchall()
+            }
+            if "sensitive_columns" not in columns:
+                conn.execute(
+                    "ALTER TABLE data_sources ADD COLUMN sensitive_columns TEXT NOT NULL DEFAULT '[]'"
+                )
 
     def _now(self) -> str:
         return datetime.now(timezone.utc).isoformat()
 
+    @staticmethod
+    def _normalize_sensitive_columns(columns: list[str] | None) -> list[str]:
+        normalized: list[str] = []
+        for raw in columns or []:
+            value = str(raw).strip()
+            if not value:
+                continue
+            if value not in normalized:
+                normalized.append(value)
+        return normalized
+
+    @staticmethod
+    def _decode_sensitive_columns(raw: str | None) -> list[str]:
+        if not raw:
+            return []
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(parsed, list):
+            return []
+        return MetaStore._normalize_sensitive_columns([str(item) for item in parsed])
+
+    @staticmethod
+    def _row_to_registration(row: sqlite3.Row) -> DataSourceRegistration:
+        payload = dict(row)
+        payload["sensitive_columns"] = MetaStore._decode_sensitive_columns(
+            payload.get("sensitive_columns")
+        )
+        return DataSourceRegistration(**payload)
+
     def list_data_sources(self) -> list[DataSourceRegistration]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT name, type, connection, created_at, updated_at FROM data_sources ORDER BY name"
+                "SELECT name, type, connection, sensitive_columns, created_at, updated_at FROM data_sources ORDER BY name"
             ).fetchall()
-        return [DataSourceRegistration(**dict(row)) for row in rows]
+        return [self._row_to_registration(row) for row in rows]
 
     def get_data_source(self, name: str) -> DataSourceRegistration | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT name, type, connection, created_at, updated_at FROM data_sources WHERE name = ?",
+                "SELECT name, type, connection, sensitive_columns, created_at, updated_at FROM data_sources WHERE name = ?",
                 (name,),
             ).fetchone()
-        return DataSourceRegistration(**dict(row)) if row else None
+        return self._row_to_registration(row) if row else None
 
-    def create_data_source(self, name: str, type_: str, connection: str) -> DataSourceRegistration:
+    def create_data_source(
+        self,
+        name: str,
+        type_: str,
+        connection: str,
+        sensitive_columns: list[str] | None = None,
+    ) -> DataSourceRegistration:
         now = self._now()
+        encoded_sensitive_columns = json.dumps(
+            self._normalize_sensitive_columns(sensitive_columns)
+        )
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO data_sources (name, type, connection, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO data_sources (name, type, connection, sensitive_columns, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (name, type_, connection, now, now),
+                (name, type_, connection, encoded_sensitive_columns, now, now),
             )
         created = self.get_data_source(name)
         if created is None:
@@ -91,21 +141,27 @@ class MetaStore:
         name: str,
         type_: str | None = None,
         connection: str | None = None,
+        sensitive_columns: list[str] | None = None,
     ) -> DataSourceRegistration | None:
         current = self.get_data_source(name)
         if current is None:
             return None
         next_type = type_ if type_ is not None else current.type
         next_connection = connection if connection is not None else current.connection
+        next_sensitive_columns = (
+            self._normalize_sensitive_columns(sensitive_columns)
+            if sensitive_columns is not None
+            else current.sensitive_columns
+        )
         now = self._now()
         with self._connect() as conn:
             conn.execute(
                 """
                 UPDATE data_sources
-                SET type = ?, connection = ?, updated_at = ?
+                SET type = ?, connection = ?, sensitive_columns = ?, updated_at = ?
                 WHERE name = ?
                 """,
-                (next_type, next_connection, now, name),
+                (next_type, next_connection, json.dumps(next_sensitive_columns), now, name),
             )
         updated = self.get_data_source(name)
         if updated is None:

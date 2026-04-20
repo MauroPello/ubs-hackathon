@@ -29,6 +29,7 @@ def create_server(
                 "name": cfg.name,
                 "type": cfg.type,
                 "adapter": cfg.adapter or cfg.type,
+                "sensitive_columns": list(cfg.sensitive_columns or []),
                 "capabilities": source_map[cfg.name].capabilities(),
             }
             for cfg in sources

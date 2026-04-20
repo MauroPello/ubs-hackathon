@@ -12,6 +12,7 @@ This repository now includes a working Python MCP server prototype with:
 - **Schema catalog builder** that introspects source databases and merges **existing company schema docs**
 - **Semantic schema search** using local embeddings for table/column retrieval
 - **Read-only SQL execution** safeguards for conversational analytics
+- **Enterprise data masking** with per-source sensitive column configuration so MCP query results hide protected attributes
 - **MCP tool surface** for `list_data_sources`, `search_schema`, `describe_table`, and `execute_query`
 - **SSE/HTTP-first hosting** for multi-user deployments, plus stdio support for local clients
 - **REST backend for metadata management** (data-source and documentation CRUD)

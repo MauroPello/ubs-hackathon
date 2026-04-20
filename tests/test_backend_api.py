@@ -33,6 +33,7 @@ def test_frontend_homepage(tmp_path: Path) -> None:
     assert "Data Source Manager" in response.text
     assert "MCP Usage Dashboard" in response.text
     assert "Connect Notion (fake)" in response.text
+    assert "Sensitive columns" in response.text
 
 
 def test_data_sources_crud(tmp_path: Path) -> None:
@@ -43,10 +44,16 @@ def test_data_sources_crud(tmp_path: Path) -> None:
 
     assert client.get("/data-sources").json() == []
 
-    payload = {"name": "demo_sqlite", "type": "sqlite", "connection": str(source_db)}
+    payload = {
+        "name": "demo_sqlite",
+        "type": "sqlite",
+        "connection": str(source_db),
+        "sensitive_columns": ["orders.revenue"],
+    }
     created = client.post("/data-sources", json=payload)
     assert created.status_code == 201
     assert created.json()["name"] == "demo_sqlite"
+    assert created.json()["sensitive_columns"] == ["orders.revenue"]
 
     listed = client.get("/data-sources")
     assert listed.status_code == 200
@@ -55,10 +62,19 @@ def test_data_sources_crud(tmp_path: Path) -> None:
     fetched = client.get("/data-sources/demo_sqlite")
     assert fetched.status_code == 200
     assert fetched.json()["connection"] == str(source_db)
+    assert fetched.json()["sensitive_columns"] == ["orders.revenue"]
 
-    updated = client.put("/data-sources/demo_sqlite", json={"connection": str(source_db), "type": "sqlite"})
+    updated = client.put(
+        "/data-sources/demo_sqlite",
+        json={
+            "connection": str(source_db),
+            "type": "sqlite",
+            "sensitive_columns": ["orders.order_id"],
+        },
+    )
     assert updated.status_code == 200
     assert updated.json()["type"] == "sqlite"
+    assert updated.json()["sensitive_columns"] == ["orders.order_id"]
 
     deleted = client.delete("/data-sources/demo_sqlite")
     assert deleted.status_code == 204

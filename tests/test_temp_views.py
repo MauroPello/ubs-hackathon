@@ -123,3 +123,46 @@ def test_table_doc_handles_identifiers_requiring_quoting(tmp_path: Path) -> None
         {"select": "a", "total amount": 10.5},
         {"select": "b", "total amount": 20.25},
     ]
+
+
+def test_sensitive_columns_are_masked_in_query_results_and_samples(tmp_path: Path) -> None:
+    source_db = tmp_path / "sensitive_source.db"
+    source_db.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(source_db) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS customers (
+                customer_id INTEGER PRIMARY KEY,
+                email TEXT NOT NULL,
+                segment TEXT NOT NULL
+            )
+            """
+        )
+        conn.executemany(
+            "INSERT INTO customers (customer_id, email, segment) VALUES (?, ?, ?)",
+            [(1, "a@example.com", "retail"), (2, "b@example.com", "wealth")],
+        )
+
+    source = SQLiteDataSource(
+        DataSourceConfig(
+            name="demo_sqlite",
+            type="sqlite",
+            connection=str(source_db),
+            sensitive_columns=["customers.email"],
+        )
+    )
+
+    doc = source.table_doc("customers")
+    email_col = next(col for col in doc.columns if col.name == "email")
+    segment_col = next(col for col in doc.columns if col.name == "segment")
+    assert email_col.sample_values == []
+    assert segment_col.sample_values is not None and len(segment_col.sample_values) > 0
+
+    result = source.execute_read_only("SELECT customer_id, email, segment FROM customers ORDER BY customer_id")
+    assert result["columns"] == ["customer_id", "segment"]
+    assert result["masked_columns"] == ["email"]
+    assert result["rows"] == [
+        {"customer_id": 1, "segment": "retail"},
+        {"customer_id": 2, "segment": "wealth"},
+    ]

@@ -62,6 +62,18 @@ def _resolve_connection_url(config: DataSourceConfig) -> str:
 class DataSource(ABC):
     def __init__(self, config: DataSourceConfig) -> None:
         self.config = config
+        self._sensitive_unqualified: set[str] = set()
+        self._sensitive_qualified: set[tuple[str, str]] = set()
+        for raw in config.sensitive_columns or []:
+            token = self._normalize_identifier_token(raw)
+            if not token:
+                continue
+            if "." in token:
+                entity, column = token.split(".", 1)
+                if entity and column:
+                    self._sensitive_qualified.add((entity, column))
+                    continue
+            self._sensitive_unqualified.add(token)
 
     # ------------------------------------------------------------------
     # SQL safety helpers – shared by all relational data sources
@@ -140,6 +152,56 @@ class DataSource(ABC):
             "graph_schema_discovery": False,
             "graph_read_only_query": False,
         }
+
+    @staticmethod
+    def _normalize_identifier_token(identifier: str | None) -> str:
+        value = str(identifier or "").strip().strip('"`[]')
+        if not value:
+            return ""
+        pieces = [part.strip().strip('"`[]').lower() for part in value.split(".")]
+        pieces = [part for part in pieces if part]
+        if not pieces:
+            return ""
+        return ".".join(pieces)
+
+    def _is_sensitive_column(self, column: str, table: str | None = None) -> bool:
+        normalized_column = self._normalize_identifier_token(column)
+        if not normalized_column:
+            return False
+
+        if normalized_column in self._sensitive_unqualified:
+            return True
+
+        if "." in normalized_column:
+            left, right = normalized_column.split(".", 1)
+            if (left, right) in self._sensitive_qualified:
+                return True
+            if right in self._sensitive_unqualified:
+                return True
+
+        normalized_table = self._normalize_identifier_token(table)
+        if normalized_table and (normalized_table, normalized_column) in self._sensitive_qualified:
+            return True
+
+        return False
+
+    def _sanitize_result_rows(
+        self, columns: list[str], rows: list[Any], table: str | None = None
+    ) -> tuple[list[str], list[dict[str, Any]], list[str]]:
+        safe_indexes: list[int] = []
+        safe_columns: list[str] = []
+        masked_columns: list[str] = []
+        for index, column_name in enumerate(columns):
+            if self._is_sensitive_column(column_name, table=table):
+                masked_columns.append(column_name)
+            else:
+                safe_indexes.append(index)
+                safe_columns.append(column_name)
+        payload_rows = [
+            {columns[i]: row[i] for i in safe_indexes}
+            for row in rows
+        ]
+        return safe_columns, payload_rows, masked_columns
 
     def catalog_docs(self) -> list[TableDoc]:
         docs: dict[str, TableDoc] = {}
@@ -329,7 +391,8 @@ class SQLAlchemyDataSource(DataSource):
 
             columns: list[ColumnDoc] = []
             for col in cols_info:
-                samples = self._sample_values_locked(table, col["name"])
+                is_sensitive = self._is_sensitive_column(col["name"], table=table)
+                samples = [] if is_sensitive else self._sample_values_locked(table, col["name"])
                 columns.append(
                     ColumnDoc(
                         name=col["name"],
@@ -385,13 +448,14 @@ class SQLAlchemyDataSource(DataSource):
 
         truncated = len(rows) > limit
         rows = rows[:limit]
-        payload_rows = [dict(zip(columns, row)) for row in rows]
+        safe_columns, payload_rows, masked_columns = self._sanitize_result_rows(columns, rows)
         return {
-            "columns": columns,
+            "columns": safe_columns,
             "rows": payload_rows,
             "row_count": len(payload_rows),
             "truncated": truncated,
             "limit": limit,
+            "masked_columns": masked_columns,
         }
 
     def list_temporary_views(
@@ -534,17 +598,23 @@ class DelegatedGraphDataSource(DataSource):
         entity_type = str(item.get("entity_type") or "graph_node").strip().lower()
         if entity_type not in {"graph_node", "graph_relationship"}:
             entity_type = "graph_node"
-        columns = [
-            ColumnDoc(
-                name=str(col.get("name")),
-                data_type=str(col.get("data_type") or "text"),
-                nullable=bool(col.get("nullable", True)),
-                description=col.get("description"),
-                sample_values=list(col.get("sample_values", []) or []),
+        columns: list[ColumnDoc] = []
+        for col in (item.get("columns", []) or []):
+            if not str(col.get("name", "")).strip():
+                continue
+            column_name = str(col.get("name"))
+            masked_samples = [] if self._is_sensitive_column(column_name, table=name) else list(
+                col.get("sample_values", []) or []
             )
-            for col in (item.get("columns", []) or [])
-            if str(col.get("name", "")).strip()
-        ]
+            columns.append(
+                ColumnDoc(
+                    name=column_name,
+                    data_type=str(col.get("data_type") or "text"),
+                    nullable=bool(col.get("nullable", True)),
+                    description=col.get("description"),
+                    sample_values=masked_samples,
+                )
+            )
         foreign_keys = [
             ForeignKeyDoc(
                 column=str(fk.get("column")),
@@ -668,13 +738,23 @@ class DelegatedGraphDataSource(DataSource):
         sample_rows = list(
             self._options.get("sample_rows", self._options.get("mock_rows", [])) or []
         )
+        sample_columns = sorted(
+            {str(k) for row in sample_rows if isinstance(row, dict) for k in row.keys()}
+        )
+        safe_columns, safe_rows, masked_columns = self._sanitize_result_rows(
+            sample_columns,
+            [tuple(row.get(col) for col in sample_columns) for row in sample_rows if isinstance(row, dict)],
+        )
+        limited_rows = safe_rows[:safe_limit]
         return {
             "query": statement,
             "limit": safe_limit,
             "delegated": delegated,
-            "rows": sample_rows[:safe_limit],
-            "row_count": min(len(sample_rows), safe_limit),
-            "truncated": len(sample_rows) > safe_limit,
+            "columns": safe_columns,
+            "rows": limited_rows,
+            "row_count": len(limited_rows),
+            "truncated": len(safe_rows) > safe_limit,
+            "masked_columns": masked_columns,
         }
 
     def capabilities(self) -> dict[str, bool]:

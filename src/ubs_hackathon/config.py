@@ -43,6 +43,7 @@ def load_config(path: str | Path | None = None) -> tuple[list[DataSourceConfig],
             connection=_resolve_env(source["connection"]),
             adapter=(source.get("adapter") or "").strip().lower() or None,
             options=source.get("options"),
+            sensitive_columns=list(source.get("sensitive_columns", []) or []),
         )
         sources.append(ds)
 
