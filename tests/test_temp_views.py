@@ -93,3 +93,33 @@ def test_temporary_views_are_partitioned_by_session(tmp_path: Path) -> None:
     assert len(source.list_temporary_views(session_id="alpha")) == 1
     assert len(source.list_temporary_views(session_id="beta")) == 1
     assert source.list_temporary_views(session_id="gamma") == []
+
+
+def test_table_doc_handles_identifiers_requiring_quoting(tmp_path: Path) -> None:
+    source_db = tmp_path / "quoted_source.db"
+    source_db.parent.mkdir(parents=True, exist_ok=True)
+
+    with sqlite3.connect(source_db) as conn:
+        conn.execute(
+            'CREATE TABLE "order details" ("select" TEXT NOT NULL, "total amount" REAL)'
+        )
+        conn.executemany(
+            'INSERT INTO "order details" ("select", "total amount") VALUES (?, ?)',
+            [("a", 10.5), ("b", 20.25)],
+        )
+
+    source = SQLiteDataSource(
+        DataSourceConfig(name="demo_sqlite", type="sqlite", connection=str(source_db))
+    )
+
+    doc = source.table_doc("order details")
+    assert doc.table == "order details"
+    assert doc.row_count_estimate == 2
+
+    result = source.execute_read_only(
+        'SELECT "select", "total amount" FROM "order details" ORDER BY "select"'
+    )
+    assert result["rows"] == [
+        {"select": "a", "total amount": 10.5},
+        {"select": "b", "total amount": 20.25},
+    ]

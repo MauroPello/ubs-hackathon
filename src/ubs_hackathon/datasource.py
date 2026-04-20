@@ -168,6 +168,13 @@ class SQLAlchemyDataSource(DataSource):
     def _supports_temp_view_syntax(self) -> bool:
         return self._dialect() in self._TEMP_VIEW_DIALECTS
 
+    def _quote_qualified_identifier(self, identifier: str) -> str:
+        preparer = self._engine.dialect.identifier_preparer
+        parts = [part for part in identifier.split(".") if part]
+        if not parts:
+            raise ValueError("Identifier cannot be empty")
+        return ".".join(preparer.quote_identifier(part) for part in parts)
+
     def _purge_expired_temp_views_locked(self) -> None:
         now = time.time()
         expired = [
@@ -182,7 +189,8 @@ class SQLAlchemyDataSource(DataSource):
     def _try_drop_view_locked(self, name: str) -> None:
         try:
             conn = self._connection()
-            conn.execute(text(f'DROP VIEW IF EXISTS "{name}"'))
+            quoted_name = self._quote_qualified_identifier(name)
+            conn.execute(text(f"DROP VIEW IF EXISTS {quoted_name}"))
             conn.commit()
         except Exception:
             pass
@@ -227,7 +235,8 @@ class SQLAlchemyDataSource(DataSource):
     def _row_count_estimate_locked(self, table: str) -> int | None:
         try:
             conn = self._connection()
-            row = conn.execute(text(f'SELECT COUNT(*) FROM "{table}"')).fetchone()
+            quoted_table = self._quote_qualified_identifier(table)
+            row = conn.execute(text(f"SELECT COUNT(*) FROM {quoted_table}")).fetchone()
             return int(row[0]) if row else None
         except Exception:
             return None
@@ -235,10 +244,12 @@ class SQLAlchemyDataSource(DataSource):
     def _sample_values_locked(self, table: str, column: str) -> list[str]:
         try:
             conn = self._connection()
+            quoted_table = self._quote_qualified_identifier(table)
+            quoted_column = self._quote_qualified_identifier(column)
             rows = conn.execute(
                 text(
-                    f'SELECT DISTINCT "{column}" FROM "{table}"'
-                    f' WHERE "{column}" IS NOT NULL LIMIT 5'
+                    f"SELECT DISTINCT {quoted_column} FROM {quoted_table}"
+                    f" WHERE {quoted_column} IS NOT NULL LIMIT 5"
                 )
             ).fetchall()
             return [str(r[0]) for r in rows if r[0] is not None]
@@ -376,11 +387,12 @@ class SQLAlchemyDataSource(DataSource):
             self._purge_expired_temp_views_locked()
             session_prefix = self._session_view_prefix(session_id)
             actual_name = f"{session_prefix}{self._make_temp_view_name(view_name)}"
+            quoted_name = self._quote_qualified_identifier(actual_name)
             temp_kw = "TEMP " if self._supports_temp_view_syntax() else ""
             conn = self._connection()
             try:
                 conn.execute(
-                    text(f'CREATE {temp_kw}VIEW "{actual_name}" AS {statement}')
+                    text(f"CREATE {temp_kw}VIEW {quoted_name} AS {statement}")
                 )
                 conn.commit()
             except Exception as exc:
@@ -388,10 +400,16 @@ class SQLAlchemyDataSource(DataSource):
                     # Dialect advertised TEMP VIEW support but failed; fall back
                     # to a regular CREATE VIEW.
                     conn.rollback()
-                    conn.execute(
-                        text(f'CREATE VIEW "{actual_name}" AS {statement}')
-                    )
-                    conn.commit()
+                    try:
+                        conn.execute(text(f"CREATE VIEW {quoted_name} AS {statement}"))
+                        conn.commit()
+                    except Exception as fallback_exc:
+                        conn.rollback()
+                        raise TemporaryViewError(
+                            f"Failed to create view '{actual_name}': "
+                            f"TEMP VIEW failed ({exc}); VIEW fallback failed "
+                            f"({fallback_exc})"
+                        ) from fallback_exc
                 else:
                     conn.rollback()
                     raise TemporaryViewError(
