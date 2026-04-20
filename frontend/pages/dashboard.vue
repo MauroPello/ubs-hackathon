@@ -51,8 +51,8 @@ const timeAgo = (iso) => {
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-2xl font-bold text-gray-900">MCP Usage Dashboard</h2>
-        <p class="text-gray-500">Real-time operational snapshot of your metadata ecosystem.</p>
+        <h2 class="text-2xl font-bold text-gray-900">Connector Usage Dashboard</h2>
+        <p class="text-gray-500">Real-time operational snapshot of your data ecosystem.</p>
       </div>
       <div class="flex gap-2">
         <UBadge color="green" variant="subtle" class="animate-pulse">Live Monitoring Active</UBadge>

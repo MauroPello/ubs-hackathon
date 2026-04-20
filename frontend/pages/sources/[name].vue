@@ -228,13 +228,13 @@ const docTypes = [
           </div>
 
           <div v-else class="space-y-4">
-            <UFormGroup label="Upstream MCP Server">
+            <UFormGroup label="Upstream Connector">
               <USelectMenu
                 v-model="form.upstream_mcp_server_config_id"
                 :options="upstreamConfigs || []"
                 value-attribute="id"
                 option-attribute="name"
-                placeholder="Select server..."
+                placeholder="Select connector..."
               />
             </UFormGroup>
           </div>

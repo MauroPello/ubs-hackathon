@@ -6,7 +6,7 @@ This is the modern frontend for the UBS Hackathon Data Source Manager, built wit
 - **Premium Design**: Built with UBS-inspired aesthetics using Nuxt UI and Tailwind CSS.
 - **Reactive UI**: Instant updates and smooth transitions.
 - **Data Management**: Full CRUD for data sources and documentation.
-- **MCP Integration**: Configure and monitor upstream MCP servers.
+- **Connector Integration**: Configure and manage external data connectors.
 - **Usage Insights**: Real-time KPI dashboard.
 
 ## Getting Started
@@ -33,5 +33,5 @@ npm run build
   - `index.vue`: Overview/Hero page.
   - `sources.vue`: Data source management.
   - `dashboard.vue`: Usage telemetry.
-  - `mcp-servers.vue`: Upstream registry and config.
+  - `connectors/`: External connector registry and configuration.
 - `nuxt.config.ts`: Nuxt 4 and proxy configuration.

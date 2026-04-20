@@ -12,10 +12,10 @@ const links = [{
   icon: 'i-heroicons-chart-bar',
   to: '/dashboard'
 }, {
-  label: 'MCP Servers',
+  label: 'Connectors',
   icon: 'i-heroicons-server',
-  to: '/mcp-servers'
-}]
+  to: '/connectors'
+} ]
 </script>
 
 <template>

@@ -31,7 +31,7 @@ async function fetchData() {
     form.exposed_tools = [...cfg.exposed_tools]
   } catch (e) {
     toast.add({ title: 'Error fetching configuration', color: 'red' })
-    router.push('/mcp-servers')
+    router.push('/connectors')
   } finally {
     pending.value = false
   }
@@ -65,7 +65,7 @@ async function deleteConfig() {
       method: 'DELETE'
     })
     toast.add({ title: 'Configuration deleted', color: 'green' })
-    router.push('/mcp-servers')
+    router.push('/connectors')
   } catch (e) {
     toast.add({ title: 'Failed to delete configuration', color: 'red' })
   }
@@ -80,7 +80,7 @@ onMounted(() => {
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
-        <UButton icon="i-heroicons-arrow-left" variant="ghost" color="gray" to="/mcp-servers" />
+        <UButton icon="i-heroicons-arrow-left" variant="ghost" color="gray" to="/connectors" />
         <div v-if="config">
           <h2 class="text-2xl font-bold text-gray-900">{{ config.name }}</h2>
           <p class="text-gray-500">Configured instance of {{ registryEntry?.name }}</p>

@@ -7,7 +7,7 @@
         "-m",
         "ubs_hackathon.server",
         "--config",
-        "${workspaceFolder}/config/big_config.yaml",
+        "${workspaceFolder}/config/config.yaml",
         "--transport",
         "stdio"
       ]

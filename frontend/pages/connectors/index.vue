@@ -71,8 +71,8 @@ function resetForm() {
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-2xl font-bold text-gray-900">Upstream MCP Servers</h2>
-        <p class="text-gray-500">Configure and manage external MCP connectors.</p>
+        <h2 class="text-2xl font-bold text-gray-900">Upstream Connectors</h2>
+        <p class="text-gray-500">Configure and manage external data connectors.</p>
       </div>
     </div>
 
@@ -124,7 +124,7 @@ function resetForm() {
       <!-- Registry -->
       <UCard>
         <template #header>
-          <h3 class="font-bold">Available Upstream Servers</h3>
+          <h3 class="font-bold">Available Upstream Connectors</h3>
         </template>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -165,7 +165,7 @@ function resetForm() {
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <NuxtLink v-for="cfg in configs" :key="cfg.id" :to="`/mcp-servers/${cfg.id}`" class="p-4 border rounded-xl bg-white hover:border-red-300 transition-all group relative flex items-center justify-between">
+          <NuxtLink v-for="cfg in configs" :key="cfg.id" :to="`/connectors/${cfg.id}`" class="p-4 border rounded-xl bg-white hover:border-red-300 transition-all group relative flex items-center justify-between">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
                 <span class="font-bold text-sm text-gray-900 group-hover:text-red-600 transition-colors truncate">

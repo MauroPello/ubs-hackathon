@@ -164,13 +164,13 @@ const filteredSources = computed(() => {
           </div>
 
           <div v-else class="space-y-4">
-            <UFormGroup label="Upstream MCP Server">
+            <UFormGroup label="Upstream Connector">
               <USelectMenu
                 v-model="form.upstream_mcp_server_config_id"
                 :options="upstreamConfigs || []"
                 value-attribute="id"
                 option-attribute="name"
-                placeholder="Select server..."
+                placeholder="Select connector..."
               />
             </UFormGroup>
           </div>
@@ -230,7 +230,7 @@ const filteredSources = computed(() => {
             <UBadge :color="row.upstream_mcp_server_config_id ? 'purple' : 'blue'" variant="subtle">
               {{ row.type }}
             </UBadge>
-            <span v-if="row.upstream_mcp_server_config_id" class="ml-1 text-[10px] text-gray-400 uppercase font-bold">MCP</span>
+            <span v-if="row.upstream_mcp_server_config_id" class="ml-1 text-[10px] text-gray-400 uppercase font-bold">Connector</span>
           </template>
 
           <template #updated_at-data="{ row }">

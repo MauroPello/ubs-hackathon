@@ -49,9 +49,15 @@ python3 -m ubs_hackathon.backend --meta-db data/meta.db --catalog data/catalog.d
 echo "🔌 Starting MCP Server (SSE) on port 8000..."
 python3 -m ubs_hackathon.server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000 > mcp.log 2>&1 &
 
-# 3. Start Neo4j MCP
-echo "🌳 Starting Neo4j MCP Server..."
-uvx mcp-neo4j-cypher@0.6.0 --transport stdio > neo4j_mcp.log 2>&1 &
+# 3. Start Neo4j MCP (SSE)
+echo "🌳 Starting Neo4j MCP Server (SSE) on port 8001..."
+uvx mcp-neo4j-cypher@0.6.0 \
+  --transport sse \
+  --server-port 8001 \
+  --db-url "${NEO4J_URI:-bolt://localhost:7687}" \
+  --username "${NEO4J_USERNAME:-neo4j}" \
+  --password "${NEO4J_PASSWORD:-ChangeMe123!}" \
+  > neo4j_mcp.log 2>&1 &
 
 # 4. Start Frontend
 echo "💻 Starting Frontend..."
@@ -65,8 +71,12 @@ cd ..
 
 echo "✅ System is running!"
 echo "   - Backend: http://127.0.0.1:8080"
-echo "   - Frontend: http://localhost:3000 (usually)"
+echo "   - Frontend: http://localhost:3000"
 echo "   - MCP SSE: http://127.0.0.1:8000/sse"
+echo "   - Neo4j endpoint: ${NEO4J_URI:-bolt://localhost:7687}"
+echo "   - Neo4j username: ${NEO4J_USERNAME:-neo4j}"
+echo "   - Neo4j password: ${NEO4J_PASSWORD:-ChangeMe123!}"
+echo "   - Neo4j MCP SSE: http://127.0.0.1:8001/mcp/sse"
 echo ""
 echo "📝 Logs are being written to: backend.log, mcp.log, frontend.log"
 echo "⌨️ Press Ctrl+C to stop all services."

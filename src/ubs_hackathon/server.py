@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import time
 from pathlib import Path
 from typing import Any
 
@@ -8,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .catalog import SchemaCatalog
 from .config import load_config
-from .datasource import build_data_source, UpstreamMCPDataSource
+from .datasource import DataSource, build_data_source, UpstreamMCPDataSource
 from .meta_store import MetaStore
 from .models import DataSourceConfig
 
@@ -35,20 +36,143 @@ def _extract_exposed_tool_specs(
     return specs
 
 
+class SourceRegistry:
+    """Manages data source configurations and connection instances with caching."""
+
+    def __init__(
+        self,
+        meta_db_path: str | Path | None,
+        catalog_path: Path,
+        yaml_sources: list[DataSourceConfig],
+    ) -> None:
+        self.meta_db_path = meta_db_path
+        self.catalog_path = catalog_path
+        self.yaml_sources = yaml_sources
+        self._ds_cache: dict[str, DataSource] = {}
+        self._configs: dict[str, DataSourceConfig] = {}
+        self._upstream_sources: dict[str, UpstreamMCPDataSource] = {}
+        self._upstream_tool_specs: dict[str, list[tuple[str, str | None]]] = {}
+        self._last_refresh = 0.0
+        self._ttl = 24 * 3600.0
+
+    def _refresh_if_needed(self) -> None:
+        now = time.time()
+        if not self._configs or (now - self._last_refresh) > self._ttl:
+            self.refresh()
+
+    def refresh(self) -> None:
+        if self.meta_db_path:
+            store = MetaStore(Path(self.meta_db_path))
+
+            # Load upstreams for proxy tools
+            self._upstream_sources = {}
+            self._upstream_tool_specs = {}
+            for upstream_cfg in store.list_upstream_configs():
+                if not upstream_cfg.exposed_tools:
+                    continue
+                tool_specs = _extract_exposed_tool_specs(upstream_cfg.exposed_tools)
+                if not tool_specs:
+                    continue
+                endpoint = upstream_cfg.endpoint or ""
+                upstream_source = UpstreamMCPDataSource(
+                    DataSourceConfig(
+                        name=f"upstream__{upstream_cfg.id}",
+                        type="graph",
+                        connection=f"upstream://{upstream_cfg.id}",
+                        upstream_mcp_server_config_id=upstream_cfg.id,
+                    ),
+                    endpoint,
+                    [name for name, _ in tool_specs],
+                )
+                self._upstream_sources[upstream_cfg.id] = upstream_source
+                self._upstream_tool_specs[upstream_cfg.id] = tool_specs
+
+            # Load sources
+            new_configs = {}
+            for reg in store.list_data_sources():
+                cfg = DataSourceConfig(
+                    name=reg.name,
+                    type=reg.type,
+                    connection=reg.connection,
+                    description=reg.description,
+                    sensitive_columns=reg.sensitive_columns,
+                    upstream_mcp_server_config_id=reg.upstream_mcp_server_config_id,
+                )
+                new_configs[reg.name] = cfg
+            self._configs = new_configs
+        else:
+            self._configs = {c.name: c for c in self.yaml_sources}
+
+        self._last_refresh = time.time()
+
+    def get_all_configs(self) -> list[DataSourceConfig]:
+        self._refresh_if_needed()
+        return list(self._configs.values())
+
+    def get_source(self, name: str) -> DataSource | None:
+        if name in self._ds_cache:
+            return self._ds_cache[name]
+
+        self._refresh_if_needed()
+        cfg = self._configs.get(name)
+
+        # Cache miss - look in DB if possible
+        if not cfg and self.meta_db_path:
+            store = MetaStore(Path(self.meta_db_path))
+            reg = store.get_data_source(name)
+            if reg:
+                cfg = DataSourceConfig(
+                    name=reg.name,
+                    type=reg.type,
+                    connection=reg.connection,
+                    description=reg.description,
+                    sensitive_columns=reg.sensitive_columns,
+                    upstream_mcp_server_config_id=reg.upstream_mcp_server_config_id,
+                )
+                self._configs[name] = cfg
+
+        if cfg:
+            config_id = cfg.upstream_mcp_server_config_id
+            if config_id and config_id in self._upstream_sources:
+                ds: DataSource = self._upstream_sources[config_id]
+            else:
+                ds = build_data_source(cfg)
+            self._ds_cache[name] = ds
+            return ds
+        return None
+
+    def get_upstream_tool_descriptions(self) -> dict[str, str]:
+        self._refresh_if_needed()
+        descriptions: dict[str, str] = {}
+        for config_id, specs in self._upstream_tool_specs.items():
+            for tool_name, desc in specs:
+                if desc:
+                    descriptions.setdefault(tool_name, desc)
+        return descriptions
+
+    def get_upstream_tool_names(self) -> set[str]:
+        self._refresh_if_needed()
+        names: set[str] = set()
+        for specs in self._upstream_tool_specs.values():
+            for name, _ in specs:
+                names.add(name)
+        return names
+
+
 def _make_upstream_proxy(
     tool_name: str,
-    routes_by_data_source: dict[str, UpstreamMCPDataSource],
+    registry: SourceRegistry,
     description: str | None = None,
 ):
     """Return a callable that proxies a tool to the correct upstream by data source."""
 
     def proxy_tool(data_source: str, arguments: dict[str, Any] | None = None) -> dict:
         """Proxy tool forwarding requests to an upstream MCP server."""
-        source = routes_by_data_source.get(data_source)
-        if source is None:
+        source = registry.get_source(data_source)
+        if not isinstance(source, UpstreamMCPDataSource):
             raise ValueError(
                 f"Tool '{tool_name}' is not available for data_source '{data_source}'. "
-                f"Supported data sources: {sorted(routes_by_data_source.keys())}"
+                f"Source is not an upstream MCP server."
             )
         return source.call_upstream_tool(tool_name, arguments or {})
 
@@ -69,70 +193,33 @@ def create_server(
     port: int = 8000,
     meta_db_path: str | Path | None = None,
 ) -> FastMCP:
-    sources, catalog_path, _ = load_config(config_path)
-    source_map = {cfg.name: build_data_source(cfg) for cfg in sources}
+    yaml_sources, catalog_path, meta_db_path_from_config, _ = load_config(config_path)
+    registry = SourceRegistry(
+        meta_db_path=meta_db_path or meta_db_path_from_config,
+        catalog_path=Path(catalog_path),
+        yaml_sources=yaml_sources,
+    )
     catalog = SchemaCatalog(Path(catalog_path))
-
-    # Load upstream MCP data sources from metadata store and build
-    # tool routing by data source name.
-    upstream_sources: dict[str, UpstreamMCPDataSource] = {}
-    upstream_tool_routes: dict[str, dict[str, UpstreamMCPDataSource]] = {}
-    upstream_tool_descriptions: dict[str, str] = {}
-    if meta_db_path is not None:
-        store = MetaStore(Path(meta_db_path))
-        upstream_tool_specs_by_config: dict[str, list[tuple[str, str | None]]] = {}
-        for upstream_cfg in store.list_upstream_configs():
-            if not upstream_cfg.exposed_tools:
-                continue
-            tool_specs = _extract_exposed_tool_specs(upstream_cfg.exposed_tools)
-            if not tool_specs:
-                continue
-            endpoint = upstream_cfg.endpoint or ""
-            ds_config = DataSourceConfig(
-                name=f"upstream__{upstream_cfg.id}",
-                type="graph",
-                connection=f"upstream://{upstream_cfg.id}",
-                upstream_mcp_server_config_id=upstream_cfg.id,
-            )
-            upstream_source = UpstreamMCPDataSource(
-                ds_config,
-                endpoint,
-                [tool_name for tool_name, _ in tool_specs],
-            )
-            upstream_sources[upstream_cfg.id] = upstream_source
-            upstream_tool_specs_by_config[upstream_cfg.id] = tool_specs
-
-        for registration in store.list_data_sources():
-            config_id = registration.upstream_mcp_server_config_id
-            if not config_id:
-                continue
-            upstream_source = upstream_sources.get(config_id)
-            if upstream_source is None:
-                continue
-            tool_specs = upstream_tool_specs_by_config.get(config_id, [])
-            for tool_name, tool_description in tool_specs:
-                per_tool_routes = upstream_tool_routes.setdefault(tool_name, {})
-                per_tool_routes[registration.name] = upstream_source
-                if tool_description:
-                    # If multiple upstreams expose the same tool name with different
-                    # descriptions, keep the first non-empty description.
-                    upstream_tool_descriptions.setdefault(tool_name, tool_description)
 
     mcp = FastMCP("ubs-hackathon-assistant", host=host, port=port)
 
     @mcp.tool()
     def list_data_sources() -> list[dict]:
         """Enumerate configured data sources and supported type."""
-        return [
-            {
-                "name": cfg.name,
-                "type": cfg.type,
-                "adapter": cfg.adapter or cfg.type,
-                "sensitive_columns": list(cfg.sensitive_columns or []),
-                "capabilities": source_map[cfg.name].capabilities(),
-            }
-            for cfg in sources
-        ]
+        configs = registry.get_all_configs()
+        results = []
+        for cfg in configs:
+            source = registry.get_source(cfg.name)
+            results.append(
+                {
+                    "name": cfg.name,
+                    "type": cfg.type,
+                    "adapter": cfg.adapter or cfg.type,
+                    "sensitive_columns": list(cfg.sensitive_columns or []),
+                    "capabilities": source.capabilities() if source else {},
+                }
+            )
+        return results
 
     @mcp.tool()
     def search_schema(query: str, top_k: int = 5) -> list[dict]:
@@ -152,7 +239,7 @@ def create_server(
         session_id: str | None = None,
     ) -> dict:
         """Execute a read-only query against a configured source."""
-        source = source_map.get(data_source)
+        source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
         return source.execute_read_only(sql=sql, limit=limit, session_id=session_id)
@@ -162,7 +249,7 @@ def create_server(
         data_source: str, session_id: str | None = None
     ) -> list[dict]:
         """List temporary views created in the current server session."""
-        source = source_map.get(data_source)
+        source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
         return source.list_temporary_views(session_id=session_id)
@@ -176,7 +263,7 @@ def create_server(
         session_id: str | None = None,
     ) -> dict:
         """Create a session-local temporary view for iterative analysis."""
-        source = source_map.get(data_source)
+        source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
         return source.create_temporary_view(
@@ -188,7 +275,7 @@ def create_server(
         data_source: str, view_name: str, session_id: str | None = None
     ) -> dict:
         """Drop a temporary view created by this server session."""
-        source = source_map.get(data_source)
+        source = registry.get_source(data_source)
         if source is None:
             raise ValueError(f"Unknown data source: {data_source}")
         return source.drop_temporary_view(view_name=view_name, session_id=session_id)
@@ -196,35 +283,36 @@ def create_server(
     @mcp.tool()
     def list_upstream_mcp_sources() -> list[dict]:
         """List upstream MCP server configurations with routed data sources and exposed tools."""
-        tool_names_for_config: dict[str, list[str]] = {
-            cfg_id: [name for name, _ in upstream_tool_specs_by_config.get(cfg_id, [])]
-            for cfg_id in upstream_sources
-        }
+        registry.refresh()  # Ensure we have latest for this specific introspection tool
+        specs_by_config = registry._upstream_tool_specs
+        upstreams = registry._upstream_sources
+        configs = registry.get_all_configs()
+
         data_sources_by_config: dict[str, set[str]] = {}
-        for tool_name, routes in upstream_tool_routes.items():
-            for data_source_name, src in routes.items():
-                config_id = src.config.upstream_mcp_server_config_id
-                if not config_id:
-                    continue
-                bucket = data_sources_by_config.setdefault(config_id, set())
-                bucket.add(data_source_name)
+        for cfg in configs:
+            if cfg.upstream_mcp_server_config_id:
+                bucket = data_sources_by_config.setdefault(
+                    cfg.upstream_mcp_server_config_id, set()
+                )
+                bucket.add(cfg.name)
+
         return [
             {
                 "config_id": cfg_id,
-                "exposed_tools": tool_names_for_config.get(cfg_id, []),
+                "exposed_tools": [name for name, _ in specs_by_config.get(cfg_id, [])],
                 "routed_data_sources": sorted(data_sources_by_config.get(cfg_id, set())),
                 "capabilities": src.capabilities(),
             }
-            for cfg_id, src in upstream_sources.items()
+            for cfg_id, src in upstreams.items()
         ]
 
     # Register one proxy tool per upstream tool name.
     # If multiple upstream servers expose the same tool name, route by data_source.
-    for _tool_name, _routes in upstream_tool_routes.items():
+    for _tool_name in registry.get_upstream_tool_names():
         _proxy = _make_upstream_proxy(
             _tool_name,
-            _routes,
-            description=upstream_tool_descriptions.get(_tool_name),
+            registry,
+            description=registry.get_upstream_tool_descriptions().get(_tool_name),
         )
         mcp.tool(name=_tool_name)(_proxy)
 

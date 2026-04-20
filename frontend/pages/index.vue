@@ -20,10 +20,10 @@ const features = [
     to: '/dashboard'
   },
   {
-    title: 'MCP Servers',
-    description: 'Register and configure upstream MCP servers like Neo4j or Notion.',
+    title: 'Connectors',
+    description: 'Register and configure external data connectors like Neo4j or Notion.',
     icon: 'i-heroicons-server',
-    to: '/mcp-servers'
+    to: '/connectors'
   }
 ]
 </script>
@@ -36,7 +36,7 @@ const features = [
         <h2 class="text-3xl font-bold mb-2">Welcome to Data Source Manager</h2>
         <p class="text-red-100 max-w-2xl text-lg">
           Onboard data sources, enrich schema catalogs with business documentation,
-          and monitor runtime telemetry across your MCP ecosystem.
+          and monitor runtime telemetry across your data ecosystem.
         </p>
         <div class="mt-6 flex gap-4">
           <UButton
@@ -47,11 +47,11 @@ const features = [
             to="/sources"
           />
           <UButton
-            label="Available MCP servers"
+            label="Available Connectors"
             size="lg"
             color="black"
             variant="ghost"
-            to="/mcp-servers"
+            to="/connectors"
           />
         </div>
       </div>
