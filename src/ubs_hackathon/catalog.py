@@ -4,7 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from .embeddings import SimpleEmbeddingModel, cosine_similarity
+from .embeddings import EmbeddingModel, cosine_similarity, create_embedding_model
 from .models import TableDoc
 
 
@@ -21,10 +21,10 @@ CREATE TABLE IF NOT EXISTS table_docs (
 
 
 class SchemaCatalog:
-    def __init__(self, catalog_db_path: Path, embedding_model: SimpleEmbeddingModel | None = None) -> None:
+    def __init__(self, catalog_db_path: Path, embedding_model: EmbeddingModel | None = None) -> None:
         self.catalog_db_path = catalog_db_path
         self.catalog_db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.embedding_model = embedding_model or SimpleEmbeddingModel()
+        self.embedding_model = embedding_model or create_embedding_model()
         self._ensure_schema()
 
     def _connect(self) -> sqlite3.Connection:

@@ -1,5 +1,6 @@
 catalog:
   db_path: data/big_catalog.db
+# Embeddings env vars (same as config/config.yaml) are also respected here.
 data_sources:
   - name: big_demo_sqlite
     type: sqlite

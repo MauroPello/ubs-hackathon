@@ -10,7 +10,7 @@ This repository now includes a working Python MCP server prototype with:
 
 - **Multi-DBMS support via SQLAlchemy** — connects to any SQLAlchemy-supported database (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Snowflake, BigQuery, DuckDB, and more) using standard connection URLs; no custom code required per DBMS
 - **Schema catalog builder** that introspects source databases and merges **existing company schema docs**
-- **Semantic schema search** using local embeddings for table/column retrieval
+- **Semantic schema search** using managed embeddings (OpenAI) with safe local fallback
 - **Read-only SQL execution** safeguards for conversational analytics
 - **MCP tool surface** for `list_data_sources`, `search_schema`, `describe_table`, and `execute_query`
 - **SSE/HTTP-first hosting** for multi-user deployments, plus stdio support for local clients
@@ -123,6 +123,18 @@ To connect the local MCP server to GitHub Copilot Chat in VS Code, this reposito
 5. If you recreate the environment elsewhere, update the `command` in `.vscode/mcp.json` to the new Python executable.
 
 The server runs in stdio mode and uses the installed package from the Conda environment, so VS Code does not need a separate `PYTHONPATH` override.
+
+### Embeddings configuration
+
+By default, the catalog uses **managed OpenAI embeddings** when `OPENAI_API_KEY` is present.
+If no API key is available, it automatically falls back to the existing local embedding model.
+
+Optional environment variables:
+
+- `UBS_EMBEDDINGS_PROVIDER` — `openai` (default) or `local`
+- `OPENAI_API_KEY` — required for managed embeddings
+- `UBS_EMBEDDINGS_MODEL` — defaults to `text-embedding-3-small`
+- `UBS_EMBEDDINGS_BASE_URL` — defaults to `https://api.openai.com/v1`
 
 Useful checks:
 

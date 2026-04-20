@@ -1,6 +1,12 @@
 catalog:
   db_path: data/catalog.db
 
+# Embeddings are configured via environment variables:
+#   UBS_EMBEDDINGS_PROVIDER=openai|local
+#   OPENAI_API_KEY=...
+#   UBS_EMBEDDINGS_MODEL=text-embedding-3-small
+#   UBS_EMBEDDINGS_BASE_URL=https://api.openai.com/v1
+
 # Optional: point to a YAML or JSON file with existing schema documentation.
 # If omitted, inline `schema_docs` below will be used.
 # schema_docs_path: config/schema_docs.yaml
