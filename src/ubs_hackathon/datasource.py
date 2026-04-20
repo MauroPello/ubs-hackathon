@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import re
-import sqlite3
 import threading
 import time
 from abc import ABC, abstractmethod
 from typing import Any
+
+from sqlalchemy import create_engine, inspect as sqlalchemy_inspect, text
+from sqlalchemy.engine import Connection, Engine
 
 from .models import ColumnDoc, DataSourceConfig, ForeignKeyDoc, TableDoc
 
@@ -22,9 +24,52 @@ class TemporaryViewError(ValueError):
     pass
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _resolve_connection_url(config: DataSourceConfig) -> str:
+    """Return a SQLAlchemy connection URL for *config*.
+
+    Legacy entries that set ``type: sqlite`` with a bare file path (no
+    ``://`` scheme) are automatically promoted to ``sqlite:///path`` so
+    existing configs keep working without modification.
+    """
+    conn = config.connection
+    if config.type == "sqlite" and "://" not in conn:
+        return f"sqlite:///{conn}"
+    return conn
+
+
+# ---------------------------------------------------------------------------
+# Abstract base
+# ---------------------------------------------------------------------------
+
 class DataSource(ABC):
     def __init__(self, config: DataSourceConfig) -> None:
         self.config = config
+
+    # ------------------------------------------------------------------
+    # SQL safety helpers – shared by all relational data sources
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _validate_select_sql(sql: str, allow_explain: bool = True) -> str:
+        statement = sql.strip().rstrip(";")
+        if not statement:
+            raise ValueError("SQL cannot be empty")
+        if ";" in statement:
+            raise ValueError("Only a single SQL statement is allowed")
+        pattern = (
+            ALLOWED_SQL_START
+            if allow_explain
+            else re.compile(r"^\s*(select|with)\b", re.IGNORECASE)
+        )
+        if not pattern.search(statement):
+            raise ValueError("Only SELECT/WITH statements are allowed")
+        if FORBIDDEN_SQL.search(statement):
+            raise ValueError("Potentially mutating SQL is not allowed")
+        return statement
 
     @abstractmethod
     def list_tables(self) -> list[str]:
@@ -63,27 +108,72 @@ class DataSource(ABC):
         raise NotImplementedError
 
 
-class SQLiteDataSource(DataSource):
+# ---------------------------------------------------------------------------
+# Universal SQLAlchemy implementation
+# ---------------------------------------------------------------------------
+
+class SQLAlchemyDataSource(DataSource):
+    """Universal data source backed by any SQLAlchemy-supported DBMS.
+
+    The ``connection`` field in :class:`~.models.DataSourceConfig` must be a
+    `SQLAlchemy connection URL
+    <https://docs.sqlalchemy.org/en/20/core/engines.html#database-urls>`_
+    (e.g. ``postgresql+psycopg2://user:pw@host/db``,
+    ``mysql+pymysql://user:pw@host/db``, ``sqlite:///path/to/file.db``).
+
+    Legacy configs that use ``type: sqlite`` with a bare file path are
+    auto-converted to a valid SQLite URL so they continue to work unchanged.
+
+    Dialect-specific drivers (``psycopg2``, ``pymysql``, ``pyodbc``, etc.)
+    must be installed separately; see the optional dependency groups in
+    ``pyproject.toml``.
+    """
+
+    # Dialects whose engines support CREATE TEMP VIEW natively.
+    # For all other dialects a regular CREATE VIEW is used (and dropped on
+    # TTL expiry or explicit drop_temporary_view call).
+    _TEMP_VIEW_DIALECTS: frozenset[str] = frozenset({"sqlite", "postgresql"})
+
     def __init__(self, config: DataSourceConfig) -> None:
         super().__init__(config)
         self._lock = threading.RLock()
-        self._conn: sqlite3.Connection | None = None
+        url = _resolve_connection_url(config)
+        self._engine: Engine = create_engine(
+            url,
+            pool_pre_ping=True,
+            # SQLite needs check_same_thread=False when used across threads.
+            connect_args=(
+                {"check_same_thread": False}
+                if config.type == "sqlite"
+                else {}
+            ),
+        )
+        # A single persistent connection is kept open so that session-local
+        # TEMP VIEWs (SQLite / PostgreSQL) remain visible across queries.
+        self._conn: Connection | None = None
         self._temp_views: dict[str, dict[str, Any]] = {}
-        self._temp_view_counter = 0
 
-    def _connect(self, read_only: bool) -> sqlite3.Connection:
-        if read_only:
-            uri = f"file:{self.config.connection}?mode=ro"
-            conn = sqlite3.connect(uri, uri=True)
-        else:
-            conn = sqlite3.connect(self.config.connection)
-        conn.row_factory = sqlite3.Row
-        return conn
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
-    def _connection(self) -> sqlite3.Connection:
-        if self._conn is None:
-            self._conn = self._connect(read_only=True)
+    def _dialect(self) -> str:
+        return self._engine.dialect.name
+
+    def _connection(self) -> Connection:
+        if self._conn is None or self._conn.closed:
+            self._conn = self._engine.connect()
         return self._conn
+
+    def _supports_temp_view_syntax(self) -> bool:
+        return self._dialect() in self._TEMP_VIEW_DIALECTS
+
+    def _quote_qualified_identifier(self, identifier: str) -> str:
+        preparer = self._engine.dialect.identifier_preparer
+        raw_parts = identifier.split(".")
+        if not identifier or any(part == "" for part in raw_parts):
+            raise ValueError(f"Malformed identifier: {identifier!r}")
+        return ".".join(preparer.quote_identifier(part) for part in raw_parts)
 
     def _purge_expired_temp_views_locked(self) -> None:
         now = time.time()
@@ -92,182 +182,143 @@ class SQLiteDataSource(DataSource):
             for name, meta in self._temp_views.items()
             if float(meta["expires_at"]) <= now
         ]
-        if not expired:
-            return
-
-        conn = self._connection()
         for name in expired:
-            try:
-                conn.execute(f'DROP VIEW IF EXISTS "{name}"')
-            finally:
-                self._temp_views.pop(name, None)
-        conn.commit()
+            self._try_drop_view_locked(name)
+            self._temp_views.pop(name, None)
 
-    def _existing_object_names_locked(self) -> set[str]:
-        conn = self._connection()
-        rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type IN ('table', 'view') "
-            "AND name NOT LIKE 'sqlite_%' "
-            "UNION SELECT name FROM sqlite_temp_master WHERE type IN ('table', 'view') "
-            "AND name NOT LIKE 'sqlite_%'"
-        ).fetchall()
-        return {row["name"] for row in rows}
+    def _try_drop_view_locked(self, name: str) -> None:
+        try:
+            conn = self._connection()
+            quoted_name = self._quote_qualified_identifier(name)
+            conn.execute(text(f"DROP VIEW IF EXISTS {quoted_name}"))
+            conn.commit()
+        except Exception:
+            pass
 
-    def _make_temp_view_name(self, view_name: str | None) -> str:
-        candidate_hint = (view_name or "").strip()
-        if candidate_hint:
-            cleaned_hint = re.sub(r"[^A-Za-z0-9_]+", "_", candidate_hint).strip("_")
-            if cleaned_hint and not cleaned_hint[0].isdigit():
-                base_name = f"mcp_view_{cleaned_hint}"
-            else:
-                base_name = f"mcp_view_{cleaned_hint}" if cleaned_hint else "mcp_view"
-        else:
-            base_name = "mcp_view"
-
-        if not TEMP_VIEW_NAME.match(base_name):
-            base_name = "mcp_view"
-
-        existing = self._existing_object_names_locked() | set(self._temp_views)
-        candidate = base_name
-        suffix = 2
-        while candidate in existing:
-            candidate = f"{base_name}_{suffix}"
-            suffix += 1
-        return candidate
+    def _existing_names_locked(self) -> set[str]:
+        insp = sqlalchemy_inspect(self._engine)
+        names: set[str] = set(insp.get_table_names()) | set(insp.get_view_names())
+        names |= set(self._temp_views.keys())
+        return names
 
     def _normalize_session_id(self, session_id: str | None) -> str:
-        raw_session_id = (session_id or "global").strip()
-        if not raw_session_id:
-            raw_session_id = "global"
-        cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", raw_session_id).strip("_")
-        if not cleaned:
-            cleaned = "global"
+        raw = (session_id or "").strip() or "global"
+        cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", raw).strip("_") or "global"
         return cleaned
 
     def _session_view_prefix(self, session_id: str | None) -> str:
         return f"mcp_view_{self._normalize_session_id(session_id)}_"
 
-    def _validate_select_sql(self, sql: str, allow_explain: bool = True) -> str:
-        statement = sql.strip().rstrip(";")
-        if not statement:
-            raise ValueError("SQL cannot be empty")
-        if ";" in statement:
-            raise ValueError("Only a single SQL statement is allowed")
-        pattern = ALLOWED_SQL_START if allow_explain else re.compile(
-            r"^\s*(select|with)\b", re.IGNORECASE
-        )
-        if not pattern.search(statement):
-            raise ValueError("Only SELECT/WITH statements are allowed")
-        if FORBIDDEN_SQL.search(statement):
-            raise ValueError("Potentially mutating SQL is not allowed")
-        return statement
+    def _make_temp_view_name(self, view_name: str | None) -> str:
+        candidate_hint = (view_name or "").strip()
+        if candidate_hint:
+            cleaned = re.sub(r"[^A-Za-z0-9_]+", "_", candidate_hint).strip("_")
+            base = (
+                f"mcp_view_{cleaned}"
+                if (cleaned and not cleaned[0].isdigit())
+                else "mcp_view"
+            )
+        else:
+            base = "mcp_view"
 
-    def _ensure_session_views_on_connection_locked(
-        self, conn: sqlite3.Connection, session_id: str | None
-    ) -> None:
-        if session_id is None:
-            return
+        if not TEMP_VIEW_NAME.match(base):
+            base = "mcp_view"
 
-        normalized = self._normalize_session_id(session_id)
-        session_views = sorted(
-            [
-                item
-                for item in self._temp_views.values()
-                if item.get("session_id") == normalized
-            ],
-            key=lambda item: (float(item["created_at"]), str(item["name"])),
-        )
-        if not session_views:
-            return
+        existing = self._existing_names_locked()
+        candidate = base
+        suffix = 2
+        while candidate in existing:
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+        return candidate
 
-        existing = {
-            row["name"]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_temp_master WHERE type='view'"
+    def _row_count_estimate_locked(self, table: str) -> int | None:
+        try:
+            conn = self._connection()
+            quoted_table = self._quote_qualified_identifier(table)
+            row = conn.execute(text(f"SELECT COUNT(*) FROM {quoted_table}")).fetchone()
+            return int(row[0]) if row else None
+        except Exception:
+            return None
+
+    def _sample_values_locked(self, table: str, column: str) -> list[str]:
+        try:
+            conn = self._connection()
+            quoted_table = self._quote_qualified_identifier(table)
+            quoted_column = self._quote_qualified_identifier(column)
+            rows = conn.execute(
+                text(
+                    f"SELECT DISTINCT {quoted_column} FROM {quoted_table}"
+                    f" WHERE {quoted_column} IS NOT NULL LIMIT 5"
+                )
             ).fetchall()
-        }
+            return [str(r[0]) for r in rows if r[0] is not None]
+        except Exception:
+            return []
 
-        for view in session_views:
-            if view["name"] in existing:
-                continue
-            conn.execute(f'CREATE TEMP VIEW "{view["name"]}" AS {view["sql"]}')
-            existing.add(view["name"])
-
-        conn.commit()
+    # ------------------------------------------------------------------
+    # DataSource interface
+    # ------------------------------------------------------------------
 
     def list_tables(self) -> list[str]:
         with self._lock:
             self._purge_expired_temp_views_locked()
-            conn = self._connection()
-            rows = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type IN ('table', 'view') "
-                "AND name NOT LIKE 'sqlite_%' "
-                "UNION SELECT name FROM sqlite_temp_master WHERE type IN ('table', 'view') "
-                "AND name NOT LIKE 'sqlite_%' ORDER BY name"
-            ).fetchall()
-        return [r["name"] for r in rows]
-
-    def _table_type(self, conn: sqlite3.Connection, table: str) -> str:
-        row = conn.execute(
-            "SELECT type FROM sqlite_master WHERE name = ? LIMIT 1", (table,)
-        ).fetchone()
-        return (row["type"] if row else "table").lower()
-
-    def _row_count_estimate(self, conn: sqlite3.Connection, table: str) -> int | None:
-        try:
-            row = conn.execute(f"SELECT COUNT(*) AS c FROM \"{table}\"").fetchone()
-            return int(row["c"]) if row else None
-        except sqlite3.Error:
-            return None
-
-    def _sample_values(self, conn: sqlite3.Connection, table: str, column: str) -> list[str]:
-        query = (
-            f"SELECT DISTINCT \"{column}\" AS val FROM \"{table}\" "
-            f"WHERE \"{column}\" IS NOT NULL LIMIT 5"
-        )
-        try:
-            rows = conn.execute(query).fetchall()
-        except sqlite3.Error:
-            return []
-        return [str(r["val"]) for r in rows if r["val"] is not None]
+            insp = sqlalchemy_inspect(self._engine)
+            names: set[str] = (
+                set(insp.get_table_names()) | set(insp.get_view_names())
+            )
+            # TEMP VIEWs may not appear in the inspector; add tracked ones.
+            names |= set(self._temp_views.keys())
+            return sorted(names)
 
     def table_doc(self, table: str) -> TableDoc:
         with self._lock:
             self._purge_expired_temp_views_locked()
-            conn = self._connection()
-            info = conn.execute(f'PRAGMA table_info("{table}")').fetchall()
-            if not info:
+            insp = sqlalchemy_inspect(self._engine)
+            try:
+                cols_info = insp.get_columns(table)
+            except Exception as exc:
+                raise ValueError(f"Table not found: {table}") from exc
+            if not cols_info:
                 raise ValueError(f"Table not found: {table}")
 
             columns: list[ColumnDoc] = []
-            for c in info:
-                samples = self._sample_values(conn, table, c["name"])
+            for col in cols_info:
+                samples = self._sample_values_locked(table, col["name"])
                 columns.append(
                     ColumnDoc(
-                        name=c["name"],
-                        data_type=c["type"] or "TEXT",
-                        nullable=not bool(c["notnull"]),
+                        name=col["name"],
+                        data_type=str(col["type"]),
+                        nullable=bool(col.get("nullable", True)),
                         description=None,
                         sample_values=samples,
                     )
                 )
 
-            fk_rows = conn.execute(f'PRAGMA foreign_key_list("{table}")').fetchall()
-            fks = [
-                ForeignKeyDoc(
-                    column=row["from"],
-                    ref_table=row["table"],
-                    ref_column=row["to"],
-                )
-                for row in fk_rows
-            ]
+            fks: list[ForeignKeyDoc] = []
+            try:
+                for fk in insp.get_foreign_keys(table):
+                    for local_col, ref_col in zip(
+                        fk["constrained_columns"], fk["referred_columns"]
+                    ):
+                        fks.append(
+                            ForeignKeyDoc(
+                                column=local_col,
+                                ref_table=fk["referred_table"],
+                                ref_column=ref_col,
+                            )
+                        )
+            except Exception:
+                pass
+
+            obj_type = "view" if table in insp.get_view_names() else "table"
 
             return TableDoc(
                 data_source=self.config.name,
                 table=table,
-                table_type=self._table_type(conn, table),
+                table_type=obj_type,
                 description=None,
-                row_count_estimate=self._row_count_estimate(conn, table),
+                row_count_estimate=self._row_count_estimate_locked(table),
                 columns=columns,
                 foreign_keys=fks,
             )
@@ -277,19 +328,19 @@ class SQLiteDataSource(DataSource):
     ) -> dict[str, Any]:
         statement = self._validate_select_sql(sql)
 
-        wrapped = f"SELECT * FROM ({statement.rstrip(';')}) AS subq LIMIT ?"
-
         with self._lock:
             self._purge_expired_temp_views_locked()
             conn = self._connection()
-            self._ensure_session_views_on_connection_locked(conn, session_id=session_id)
-            rows = conn.execute(wrapped, (limit + 1,)).fetchall()
+            result = conn.execute(text(statement))
+            try:
+                rows = result.fetchmany(limit + 1)
+                columns = list(result.keys())
+            finally:
+                result.close()
 
         truncated = len(rows) > limit
         rows = rows[:limit]
-
-        payload_rows = [dict(r) for r in rows]
-        columns = list(payload_rows[0].keys()) if payload_rows else []
+        payload_rows = [dict(zip(columns, row)) for row in rows]
         return {
             "columns": columns,
             "rows": payload_rows,
@@ -298,12 +349,18 @@ class SQLiteDataSource(DataSource):
             "limit": limit,
         }
 
-    def list_temporary_views(self, session_id: str | None = None) -> list[dict[str, Any]]:
+    def list_temporary_views(
+        self, session_id: str | None = None
+    ) -> list[dict[str, Any]]:
         with self._lock:
             self._purge_expired_temp_views_locked()
             prefix = self._session_view_prefix(session_id)
             views = sorted(
-                [item for item in self._temp_views.values() if item["name"].startswith(prefix)],
+                [
+                    item
+                    for item in self._temp_views.values()
+                    if item["name"].startswith(prefix)
+                ],
                 key=lambda item: (float(item["created_at"]), str(item["name"])),
             )
             return [
@@ -331,11 +388,36 @@ class SQLiteDataSource(DataSource):
 
         with self._lock:
             self._purge_expired_temp_views_locked()
-            conn = self._connection()
             session_prefix = self._session_view_prefix(session_id)
             actual_name = f"{session_prefix}{self._make_temp_view_name(view_name)}"
-            conn.execute(f'CREATE TEMP VIEW "{actual_name}" AS {statement}')
-            conn.commit()
+            quoted_name = self._quote_qualified_identifier(actual_name)
+            temp_kw = "TEMP " if self._supports_temp_view_syntax() else ""
+            conn = self._connection()
+            try:
+                conn.execute(
+                    text(f"CREATE {temp_kw}VIEW {quoted_name} AS {statement}")
+                )
+                conn.commit()
+            except Exception as exc:
+                if temp_kw:
+                    # Dialect advertised TEMP VIEW support but failed; fall back
+                    # to a regular CREATE VIEW.
+                    conn.rollback()
+                    try:
+                        conn.execute(text(f"CREATE VIEW {quoted_name} AS {statement}"))
+                        conn.commit()
+                    except Exception as fallback_exc:
+                        conn.rollback()
+                        raise TemporaryViewError(
+                            f"Failed to create view '{actual_name}': "
+                            f"TEMP VIEW failed ({exc}); VIEW fallback failed "
+                            f"({fallback_exc})"
+                        ) from fallback_exc
+                else:
+                    conn.rollback()
+                    raise TemporaryViewError(
+                        f"Failed to create view '{actual_name}': {exc}"
+                    ) from exc
 
             created_at = time.time()
             expires_at = created_at + ttl_seconds
@@ -347,7 +429,6 @@ class SQLiteDataSource(DataSource):
                 "ttl_seconds": ttl_seconds,
                 "sql": statement,
             }
-
             return self._temp_views[actual_name].copy()
 
     def drop_temporary_view(
@@ -361,9 +442,7 @@ class SQLiteDataSource(DataSource):
             if meta["session_id"] != self._normalize_session_id(session_id):
                 raise TemporaryViewError(f"Unknown temporary view: {view_name}")
 
-            conn = self._connection()
-            conn.execute(f'DROP VIEW IF EXISTS "{view_name}"')
-            conn.commit()
+            self._try_drop_view_locked(view_name)
             self._temp_views.pop(view_name, None)
             return {"name": view_name, "deleted": True}
 
@@ -374,9 +453,30 @@ class SQLiteDataSource(DataSource):
                 conn.close()
             except Exception:
                 pass
+        try:
+            self._engine.dispose()
+        except Exception:
+            pass
 
+
+# ---------------------------------------------------------------------------
+# Backward-compat alias – existing code that imports SQLiteDataSource keeps
+# working; the SQLAlchemy implementation handles SQLite automatically.
+# ---------------------------------------------------------------------------
+SQLiteDataSource = SQLAlchemyDataSource
+
+
+# ---------------------------------------------------------------------------
+# Factory
+# ---------------------------------------------------------------------------
 
 def build_data_source(config: DataSourceConfig) -> DataSource:
-    if config.type == "sqlite":
-        return SQLiteDataSource(config)
-    raise ValueError(f"Unsupported data source type: {config.type}")
+    """Return a :class:`DataSource` for *config*.
+
+    Any SQLAlchemy-supported database is accepted.  The ``connection`` field
+    must be a valid `SQLAlchemy database URL
+    <https://docs.sqlalchemy.org/en/20/core/engines.html#database-urls>`_.
+    Legacy ``type: sqlite`` entries with a bare file path are promoted to a
+    ``sqlite:///`` URL automatically.
+    """
+    return SQLAlchemyDataSource(config)

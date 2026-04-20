@@ -14,7 +14,19 @@ dependencies = [
   "PyYAML>=6.0.1",
   "fastapi>=0.110",
   "uvicorn[standard]>=0.29",
+  "sqlalchemy>=2.0",
 ]
+
+[project.optional-dependencies]
+# Install the driver for your target database alongside the base package.
+# SQLite is included with Python and needs no extra driver.
+postgres  = ["psycopg2-binary>=2.9"]
+mysql     = ["pymysql>=1.1"]
+mssql     = ["pyodbc>=5.0"]
+oracle    = ["oracledb>=2.0"]
+snowflake = ["snowflake-sqlalchemy>=1.6"]
+bigquery  = ["sqlalchemy-bigquery>=1.10"]
+duckdb    = ["duckdb-engine>=0.13"]
 
 [project.scripts]
 ubs-mcp-server = "ubs_hackathon.server:main"
