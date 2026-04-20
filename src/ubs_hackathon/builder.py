@@ -114,7 +114,7 @@ def sync_meta_from_config(
 
 
 def build_catalog(config_path: str | None = None) -> int:
-    sources, catalog_path, meta_db_path, docs_map, upstream_configs = load_config(config_path)
+    sources, catalog_path, meta_db_path, docs_map, upstream_configs, connectors_registry = load_config(config_path)
 
     print(f"🔄 Syncing configuration to meta-db at {meta_db_path}...")
     sync_meta_from_config(sources, docs_map, meta_db_path, upstream_configs)
@@ -135,7 +135,7 @@ def build_catalog(config_path: str | None = None) -> int:
             registration = registration_by_name.get(source_cfg.name)
             if connector and registration and connector.server_id == "sql-like":
                 try:
-                    runtime_cfg = build_runtime_source_config(registration, connector)
+                    runtime_cfg = build_runtime_source_config(registration, connector, connectors_registry)
                 except RuntimeResolutionError:
                     continue
         source = build_data_source(runtime_cfg)
