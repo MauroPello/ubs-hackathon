@@ -1,5 +1,6 @@
 catalog:
   db_path: data/catalog.db
+  meta_db_path: data/meta.db
 
 # Embeddings are configured via environment variables:
 #   UBS_EMBEDDINGS_PROVIDER=auto|openai|huggingface|local
@@ -43,39 +44,11 @@ schema_docs_path: config/schema_docs.json
 # ---------------------------------------------------------------------------
 
 data_sources:
-  - name: demo_sqlite
-    type: sqlite
-    connection: data/demo_business.db
-    description: Small demo SQLite business source.
   - name: big_demo_sqlite
     type: sqlite
     connection: data/big_demo.db
     description: Large synthetic SQLite dataset with hundreds of tables.
-  # Example delegated graph source (MCP/adapter gateway):
-  # - name: demo_graph
-  #   type: graph
-  #   connection: delegated://graph
-  #   adapter: delegated_graph
-  #   options:
-  #     delegated_endpoint: http://127.0.0.1:9000/mcp-proxy
-  #     graph_entities:
-  #       - name: Person
-  #         entity_type: graph_node
-  #         description: "Customer/person node."
-  #         columns:
-  #           - name: person_id
-  #             data_type: string
-  #           - name: segment
-  #             data_type: string
-  #       - name: BOUGHT
-  #         entity_type: graph_relationship
-  #         description: "Purchase relationship."
-  #         columns:
-  #           - name: amount
-  #             data_type: float
   # Uncomment and fill in to add a second source alongside the SQLite demo:
   # - name: prod_postgres
   #   type: postgresql
   #   connection: postgresql+psycopg2://user:password@localhost:5432/mydb
-
-# (Optional) Inline schema_docs have been moved to config/schema_docs.json

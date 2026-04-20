@@ -31,7 +31,6 @@ duckdb    = ["duckdb-engine>=0.13"]
 [project.scripts]
 ubs-mcp-server = "ubs_hackathon.server:main"
 ubs-build-catalog = "ubs_hackathon.builder:main"
-ubs-seed-demo = "ubs_hackathon.demo_seed:main"
 ubs-backend = "ubs_hackathon.backend:main"
 
 [tool.setuptools]

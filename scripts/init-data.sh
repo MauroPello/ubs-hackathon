@@ -34,20 +34,11 @@ until cypher-shell -a ${NEO4J_URI:-bolt://localhost:7687} -u ${NEO4J_USERNAME:-n
 done
 echo "✅ Neo4j is ready!"
 
-# 3. Generate demo database
-echo "🧬 Seeding demo database..."
-export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-python3 -m ubs_hackathon.demo_seed --db-path data/demo_business.db
-
 # 3. Generate large synthetic dataset
 echo "📉 Generating large synthetic dataset..."
 python3 scripts/generate_data.py
 
-# 4. Build schema catalog
-echo "🏗️ Building schema catalog..."
-python3 -m ubs_hackathon.builder --config config/config.yaml
-
-# 5. Load Neo4j data
+# 4. Load Neo4j data
 echo "🌳 Loading graph data into Neo4j..."
 cypher-shell \
     -a ${NEO4J_URI:-bolt://localhost:7687} \

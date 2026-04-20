@@ -30,10 +30,11 @@ def _load_docs(path: Path) -> dict:
 
 def load_config(
     path: str | Path | None = None,
-) -> tuple[list[DataSourceConfig], Path, dict]:
+) -> tuple[list[DataSourceConfig], Path, Path, dict]:
     config_path = Path(path) if path else DEFAULT_CONFIG_PATH
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     catalog_path = Path(raw.get("catalog", {}).get("db_path", "data/catalog.db"))
+    meta_db_path = Path(raw.get("catalog", {}).get("meta_db_path", "data/meta.db"))
     docs_path = raw.get("schema_docs_path")
 
     sources: list[DataSourceConfig] = []
@@ -53,4 +54,4 @@ def load_config(
     if docs_path:
         docs_map = _load_docs(Path(docs_path))
 
-    return sources, catalog_path, docs_map
+    return sources, catalog_path, meta_db_path, docs_map

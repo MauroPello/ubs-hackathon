@@ -143,6 +143,33 @@ class MetaStore:
             ).fetchone()
         return self._row_to_registration(row) if row else None
 
+    def upsert_data_source(
+        self,
+        name: str,
+        type_: str,
+        connection: str,
+        sensitive_columns: list[str] | None = None,
+        description: str | None = None,
+        upstream_mcp_server_config_id: str | None = None,
+    ) -> DataSourceRegistration:
+        if self.get_data_source(name):
+            return self.update_data_source(
+                name,
+                type_=type_,
+                connection=connection,
+                sensitive_columns=sensitive_columns,
+                description=description,
+                upstream_mcp_server_config_id=upstream_mcp_server_config_id,
+            )
+        return self.create_data_source(
+            name,
+            type_,
+            connection,
+            sensitive_columns=sensitive_columns,
+            description=description,
+            upstream_mcp_server_config_id=upstream_mcp_server_config_id,
+        )
+
     def create_data_source(
         self,
         name: str,
@@ -306,6 +333,25 @@ class MetaStore:
         if updated is None:
             raise RuntimeError(f"Failed to update doc entry {doc_id} for {data_source}")
         return updated
+
+    def upsert_doc(
+        self, data_source: str, doc_type: str, target: str | None, content: str
+    ) -> DocEntry:
+        with self._connect() as conn:
+            if target is None:
+                row = conn.execute(
+                    "SELECT id FROM source_docs WHERE data_source = ? AND doc_type = ? AND target IS NULL",
+                    (data_source, doc_type),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT id FROM source_docs WHERE data_source = ? AND doc_type = ? AND target = ?",
+                    (data_source, doc_type, target),
+                ).fetchone()
+
+        if row:
+            return self.update_doc(data_source, int(row["id"]), content=content)
+        return self.create_doc(data_source, doc_type, target, content)
 
     def delete_doc(self, data_source: str, doc_id: int) -> bool:
         with self._connect() as conn:
