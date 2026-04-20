@@ -47,10 +47,11 @@ const features = [
             to="/sources"
           />
           <UButton
-            label="View Documentation"
+            label="Available MCP servers"
             size="lg"
             color="black"
             variant="ghost"
+            to="/mcp-servers"
           />
         </div>
       </div>

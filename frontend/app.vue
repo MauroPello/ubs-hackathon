@@ -31,8 +31,8 @@ const links = [{
             Data Source Manager <span class="text-gray-400 font-normal ml-1">| UBS Hackathon</span>
           </h1>
         </div>
-        
-        <div class="flex items-center gap-4">
+
+        <!-- <div class="flex items-center gap-4">
           <UButton
             icon="i-heroicons-bell"
             color="gray"
@@ -43,7 +43,7 @@ const links = [{
             alt="User"
             size="sm"
           />
-        </div>
+        </div> -->
       </div>
     </header>
 

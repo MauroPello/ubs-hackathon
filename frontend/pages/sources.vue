@@ -4,9 +4,7 @@ const toast = useToast()
 // State
 const sources = ref([])
 const pending = ref(true)
-const selectedSource = ref(null)
 const category = ref('sql')
-const docs = ref([])
 
 // Form state
 const form = reactive({
@@ -31,16 +29,6 @@ async function fetchSources() {
     toast.add({ title: 'Error fetching sources', color: 'red' })
   } finally {
     pending.value = false
-  }
-}
-
-// Fetch docs for selected source
-async function fetchDocs(sourceName) {
-  try {
-    const data = await $fetch(`/api/data-sources/${sourceName}/docs`)
-    docs.value = data
-  } catch (e) {
-    toast.add({ title: 'Error fetching docs', color: 'red' })
   }
 }
 
@@ -78,26 +66,18 @@ async function createSource() {
   }
 }
 
-function selectSource(source) {
-  selectedSource.value = source
-  form.name = source.name
-  form.description = source.description || ''
-  form.sensitive_columns = (source.sensitive_columns || []).join(', ')
-
-  if (source.upstream_mcp_server_config_id) {
-    category.value = source.type // might be 'graph' or 'documents'
-    form.upstream_mcp_server_config_id = source.upstream_mcp_server_config_id
-  } else {
-    category.value = 'sql'
-    form.type = source.type
-    form.connection = source.connection
+async function deleteSource(name) {
+  if (!confirm(`Are you sure you want to delete ${name}?`)) return
+  try {
+    await $fetch(`/api/data-sources/${name}`, { method: 'DELETE' })
+    toast.add({ title: 'Source deleted', color: 'green' })
+    fetchSources()
+  } catch (e) {
+    toast.add({ title: 'Failed to delete source', color: 'red' })
   }
-
-  fetchDocs(source.name)
 }
 
 function resetForm() {
-  selectedSource.value = null
   Object.assign(form, {
     name: '',
     type: 'sqlite',
@@ -132,96 +112,63 @@ const categories = [
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Source Form / Details -->
-      <div class="space-y-6">
-        <UCard>
-          <template #header>
-            <h3 class="font-bold">{{ selectedSource ? 'Edit Source' : 'Create New Source' }}</h3>
-          </template>
+    <div class="space-y-6 max-w-5xl mx-auto">
+      <!-- Create Source Form -->
+      <UCard class="max-w-2xl">
+        <template #header>
+          <h3 class="font-bold">Create New Source</h3>
+        </template>
 
-          <form @submit.prevent="selectedSource ? updateSource() : createSource()" class="space-y-4">
-            <UFormGroup label="Category">
-              <USelectMenu v-model="category" :options="categories" />
+        <form @submit.prevent="createSource()" class="space-y-4">
+          <UFormGroup label="Category">
+            <USelectMenu v-model="category" :options="categories" />
+          </UFormGroup>
+
+          <UFormGroup label="Name" required>
+            <UInput v-model="form.name" placeholder="sales_prod" />
+          </UFormGroup>
+
+          <div v-if="category === 'sql'" class="space-y-4">
+            <UFormGroup label="Dialect">
+              <USelectMenu v-model="form.type" :options="sqlDialects" value-attribute="value" option-attribute="label" />
             </UFormGroup>
-
-            <UFormGroup label="Name" required>
-              <UInput v-model="form.name" placeholder="sales_prod" />
+            <UFormGroup label="Connection String">
+              <UInput v-model="form.connection" placeholder="sqlite:///data/demo.db" />
             </UFormGroup>
-
-            <div v-if="category === 'sql'" class="space-y-4">
-              <UFormGroup label="Dialect">
-                <USelectMenu v-model="form.type" :options="sqlDialects" value-attribute="value" option-attribute="label" />
-              </UFormGroup>
-              <UFormGroup label="Connection String">
-                <UInput v-model="form.connection" placeholder="sqlite:///data/demo.db" />
-              </UFormGroup>
-            </div>
-
-            <div v-else class="space-y-4">
-              <UFormGroup label="Upstream MCP Server">
-                <USelectMenu
-                  v-model="form.upstream_mcp_server_config_id"
-                  :options="upstreamConfigs || []"
-                  value-attribute="id"
-                  option-attribute="name"
-                  placeholder="Select server..."
-                />
-              </UFormGroup>
-            </div>
-
-            <UFormGroup label="Sensitive Columns">
-              <UInput v-model="form.sensitive_columns" placeholder="users.email, users.ssn" />
-              <template #hint>Comma separated</template>
-            </UFormGroup>
-
-            <UFormGroup label="Description">
-              <UTextarea v-model="form.description" />
-            </UFormGroup>
-
-            <UButton
-              type="submit"
-              block
-              color="red"
-              :label="selectedSource ? 'Update Source' : 'Create Source'"
-            />
-          </form>
-        </UCard>
-
-        <UCard v-if="selectedSource">
-          <template #header>
-            <div class="flex items-center justify-between">
-              <h3 class="font-bold">Documentation</h3>
-              <UButton size="xs" variant="ghost" icon="i-heroicons-plus" />
-            </div>
-          </template>
-
-          <div v-if="docs.length === 0" class="text-center py-4">
-            <UIcon name="i-heroicons-document-text" class="w-8 h-8 text-gray-300 mx-auto" />
-            <p class="text-sm text-gray-500 mt-1">No docs yet.</p>
           </div>
 
-          <div v-else class="space-y-3">
-            <div v-for="doc in docs" :key="doc.id" class="p-3 bg-gray-50 rounded-lg border border-gray-100 relative group">
-              <div class="flex items-center gap-2 mb-1">
-                <UBadge size="xs" variant="solid" color="gray">{{ doc.doc_type }}</UBadge>
-                <span v-if="doc.target" class="text-[10px] font-bold text-gray-400 truncate">{{ doc.target }}</span>
-              </div>
-              <p class="text-xs text-gray-700 line-clamp-2">{{ doc.content }}</p>
-              <UButton
-                class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                size="xs"
-                color="red"
-                variant="ghost"
-                icon="i-heroicons-trash"
+          <div v-else class="space-y-4">
+            <UFormGroup label="Upstream MCP Server">
+              <USelectMenu
+                v-model="form.upstream_mcp_server_config_id"
+                :options="upstreamConfigs || []"
+                value-attribute="id"
+                option-attribute="name"
+                placeholder="Select server..."
               />
-            </div>
+            </UFormGroup>
           </div>
-        </UCard>
-      </div>
+
+          <UFormGroup label="Sensitive Columns">
+            <UInput v-model="form.sensitive_columns" placeholder="users.email, users.ssn" />
+            <template #hint>Comma separated</template>
+          </UFormGroup>
+
+          <UFormGroup label="Description">
+            <UTextarea v-model="form.description" />
+          </UFormGroup>
+
+          <UButton
+            type="submit"
+            block
+            color="red"
+            label="Create Source"
+          />
+        </form>
+      </UCard>
 
       <!-- Sources List -->
-      <UCard class="lg:col-span-2">
+      <UCard>
         <template #header>
           <div class="flex items-center justify-between">
             <h3 class="font-bold">Registered Data Sources</h3>
@@ -246,7 +193,7 @@ const categories = [
           :loading="pending"
         >
           <template #name-data="{ row }">
-            <div class="font-medium text-gray-900">{{ row.name }}</div>
+            <NuxtLink :to="`/sources/${row.name}`" class="font-medium text-gray-900 hover:text-red-600 transition-colors">{{ row.name }}</NuxtLink>
             <div class="text-xs text-gray-500 truncate max-w-[200px]">{{ row.description || 'No description' }}</div>
           </template>
 
@@ -268,13 +215,14 @@ const categories = [
                 color="gray"
                 variant="ghost"
                 icon="i-heroicons-pencil-square"
-                @click="selectSource(row)"
+                :to="`/sources/${row.name}`"
               />
               <UButton
                 size="xs"
                 color="red"
                 variant="ghost"
                 icon="i-heroicons-trash"
+                @click="deleteSource(row.name)"
               />
             </div>
           </template>
@@ -283,3 +231,4 @@ const categories = [
     </div>
   </div>
 </template>
+
