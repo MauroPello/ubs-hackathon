@@ -8,4 +8,6 @@ def test_mutating_sql_is_detected() -> None:
 
 def test_read_only_sql_allowed_pattern() -> None:
     assert ALLOWED_SQL_START.search("SELECT * FROM customers") is not None
-    assert ALLOWED_SQL_START.search("  with x as (select 1) select * from x") is not None
+    assert (
+        ALLOWED_SQL_START.search("  with x as (select 1) select * from x") is not None
+    )

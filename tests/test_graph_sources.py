@@ -42,7 +42,11 @@ def _write_graph_config(path: Path) -> Path:
                     ],
                     "sample_rows": [
                         {"person_id": "p-1", "segment": "private", "amount": 120.0},
-                        {"person_id": "p-2", "segment": "mass_affluent", "amount": 80.0},
+                        {
+                            "person_id": "p-2",
+                            "segment": "mass_affluent",
+                            "amount": 80.0,
+                        },
                     ],
                 },
             }
@@ -62,7 +66,9 @@ def _write_graph_config(path: Path) -> Path:
     return catalog_path
 
 
-def test_delegated_graph_source_capabilities_and_query_validation(tmp_path: Path) -> None:
+def test_delegated_graph_source_capabilities_and_query_validation(
+    tmp_path: Path,
+) -> None:
     config_path = tmp_path / "graph_config.yaml"
     _write_graph_config(config_path)
     sources, _, _ = load_config(config_path)

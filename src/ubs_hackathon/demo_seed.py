@@ -4,7 +4,6 @@ import argparse
 import sqlite3
 from pathlib import Path
 
-
 DDL = """
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS customers;
@@ -67,7 +66,9 @@ def seed_demo_db(path: str | Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create a demo SQLite business database")
+    parser = argparse.ArgumentParser(
+        description="Create a demo SQLite business database"
+    )
     parser.add_argument("--db-path", default="data/demo_business.db")
     args = parser.parse_args()
     seed_demo_db(args.db_path)

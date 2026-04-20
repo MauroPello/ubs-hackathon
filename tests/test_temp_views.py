@@ -12,15 +12,13 @@ from ubs_hackathon.models import DataSourceConfig
 def _seed_sqlite_source(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(path) as conn:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 order_id INTEGER PRIMARY KEY,
                 region TEXT NOT NULL,
                 revenue REAL NOT NULL
             )
-            """
-        )
+            """)
         conn.executemany(
             "INSERT INTO orders (order_id, region, revenue) VALUES (?, ?, ?)",
             [(1, "CH", 100.0), (2, "CH", 150.0), (3, "US", 200.0)],
@@ -125,20 +123,20 @@ def test_table_doc_handles_identifiers_requiring_quoting(tmp_path: Path) -> None
     ]
 
 
-def test_sensitive_columns_are_masked_in_query_results_and_samples(tmp_path: Path) -> None:
+def test_sensitive_columns_are_masked_in_query_results_and_samples(
+    tmp_path: Path,
+) -> None:
     source_db = tmp_path / "sensitive_source.db"
     source_db.parent.mkdir(parents=True, exist_ok=True)
 
     with sqlite3.connect(source_db) as conn:
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS customers (
                 customer_id INTEGER PRIMARY KEY,
                 email TEXT NOT NULL,
                 segment TEXT NOT NULL
             )
-            """
-        )
+            """)
         conn.executemany(
             "INSERT INTO customers (customer_id, email, segment) VALUES (?, ?, ?)",
             [(1, "a@example.com", "retail"), (2, "b@example.com", "wealth")],

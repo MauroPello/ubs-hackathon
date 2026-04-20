@@ -42,8 +42,7 @@ def _drop_existing_tables(cur: sqlite3.Cursor) -> None:
 
 
 def _create_dimension_tables(cur: sqlite3.Cursor) -> None:
-    cur.executescript(
-        """
+    cur.executescript("""
         CREATE TABLE dim_region (
             region_id INTEGER PRIMARY KEY,
             region_name TEXT NOT NULL UNIQUE
@@ -147,13 +146,11 @@ def _create_dimension_tables(cur: sqlite3.Cursor) -> None:
             FOREIGN KEY(product_id) REFERENCES dim_product(product_id),
             FOREIGN KEY(country_id) REFERENCES dim_country(country_id)
         );
-        """
-    )
+        """)
 
 
 def _create_fact_table(cur: sqlite3.Cursor, table_name: str) -> None:
-    cur.execute(
-        f"""
+    cur.execute(f"""
         CREATE TABLE "{table_name}" (
             event_id INTEGER PRIMARY KEY,
             date_key INTEGER NOT NULL,
@@ -184,17 +181,14 @@ def _create_fact_table(cur: sqlite3.Cursor, table_name: str) -> None:
             FOREIGN KEY(country_id) REFERENCES dim_country(country_id),
             FOREIGN KEY(channel_id) REFERENCES dim_channel(channel_id)
         )
-        """
-    )
-    cur.executescript(
-        f"""
+        """)
+    cur.executescript(f"""
         CREATE INDEX idx_{table_name}_date_key ON "{table_name}" (date_key);
         CREATE INDEX idx_{table_name}_product_id ON "{table_name}" (product_id);
         CREATE INDEX idx_{table_name}_country_id ON "{table_name}" (country_id);
         CREATE INDEX idx_{table_name}_customer_id ON "{table_name}" (customer_id);
         CREATE INDEX idx_{table_name}_counterparty_id ON "{table_name}" (counterparty_id);
-        """
-    )
+        """)
 
 
 def _table_docs() -> dict[str, dict[str, Any]]:
@@ -319,7 +313,9 @@ def _table_docs() -> dict[str, dict[str, Any]]:
     }
 
 
-def _seed_dimensions(cur: sqlite3.Cursor, rng: random.Random, start_dt: date, day_span: int) -> None:
+def _seed_dimensions(
+    cur: sqlite3.Cursor, rng: random.Random, start_dt: date, day_span: int
+) -> None:
     regions = ["EMEA", "AMER", "APAC", "LATAM"]
     country_rows = [
         (1, 1, "GB", "United Kingdom"),
@@ -335,7 +331,13 @@ def _seed_dimensions(cur: sqlite3.Cursor, rng: random.Random, start_dt: date, da
         (11, 4, "CL", "Chile"),
         (12, 4, "CO", "Colombia"),
     ]
-    family_rows = [(1, "FX"), (2, "Rates"), (3, "Equities"), (4, "Credit"), (5, "Commodities")]
+    family_rows = [
+        (1, "FX"),
+        (2, "Rates"),
+        (3, "Equities"),
+        (4, "Credit"),
+        (5, "Commodities"),
+    ]
     product_rows = [
         (1, 1, "Spot FX", "Market", "Tier-1"),
         (2, 1, "FX Options", "Market", "Tier-2"),
@@ -355,14 +357,27 @@ def _seed_dimensions(cur: sqlite3.Cursor, rng: random.Random, start_dt: date, da
         (4, "rfq", "medium"),
     ]
     desk_rows = [
-        (desk_id, country_id, f"{country_name} Desk", rng.choice(["Tier-1", "Tier-2", "Tier-3"]))
-        for desk_id, (_, country_id, _, country_name) in enumerate(country_rows, start=1)
+        (
+            desk_id,
+            country_id,
+            f"{country_name} Desk",
+            rng.choice(["Tier-1", "Tier-2", "Tier-3"]),
+        )
+        for desk_id, (_, country_id, _, country_name) in enumerate(
+            country_rows, start=1
+        )
     ]
     customer_rows = []
     counterparty_rows = []
     trader_rows = []
     bridge_rows = []
-    customer_segments = ["Institutional", "Corporate", "Retail", "Sovereign", "Hedge Fund"]
+    customer_segments = [
+        "Institutional",
+        "Corporate",
+        "Retail",
+        "Sovereign",
+        "Hedge Fund",
+    ]
     credit_buckets = ["AAA", "AA", "A", "BBB", "BB"]
     cpty_types = ["Bank", "Broker", "Asset Manager", "Corporate"]
     seniority = ["Junior", "Associate", "VP", "Director", "Managing Director"]
@@ -410,7 +425,9 @@ def _seed_dimensions(cur: sqlite3.Cursor, rng: random.Random, start_dt: date, da
     bridge_id = 1
     relationship_types = ["Prime", "Clearing", "Execution", "Collateral", "Custody"]
     for customer_id in range(1, len(customer_rows) + 1):
-        for counterparty_id in rng.sample(range(1, len(counterparty_rows) + 1), k=rng.randint(2, 6)):
+        for counterparty_id in rng.sample(
+            range(1, len(counterparty_rows) + 1), k=rng.randint(2, 6)
+        ):
             since_offset = rng.randint(0, max(day_span - 1, 1))
             bridge_rows.append(
                 (
@@ -451,7 +468,9 @@ def _seed_dimensions(cur: sqlite3.Cursor, rng: random.Random, start_dt: date, da
             for country_id in range(1, len(country_rows) + 1):
                 volatility = round(max(4.0, rng.gauss(18, 6)), 2)
                 spread = round(max(1.0, volatility * rng.uniform(0.7, 1.8)), 2)
-                stress = stress_levels[min(int(volatility // 10), len(stress_levels) - 1)]
+                stress = stress_levels[
+                    min(int(volatility // 10), len(stress_levels) - 1)
+                ]
                 market_rows.append(
                     (
                         signal_id,
@@ -594,7 +613,9 @@ def _seed_fact_tables(
             trade_count = max(1, int(rng.gauss(18, 8)))
             latency = max(1.0, rng.gauss(14.0 * scenario_mult, 5.0))
             slippage = max(0.1, rng.gauss(1.4 * scenario_mult, 0.9))
-            fail_flag = 1 if (latency > 26.0 or slippage > 4.0) and rng.random() < 0.7 else 0
+            fail_flag = (
+                1 if (latency > 26.0 or slippage > 4.0) and rng.random() < 0.7 else 0
+            )
 
             rows.append(
                 (

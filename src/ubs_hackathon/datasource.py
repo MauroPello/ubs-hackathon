@@ -43,6 +43,7 @@ class TemporaryViewError(ValueError):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _resolve_connection_url(config: DataSourceConfig) -> str:
     """Return a SQLAlchemy connection URL for *config*.
 
@@ -59,6 +60,7 @@ def _resolve_connection_url(config: DataSourceConfig) -> str:
 # ---------------------------------------------------------------------------
 # Abstract base
 # ---------------------------------------------------------------------------
+
 
 class DataSource(ABC):
     def __init__(self, config: DataSourceConfig) -> None:
@@ -188,7 +190,10 @@ class DataSource(ABC):
                 return True
 
         normalized_table = self._normalize_identifier_token(table)
-        if normalized_table and (normalized_table, normalized_column) in self._sensitive_qualified:
+        if (
+            normalized_table
+            and (normalized_table, normalized_column) in self._sensitive_qualified
+        ):
             return True
 
         return False
@@ -205,10 +210,7 @@ class DataSource(ABC):
             else:
                 safe_indexes.append(index)
                 safe_columns.append(column_name)
-        payload_rows = [
-            {columns[i]: row[i] for i in safe_indexes}
-            for row in rows
-        ]
+        payload_rows = [{columns[i]: row[i] for i in safe_indexes} for row in rows]
         return safe_columns, payload_rows, masked_columns
 
     def catalog_docs(self) -> list[TableDoc]:
@@ -226,6 +228,7 @@ class DataSource(ABC):
 # ---------------------------------------------------------------------------
 # Universal SQLAlchemy implementation
 # ---------------------------------------------------------------------------
+
 
 class SQLAlchemyDataSource(DataSource):
     """Universal data source backed by any SQLAlchemy-supported DBMS.
@@ -258,9 +261,7 @@ class SQLAlchemyDataSource(DataSource):
             pool_pre_ping=True,
             # SQLite needs check_same_thread=False when used across threads.
             connect_args=(
-                {"check_same_thread": False}
-                if config.type == "sqlite"
-                else {}
+                {"check_same_thread": False} if config.type == "sqlite" else {}
             ),
         )
         # A single persistent connection is kept open so that session-local
@@ -379,9 +380,7 @@ class SQLAlchemyDataSource(DataSource):
         with self._lock:
             self._purge_expired_temp_views_locked()
             insp = sqlalchemy_inspect(self._engine)
-            names: set[str] = (
-                set(insp.get_table_names()) | set(insp.get_view_names())
-            )
+            names: set[str] = set(insp.get_table_names()) | set(insp.get_view_names())
             # TEMP VIEWs may not appear in the inspector; add tracked ones.
             names |= set(self._temp_views.keys())
             return sorted(names)
@@ -400,7 +399,11 @@ class SQLAlchemyDataSource(DataSource):
             columns: list[ColumnDoc] = []
             for col in cols_info:
                 is_sensitive = self._is_sensitive_column(col["name"], table=table)
-                samples = [] if is_sensitive else self._sample_values_locked(table, col["name"])
+                samples = (
+                    []
+                    if is_sensitive
+                    else self._sample_values_locked(table, col["name"])
+                )
                 columns.append(
                     ColumnDoc(
                         name=col["name"],
@@ -456,7 +459,9 @@ class SQLAlchemyDataSource(DataSource):
 
         truncated = len(rows) > limit
         rows = rows[:limit]
-        safe_columns, payload_rows, masked_columns = self._sanitize_result_rows(columns, rows)
+        safe_columns, payload_rows, masked_columns = self._sanitize_result_rows(
+            columns, rows
+        )
         return {
             "columns": safe_columns,
             "rows": payload_rows,
@@ -511,9 +516,7 @@ class SQLAlchemyDataSource(DataSource):
             temp_kw = "TEMP " if self._supports_temp_view_syntax() else ""
             conn = self._connection()
             try:
-                conn.execute(
-                    text(f"CREATE {temp_kw}VIEW {quoted_name} AS {statement}")
-                )
+                conn.execute(text(f"CREATE {temp_kw}VIEW {quoted_name} AS {statement}"))
                 conn.commit()
             except Exception as exc:
                 if temp_kw:
@@ -607,13 +610,15 @@ class DelegatedGraphDataSource(DataSource):
         if entity_type not in {"graph_node", "graph_relationship"}:
             entity_type = "graph_node"
         columns: list[ColumnDoc] = []
-        for col in (item.get("columns", []) or []):
+        for col in item.get("columns", []) or []:
             if not str(col.get("name", "")).strip():
                 continue
             column_name = str(col.get("name"))
             sample_values = list(col.get("sample_values", []) or [])
             masked_samples = (
-                [] if self._is_sensitive_column(column_name, table=name) else sample_values
+                []
+                if self._is_sensitive_column(column_name, table=name)
+                else sample_values
             )
             columns.append(
                 ColumnDoc(
@@ -752,7 +757,11 @@ class DelegatedGraphDataSource(DataSource):
         )
         safe_columns, safe_rows, masked_columns = self._sanitize_result_rows(
             sample_columns,
-            [tuple(row.get(col) for col in sample_columns) for row in sample_rows if isinstance(row, dict)],
+            [
+                tuple(row.get(col) for col in sample_columns)
+                for row in sample_rows
+                if isinstance(row, dict)
+            ],
         )
         limited_rows = safe_rows[:safe_limit]
         return {

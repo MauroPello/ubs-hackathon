@@ -135,7 +135,15 @@ class MetaStore:
                 INSERT INTO data_sources (name, type, connection, sensitive_columns, description, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (name, type_, connection, encoded_sensitive_columns, description, now, now),
+                (
+                    name,
+                    type_,
+                    connection,
+                    encoded_sensitive_columns,
+                    description,
+                    now,
+                    now,
+                ),
             )
         created = self.get_data_source(name)
         if created is None:
@@ -213,7 +221,9 @@ class MetaStore:
             ).fetchone()
         return DocEntry(**dict(row)) if row else None
 
-    def create_doc(self, data_source: str, doc_type: str, target: str | None, content: str) -> DocEntry:
+    def create_doc(
+        self, data_source: str, doc_type: str, target: str | None, content: str
+    ) -> DocEntry:
         now = self._now()
         with self._connect() as conn:
             cursor = conn.execute(

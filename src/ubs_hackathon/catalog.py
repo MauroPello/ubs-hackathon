@@ -7,7 +7,6 @@ from pathlib import Path
 from .embeddings import EmbeddingModel, cosine_similarity, create_embedding_model
 from .models import TableDoc
 
-
 CATALOG_SCHEMA = """
 CREATE TABLE IF NOT EXISTS table_docs (
     data_source TEXT NOT NULL,
@@ -21,7 +20,9 @@ CREATE TABLE IF NOT EXISTS table_docs (
 
 
 class SchemaCatalog:
-    def __init__(self, catalog_db_path: Path, embedding_model: EmbeddingModel | None = None) -> None:
+    def __init__(
+        self, catalog_db_path: Path, embedding_model: EmbeddingModel | None = None
+    ) -> None:
         self.catalog_db_path = catalog_db_path
         self.catalog_db_path.parent.mkdir(parents=True, exist_ok=True)
         self.embedding_model = embedding_model or create_embedding_model()
@@ -42,7 +43,8 @@ class SchemaCatalog:
             for c in doc.columns
         )
         fk_text = "\n".join(
-            f"- {fk.column} -> {fk.ref_table}.{fk.ref_column}" for fk in doc.foreign_keys
+            f"- {fk.column} -> {fk.ref_table}.{fk.ref_column}"
+            for fk in doc.foreign_keys
         )
         return (
             f"Data source: {doc.data_source}\n"

@@ -10,13 +10,11 @@ from urllib import error as urlerror
 from urllib import parse
 from urllib import request
 
-
 TOKEN_RE = re.compile(r"[a-zA-Z0-9_]+")
 
 
 class EmbeddingModel(Protocol):
-    def embed(self, text: str) -> list[float]:
-        ...
+    def embed(self, text: str) -> list[float]: ...
 
 
 def _validate_https_public_base_url(base_url: str) -> None:
@@ -31,9 +29,15 @@ def _validate_https_public_base_url(base_url: str) -> None:
     except ValueError:
         ip = None
     if ip and (
-        ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_reserved
+        or ip.is_multicast
     ):
-        raise ValueError("Managed embeddings base URL must not target private/local IPs")
+        raise ValueError(
+            "Managed embeddings base URL must not target private/local IPs"
+        )
 
 
 class SimpleEmbeddingModel:
@@ -94,9 +98,13 @@ class OpenAIEmbeddingModel:
                 body = resp.read().decode("utf-8")
         except urlerror.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="ignore")
-            raise RuntimeError(f"Managed embedding request failed ({exc.code}): {detail}") from exc
+            raise RuntimeError(
+                f"Managed embedding request failed ({exc.code}): {detail}"
+            ) from exc
         except urlerror.URLError as exc:
-            raise RuntimeError(f"Managed embedding request failed: {exc.reason}") from exc
+            raise RuntimeError(
+                f"Managed embedding request failed: {exc.reason}"
+            ) from exc
 
         parsed = json.loads(body)
         data = parsed.get("data")
@@ -129,7 +137,9 @@ class HuggingFaceEmbeddingModel:
         self.timeout_seconds = timeout_seconds
 
     def embed(self, text: str) -> list[float]:
-        payload = json.dumps({"inputs": text, "options": {"wait_for_model": True}}).encode("utf-8")
+        payload = json.dumps(
+            {"inputs": text, "options": {"wait_for_model": True}}
+        ).encode("utf-8")
         model_path = parse.quote(self.model, safe="")
         headers = {"Content-Type": "application/json"}
         if self.api_token:
@@ -145,13 +155,19 @@ class HuggingFaceEmbeddingModel:
                 body = resp.read().decode("utf-8")
         except urlerror.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="ignore")
-            raise RuntimeError(f"Hugging Face embedding request failed ({exc.code}): {detail}") from exc
+            raise RuntimeError(
+                f"Hugging Face embedding request failed ({exc.code}): {detail}"
+            ) from exc
         except urlerror.URLError as exc:
-            raise RuntimeError(f"Hugging Face embedding request failed: {exc.reason}") from exc
+            raise RuntimeError(
+                f"Hugging Face embedding request failed: {exc.reason}"
+            ) from exc
 
         parsed_body = json.loads(body)
         if isinstance(parsed_body, dict) and parsed_body.get("error"):
-            raise RuntimeError(f"Hugging Face embedding response error: {parsed_body['error']}")
+            raise RuntimeError(
+                f"Hugging Face embedding response error: {parsed_body['error']}"
+            )
         if not isinstance(parsed_body, list) or not parsed_body:
             raise RuntimeError("Hugging Face embedding response missing embedding data")
 
@@ -162,12 +178,16 @@ class HuggingFaceEmbeddingModel:
             token_vectors = parsed_body
             dims = len(token_vectors[0]) if token_vectors[0] else 0
             if dims == 0:
-                raise RuntimeError("Hugging Face embedding response contained empty token vectors")
+                raise RuntimeError(
+                    "Hugging Face embedding response contained empty token vectors"
+                )
             accum = [0.0] * dims
             count = 0
             for token_vec in token_vectors:
                 if not isinstance(token_vec, list) or len(token_vec) != dims:
-                    raise RuntimeError("Hugging Face embedding response has inconsistent token vector shapes")
+                    raise RuntimeError(
+                        "Hugging Face embedding response has inconsistent token vector shapes"
+                    )
                 for i, value in enumerate(token_vec):
                     accum[i] += float(value)
                 count += 1
@@ -202,7 +222,9 @@ def create_embedding_model(
     base_url: str | None = None,
     local_dims: int = 256,
 ) -> EmbeddingModel:
-    resolved_provider = (provider or os.getenv("UBS_EMBEDDINGS_PROVIDER", "auto")).strip().lower()
+    resolved_provider = (
+        (provider or os.getenv("UBS_EMBEDDINGS_PROVIDER", "auto")).strip().lower()
+    )
     resolved_openai_api_key = api_key or os.getenv("OPENAI_API_KEY", "")
     resolved_hf_token = os.getenv("HF_API_TOKEN", "")
     resolved_hf_model = model or os.getenv(
@@ -216,7 +238,9 @@ def create_embedding_model(
             return OpenAIEmbeddingModel(
                 api_key=resolved_openai_api_key,
                 model=os.getenv("UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"),
-                base_url=os.getenv("UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"),
+                base_url=os.getenv(
+                    "UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"
+                ),
             )
         return FallbackEmbeddingModel(
             primary=HuggingFaceEmbeddingModel(
@@ -231,8 +255,10 @@ def create_embedding_model(
         if resolved_openai_api_key:
             return OpenAIEmbeddingModel(
                 api_key=resolved_openai_api_key,
-                model=model or os.getenv("UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"),
-                base_url=base_url or os.getenv("UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"),
+                model=model
+                or os.getenv("UBS_EMBEDDINGS_MODEL", "text-embedding-3-small"),
+                base_url=base_url
+                or os.getenv("UBS_EMBEDDINGS_BASE_URL", "https://api.openai.com/v1"),
             )
         raise ValueError(
             "Managed embeddings provider selected but OPENAI_API_KEY is not set. "

@@ -47,7 +47,9 @@ def build_catalog(config_path: str | None = None) -> int:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build schema catalog from configured data sources")
+    parser = argparse.ArgumentParser(
+        description="Build schema catalog from configured data sources"
+    )
     parser.add_argument("--config", default=None, help="Path to YAML config")
     args = parser.parse_args()
     build_catalog(args.config)

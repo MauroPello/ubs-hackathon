@@ -524,7 +524,9 @@ def _collect_mcp_usage_snapshot(store: MetaStore, catalog_path: Path) -> dict:
     execute_query_calls = max(5, int(base * 0.3))
     list_data_sources_calls = max(4, int(base * 0.08))
     avg_latency_ms = 95 + (base % 80)
-    success_rate_pct = round(max(95.0, 99.9 - ((docs_count + source_count) % 20) * 0.15), 1)
+    success_rate_pct = round(
+        max(95.0, 99.9 - ((docs_count + source_count) % 20) * 0.15), 1
+    )
 
     return {
         "registered_sources": source_count,
@@ -542,6 +544,7 @@ def _collect_mcp_usage_snapshot(store: MetaStore, catalog_path: Path) -> dict:
         "requests_trend_7d": _usage_trend(requests_last_24h),
         "simulated_connectors": ["notion", "google_workspace"],
     }
+
 
 class DataSourceCreate(BaseModel):
     name: str
@@ -622,10 +625,14 @@ def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
     return {data_source: source_payload}
 
 
-def _rebuild_catalog_for_data_source(store: MetaStore, catalog: SchemaCatalog, name: str) -> int:
+def _rebuild_catalog_for_data_source(
+    store: MetaStore, catalog: SchemaCatalog, name: str
+) -> int:
     registration = store.get_data_source(name)
     if not registration:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
+        )
 
     source = build_data_source(
         DataSourceConfig(
@@ -636,7 +643,9 @@ def _rebuild_catalog_for_data_source(store: MetaStore, catalog: SchemaCatalog, n
             description=registration.description,
         )
     )
-    docs_map = _docs_to_schema_map(name, [row.to_dict() for row in store.list_docs(name)])
+    docs_map = _docs_to_schema_map(
+        name, [row.to_dict() for row in store.list_docs(name)]
+    )
 
     total_tables = 0
     for table in source.list_tables():
@@ -647,7 +656,10 @@ def _rebuild_catalog_for_data_source(store: MetaStore, catalog: SchemaCatalog, n
     return total_tables
 
 
-def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Path = "data/catalog.db") -> FastAPI:
+def create_app(
+    meta_db_path: str | Path = "data/meta.db",
+    catalog_path: str | Path = "data/catalog.db",
+) -> FastAPI:
     app = FastAPI(title="UBS Hackathon Data Source Backend")
     store = MetaStore(Path(meta_db_path))
     catalog = SchemaCatalog(Path(catalog_path))
@@ -684,7 +696,9 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
     def get_data_source(name: str) -> dict:
         found = store.get_data_source(name)
         if not found:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
+            )
         return found.to_dict()
 
     @app.put("/data-sources/{name}")
@@ -697,26 +711,36 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
             description=payload.description,
         )
         if not updated:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
+            )
         return updated.to_dict()
 
     @app.delete("/data-sources/{name}", status_code=status.HTTP_204_NO_CONTENT)
     def delete_data_source(name: str) -> None:
         deleted = store.delete_data_source(name)
         if not deleted:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
+            )
 
     @app.get("/data-sources/{name}/docs")
     def list_docs(name: str) -> list[dict]:
         if not store.get_data_source(name):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
+            )
         return [row.to_dict() for row in store.list_docs(name)]
 
     @app.post("/data-sources/{name}/docs", status_code=status.HTTP_201_CREATED)
     def create_doc(name: str, payload: DocCreate) -> dict:
         if not store.get_data_source(name):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
-        created = store.create_doc(name, payload.doc_type, payload.target, payload.content)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
+            )
+        created = store.create_doc(
+            name, payload.doc_type, payload.target, payload.content
+        )
         _rebuild_catalog_for_data_source(store, catalog, name)
         return created.to_dict()
 
@@ -724,28 +748,40 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
     def get_doc(name: str, doc_id: int) -> dict:
         found = store.get_doc(name, doc_id)
         if not found:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found"
+            )
         return found.to_dict()
 
     @app.put("/data-sources/{name}/docs/{doc_id}")
     def update_doc(name: str, doc_id: int, payload: DocUpdate) -> dict:
         if not store.get_data_source(name):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
+            )
         updates = payload.model_dump(exclude_unset=True)
         try:
             updated = store.update_doc(name, doc_id, **updates)
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+            ) from exc
         if not updated:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found"
+            )
         _rebuild_catalog_for_data_source(store, catalog, name)
         return updated.to_dict()
 
-    @app.delete("/data-sources/{name}/docs/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
+    @app.delete(
+        "/data-sources/{name}/docs/{doc_id}", status_code=status.HTTP_204_NO_CONTENT
+    )
     def delete_doc(name: str, doc_id: int) -> None:
         deleted = store.delete_doc(name, doc_id)
         if not deleted:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Doc not found"
+            )
         _rebuild_catalog_for_data_source(store, catalog, name)
 
     @app.post("/data-sources/{name}/sync")
@@ -758,8 +794,12 @@ def create_app(meta_db_path: str | Path = "data/meta.db", catalog_path: str | Pa
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run UBS hackathon metadata backend")
-    parser.add_argument("--meta-db", default="data/meta.db", help="Path to metadata SQLite DB")
-    parser.add_argument("--catalog", default="data/catalog.db", help="Path to schema catalog DB")
+    parser.add_argument(
+        "--meta-db", default="data/meta.db", help="Path to metadata SQLite DB"
+    )
+    parser.add_argument(
+        "--catalog", default="data/catalog.db", help="Path to schema catalog DB"
+    )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()

@@ -8,7 +8,6 @@ import yaml
 
 from .models import DataSourceConfig
 
-
 DEFAULT_CONFIG_PATH = Path("config/config.yaml")
 
 
@@ -29,7 +28,9 @@ def _load_docs(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
-def load_config(path: str | Path | None = None) -> tuple[list[DataSourceConfig], Path, dict]:
+def load_config(
+    path: str | Path | None = None,
+) -> tuple[list[DataSourceConfig], Path, dict]:
     config_path = Path(path) if path else DEFAULT_CONFIG_PATH
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     catalog_path = Path(raw.get("catalog", {}).get("db_path", "data/catalog.db"))
