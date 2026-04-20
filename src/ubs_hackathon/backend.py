@@ -199,9 +199,8 @@ _SLUG_INVALID = re.compile(r"[^A-Za-z0-9_\-]")
 
 
 def _make_config_id(name: str) -> str:
-    """Generate a URL-safe config ID from a name, appended with a short UUID fragment."""
-    slug = _SLUG_INVALID.sub("_", name.strip().lower())[:32].strip("_") or "cfg"
-    return f"{slug}_{uuid.uuid4().hex[:8]}"
+    """Generate a URL-safe config ID from a name."""
+    return _SLUG_INVALID.sub("_", name.strip().lower())[:64].strip("_") or "cfg"
 
 
 def _rebuild_catalog_for_data_source(
@@ -372,6 +371,11 @@ def create_app(
                 detail=f"Server '{payload.server_id}' not found in upstream MCP registry",
             )
         config_id = _make_config_id(payload.name)
+        if store.get_upstream_config(config_id):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Connector configuration with ID '{config_id}' already exists. Please choose a different name.",
+            )
         created = store.create_upstream_config(
             config_id=config_id,
             server_id=payload.server_id,

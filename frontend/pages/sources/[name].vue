@@ -197,7 +197,8 @@ const docTypes = [
 
         <form @submit.prevent="updateSource" class="space-y-4">
           <UFormGroup label="Category">
-            <USelectMenu v-model="category" :options="categories" value-attribute="value" option-attribute="label" />
+            <USelectMenu v-model="category" :options="categories" value-attribute="value" option-attribute="label" disabled />
+            <template #hint>Categories cannot be changed</template>
           </UFormGroup>
 
           <UFormGroup label="Name" required>
@@ -212,7 +213,9 @@ const docTypes = [
               value-attribute="id"
               option-attribute="name"
               placeholder="Select connector..."
+              disabled
             />
+            <template #hint>Connectors cannot be changed</template>
           </UFormGroup>
 
           <UFormGroup label="Sensitive Columns">
