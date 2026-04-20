@@ -33,7 +33,7 @@ def test_frontend_homepage(tmp_path: Path) -> None:
     assert "Data Source Manager" in response.text
     assert 'href="/sources"' in response.text
     assert 'href="/dashboard"' in response.text
-    assert 'href="/connectors"' in response.text
+    assert 'href="/mcp-servers"' in response.text
 
     sources = client.get("/sources")
     assert sources.status_code == 200
@@ -44,9 +44,21 @@ def test_frontend_homepage(tmp_path: Path) -> None:
     assert dashboard.status_code == 200
     assert "MCP Usage Dashboard" in dashboard.text
 
+    mcp_servers = client.get("/mcp-servers")
+    assert mcp_servers.status_code == 200
+    assert "upstream MCP" in mcp_servers.text.lower() or "mcp server" in mcp_servers.text.lower()
+
+    # The registry API should return Neo4j and Notion entries.
+    registry = client.get("/upstream-mcp-servers")
+    assert registry.status_code == 200
+    ids = [e["id"] for e in registry.json()]
+    assert "neo4j" in ids
+    assert "notion" in ids
+
+    # Legacy /connectors URL still works (redirects to MCP Servers page).
     connectors = client.get("/connectors")
     assert connectors.status_code == 200
-    assert "Connect Notion (fake)" in connectors.text
+    assert "mcp server" in connectors.text.lower() or "upstream" in connectors.text.lower()
 
 
 def test_data_sources_crud(tmp_path: Path) -> None:
@@ -248,3 +260,155 @@ def test_mcp_usage_endpoint(tmp_path: Path) -> None:
         "execute_query",
         "list_data_sources",
     }
+
+
+def test_upstream_mcp_registry(tmp_path: Path) -> None:
+    app = create_app(
+        meta_db_path=tmp_path / "meta.db", catalog_path=tmp_path / "catalog.db"
+    )
+    client = TestClient(app)
+
+    # Full registry.
+    resp = client.get("/upstream-mcp-servers")
+    assert resp.status_code == 200
+    entries = resp.json()
+    ids = {e["id"] for e in entries}
+    assert "neo4j" in ids
+    assert "notion" in ids
+
+    # neo4j is available, notion is not.
+    neo4j = next(e for e in entries if e["id"] == "neo4j")
+    notion = next(e for e in entries if e["id"] == "notion")
+    assert neo4j["status"] == "available"
+    assert notion["status"] == "unavailable"
+    assert neo4j["data_type"] == "graph"
+    assert notion["data_type"] == "documents"
+    assert neo4j["requires_auth"] is True
+    assert len(neo4j["tools"]) > 0
+
+    # Filter by data type.
+    graph_entries = client.get("/upstream-mcp-servers?data_type=graph").json()
+    assert all(e["data_type"] == "graph" for e in graph_entries)
+
+    doc_entries = client.get("/upstream-mcp-servers?data_type=documents").json()
+    assert all(e["data_type"] == "documents" for e in doc_entries)
+
+    # Single entry lookup.
+    resp_single = client.get("/upstream-mcp-servers/neo4j")
+    assert resp_single.status_code == 200
+    assert resp_single.json()["id"] == "neo4j"
+
+    not_found = client.get("/upstream-mcp-servers/does_not_exist")
+    assert not_found.status_code == 404
+
+
+def test_upstream_mcp_server_config_crud(tmp_path: Path) -> None:
+    app = create_app(
+        meta_db_path=tmp_path / "meta.db", catalog_path=tmp_path / "catalog.db"
+    )
+    client = TestClient(app)
+
+    # Initially empty.
+    assert client.get("/upstream-mcp-server-configs").json() == []
+
+    # Create a config for neo4j.
+    payload = {
+        "server_id": "neo4j",
+        "name": "my_neo4j",
+        "endpoint": "http://localhost:9000/mcp",
+        "auth": {"url": "bolt://localhost:7687", "username": "neo4j", "password": "s3cr3t"},
+        "exposed_tools": ["execute_cypher", "list_labels"],
+    }
+    created = client.post("/upstream-mcp-server-configs", json=payload)
+    assert created.status_code == 201
+    cfg = created.json()
+    assert cfg["server_id"] == "neo4j"
+    assert cfg["name"] == "my_neo4j"
+    assert cfg["endpoint"] == "http://localhost:9000/mcp"
+    assert cfg["auth"]["username"] == "neo4j"
+    assert set(cfg["exposed_tools"]) == {"execute_cypher", "list_labels"}
+    config_id = cfg["id"]
+
+    # List.
+    listed = client.get("/upstream-mcp-server-configs")
+    assert listed.status_code == 200
+    assert len(listed.json()) == 1
+
+    # Get single.
+    fetched = client.get(f"/upstream-mcp-server-configs/{config_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["name"] == "my_neo4j"
+
+    # Update.
+    updated = client.put(
+        f"/upstream-mcp-server-configs/{config_id}",
+        json={"name": "neo4j_prod", "exposed_tools": ["execute_cypher"]},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["name"] == "neo4j_prod"
+    assert updated.json()["exposed_tools"] == ["execute_cypher"]
+
+    # Delete.
+    deleted = client.delete(f"/upstream-mcp-server-configs/{config_id}")
+    assert deleted.status_code == 204
+    assert client.get("/upstream-mcp-server-configs").json() == []
+
+    # Creating with an unknown server_id should fail.
+    bad = client.post(
+        "/upstream-mcp-server-configs",
+        json={"server_id": "nonexistent", "name": "test"},
+    )
+    assert bad.status_code == 422
+
+
+def test_data_source_with_upstream_mcp_config(tmp_path: Path) -> None:
+    app = create_app(
+        meta_db_path=tmp_path / "meta.db", catalog_path=tmp_path / "catalog.db"
+    )
+    client = TestClient(app)
+
+    # Create an upstream config first.
+    cfg_resp = client.post(
+        "/upstream-mcp-server-configs",
+        json={
+            "server_id": "neo4j",
+            "name": "test_neo4j",
+            "endpoint": "http://localhost:9000/mcp",
+            "auth": {"url": "bolt://localhost:7687", "username": "neo4j", "password": "pw"},
+            "exposed_tools": ["execute_cypher"],
+        },
+    )
+    assert cfg_resp.status_code == 201
+    config_id = cfg_resp.json()["id"]
+
+    # Create a data source referencing this config.
+    ds_resp = client.post(
+        "/data-sources",
+        json={
+            "name": "graph_source",
+            "type": "graph",
+            "connection": f"upstream://{config_id}",
+            "upstream_mcp_server_config_id": config_id,
+        },
+    )
+    assert ds_resp.status_code == 201
+    ds = ds_resp.json()
+    assert ds["upstream_mcp_server_config_id"] == config_id
+    assert ds["type"] == "graph"
+
+    # Sync should return 0 tables (upstream MCP sources have no SQL schema).
+    sync_resp = client.post("/data-sources/graph_source/sync")
+    assert sync_resp.status_code == 200
+    assert sync_resp.json()["indexed_tables"] == 0
+
+    # Creating a data source with an invalid upstream config should fail.
+    bad_ds = client.post(
+        "/data-sources",
+        json={
+            "name": "bad_graph",
+            "type": "graph",
+            "connection": "upstream://nonexistent",
+            "upstream_mcp_server_config_id": "nonexistent",
+        },
+    )
+    assert bad_ds.status_code == 422

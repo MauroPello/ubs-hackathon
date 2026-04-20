@@ -793,6 +793,134 @@ SQLiteDataSource = SQLAlchemyDataSource
 
 
 # ---------------------------------------------------------------------------
+# Upstream MCP data source – forwards tool calls to a configured upstream
+# MCP server via a simple JSON HTTP proxy.
+# ---------------------------------------------------------------------------
+
+# Data types that are routed to an upstream MCP server (not SQL in-house).
+UPSTREAM_MCP_DATA_TYPES: frozenset[str] = frozenset({"graph", "documents"})
+
+
+class UpstreamMCPDataSource(DataSource):
+    """Data source that proxies tool calls to a configured upstream MCP server.
+
+    This adapter is used when a data source references an upstream MCP server
+    config (``upstream_mcp_server_config_id``).  It replaces the older
+    :class:`DelegatedGraphDataSource` for new-style graph sources and also
+    handles document-type upstream sources.
+    """
+
+    def __init__(self, config: DataSourceConfig, endpoint: str, exposed_tools: list[str]) -> None:
+        super().__init__(config)
+        self._endpoint = endpoint.strip()
+        self._exposed_tools: list[str] = list(exposed_tools)
+
+    # ------------------------------------------------------------------
+    # Delegation helper
+    # ------------------------------------------------------------------
+
+    def _delegate_tool(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if not self._endpoint:
+            return {
+                "delegated": False,
+                "reason": "No endpoint configured for upstream MCP server",
+                "tool": tool,
+                "arguments": arguments,
+            }
+        payload = json.dumps(
+            {
+                "data_source": self.config.name,
+                "tool": tool,
+                "arguments": arguments,
+            }
+        ).encode("utf-8")
+        req = urllib_request.Request(
+            self._endpoint,
+            data=payload,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib_request.urlopen(req, timeout=30) as resp:
+                body = resp.read().decode("utf-8")
+            data = json.loads(body) if body else {}
+            return {"delegated": True, "tool": tool, "result": data}
+        except (urllib_error.URLError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Upstream MCP call failed for '{tool}': {exc}") from exc
+
+    # ------------------------------------------------------------------
+    # DataSource interface – minimal SQL stubs
+    # ------------------------------------------------------------------
+
+    def list_tables(self) -> list[str]:
+        return []
+
+    def table_doc(self, table: str) -> TableDoc:
+        raise ValueError(f"Data source '{self.config.name}' does not support SQL schema discovery")
+
+    def execute_read_only(
+        self, sql: str, limit: int = 200, session_id: str | None = None
+    ) -> dict[str, Any]:
+        raise ValueError(
+            f"Data source '{self.config.name}' does not support SQL queries; use call_upstream_tool"
+        )
+
+    def list_temporary_views(
+        self, session_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        return []
+
+    def create_temporary_view(
+        self,
+        sql: str,
+        view_name: str | None = None,
+        ttl_seconds: int = 3600,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        raise TemporaryViewError(
+            f"Data source '{self.config.name}' does not support temporary SQL views"
+        )
+
+    def drop_temporary_view(
+        self, view_name: str, session_id: str | None = None
+    ) -> dict[str, Any]:
+        raise TemporaryViewError(
+            f"Data source '{self.config.name}' does not support temporary SQL views"
+        )
+
+    # ------------------------------------------------------------------
+    # Upstream MCP operations
+    # ------------------------------------------------------------------
+
+    def get_exposed_tools(self) -> list[str]:
+        """Return the list of tool names exposed by this data source."""
+        return list(self._exposed_tools)
+
+    def call_upstream_tool(
+        self, tool_name: str, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Forward a tool call to the upstream MCP server."""
+        if tool_name not in self._exposed_tools:
+            raise ValueError(
+                f"Tool '{tool_name}' is not exposed by data source '{self.config.name}'. "
+                f"Available: {self._exposed_tools}"
+            )
+        return self._delegate_tool(tool_name, arguments)
+
+    def capabilities(self) -> dict[str, bool]:
+        data_type = (self.config.type or "").strip().lower()
+        return {
+            "sql_schema_discovery": False,
+            "sql_read_only_query": False,
+            "temporary_views": False,
+            "graph_schema_discovery": data_type == "graph",
+            "graph_read_only_query": data_type == "graph",
+            "upstream_mcp": True,
+            "exposed_tools": self._exposed_tools,  # type: ignore[dict-item]
+        }
+
+
+# ---------------------------------------------------------------------------
 # Adapter registry and factory
 # ---------------------------------------------------------------------------
 

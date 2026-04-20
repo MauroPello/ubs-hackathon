@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .models import DataSourceRegistration, DocEntry
+from .models import DataSourceRegistration, DocEntry, UpstreamMCPServerConfigRecord
 
 
 class _Unset:
@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS data_sources (
     connection TEXT NOT NULL,
     sensitive_columns TEXT NOT NULL DEFAULT '[]',
     description TEXT,
+    upstream_mcp_server_config_id TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -36,6 +37,17 @@ CREATE TABLE IF NOT EXISTS source_docs (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (data_source) REFERENCES data_sources(name) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS upstream_mcp_server_configs (
+    id TEXT PRIMARY KEY,
+    server_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    endpoint TEXT,
+    auth TEXT NOT NULL DEFAULT '{}',
+    exposed_tools TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 """
 
@@ -65,6 +77,10 @@ class MetaStore:
             if not _column_exists(conn, "data_sources", "sensitive_columns"):
                 conn.execute(
                     "ALTER TABLE data_sources ADD COLUMN sensitive_columns TEXT NOT NULL DEFAULT '[]'"
+                )
+            if not _column_exists(conn, "data_sources", "upstream_mcp_server_config_id"):
+                conn.execute(
+                    "ALTER TABLE data_sources ADD COLUMN upstream_mcp_server_config_id TEXT"
                 )
 
     def _now(self) -> str:
@@ -105,14 +121,14 @@ class MetaStore:
     def list_data_sources(self) -> list[DataSourceRegistration]:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT name, type, connection, sensitive_columns, description, created_at, updated_at FROM data_sources ORDER BY name"
+                "SELECT name, type, connection, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at FROM data_sources ORDER BY name"
             ).fetchall()
         return [self._row_to_registration(row) for row in rows]
 
     def get_data_source(self, name: str) -> DataSourceRegistration | None:
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT name, type, connection, sensitive_columns, description, created_at, updated_at FROM data_sources WHERE name = ?",
+                "SELECT name, type, connection, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at FROM data_sources WHERE name = ?",
                 (name,),
             ).fetchone()
         return self._row_to_registration(row) if row else None
@@ -124,6 +140,7 @@ class MetaStore:
         connection: str,
         sensitive_columns: list[str] | None = None,
         description: str | None = None,
+        upstream_mcp_server_config_id: str | None = None,
     ) -> DataSourceRegistration:
         now = self._now()
         encoded_sensitive_columns = json.dumps(
@@ -132,8 +149,8 @@ class MetaStore:
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO data_sources (name, type, connection, sensitive_columns, description, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO data_sources (name, type, connection, sensitive_columns, description, upstream_mcp_server_config_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     name,
@@ -141,6 +158,7 @@ class MetaStore:
                     connection,
                     encoded_sensitive_columns,
                     description,
+                    upstream_mcp_server_config_id,
                     now,
                     now,
                 ),
@@ -157,6 +175,7 @@ class MetaStore:
         connection: str | None = None,
         sensitive_columns: list[str] | None = None,
         description: str | None | _Unset = _UNSET,
+        upstream_mcp_server_config_id: str | None | _Unset = _UNSET,
     ) -> DataSourceRegistration | None:
         current = self.get_data_source(name)
         if current is None:
@@ -169,12 +188,17 @@ class MetaStore:
             else current.sensitive_columns
         )
         next_description = current.description if description is _UNSET else description
+        next_upstream_id = (
+            current.upstream_mcp_server_config_id
+            if upstream_mcp_server_config_id is _UNSET
+            else upstream_mcp_server_config_id
+        )
         now = self._now()
         with self._connect() as conn:
             conn.execute(
                 """
                 UPDATE data_sources
-                SET type = ?, connection = ?, sensitive_columns = ?, description = ?, updated_at = ?
+                SET type = ?, connection = ?, sensitive_columns = ?, description = ?, upstream_mcp_server_config_id = ?, updated_at = ?
                 WHERE name = ?
                 """,
                 (
@@ -182,6 +206,7 @@ class MetaStore:
                     next_connection,
                     json.dumps(next_sensitive_columns),
                     next_description,
+                    next_upstream_id,
                     now,
                     name,
                 ),
@@ -277,5 +302,120 @@ class MetaStore:
             result = conn.execute(
                 "DELETE FROM source_docs WHERE data_source = ? AND id = ?",
                 (data_source, doc_id),
+            )
+        return result.rowcount > 0
+
+    # ------------------------------------------------------------------
+    # Upstream MCP server config CRUD
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _row_to_upstream_config(row: sqlite3.Row) -> UpstreamMCPServerConfigRecord:
+        payload = dict(row)
+        for json_field in ("auth", "exposed_tools"):
+            raw = payload.get(json_field)
+            try:
+                payload[json_field] = json.loads(raw) if raw else ({} if json_field == "auth" else [])
+            except (json.JSONDecodeError, TypeError):
+                payload[json_field] = {} if json_field == "auth" else []
+        return UpstreamMCPServerConfigRecord(**payload)
+
+    def list_upstream_configs(self) -> list[UpstreamMCPServerConfigRecord]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, server_id, name, endpoint, auth, exposed_tools, created_at, updated_at FROM upstream_mcp_server_configs ORDER BY name"
+            ).fetchall()
+        return [self._row_to_upstream_config(row) for row in rows]
+
+    def list_upstream_configs_for_server(self, server_id: str) -> list[UpstreamMCPServerConfigRecord]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, server_id, name, endpoint, auth, exposed_tools, created_at, updated_at FROM upstream_mcp_server_configs WHERE server_id = ? ORDER BY name",
+                (server_id,),
+            ).fetchall()
+        return [self._row_to_upstream_config(row) for row in rows]
+
+    def get_upstream_config(self, config_id: str) -> UpstreamMCPServerConfigRecord | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id, server_id, name, endpoint, auth, exposed_tools, created_at, updated_at FROM upstream_mcp_server_configs WHERE id = ?",
+                (config_id,),
+            ).fetchone()
+        return self._row_to_upstream_config(row) if row else None
+
+    def create_upstream_config(
+        self,
+        config_id: str,
+        server_id: str,
+        name: str,
+        endpoint: str | None = None,
+        auth: dict | None = None,
+        exposed_tools: list[str] | None = None,
+    ) -> UpstreamMCPServerConfigRecord:
+        now = self._now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO upstream_mcp_server_configs (id, server_id, name, endpoint, auth, exposed_tools, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    config_id,
+                    server_id,
+                    name,
+                    endpoint,
+                    json.dumps(auth or {}),
+                    json.dumps(exposed_tools or []),
+                    now,
+                    now,
+                ),
+            )
+        created = self.get_upstream_config(config_id)
+        if created is None:
+            raise RuntimeError(f"Failed to create upstream config: {config_id}")
+        return created
+
+    def update_upstream_config(
+        self,
+        config_id: str,
+        name: str | None = None,
+        endpoint: str | None | _Unset = _UNSET,
+        auth: dict | None = None,
+        exposed_tools: list[str] | None = None,
+    ) -> UpstreamMCPServerConfigRecord | None:
+        current = self.get_upstream_config(config_id)
+        if current is None:
+            return None
+        next_name = name if name is not None else current.name
+        next_endpoint = current.endpoint if endpoint is _UNSET else endpoint
+        next_auth = auth if auth is not None else current.auth
+        next_exposed_tools = exposed_tools if exposed_tools is not None else current.exposed_tools
+        now = self._now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE upstream_mcp_server_configs
+                SET name = ?, endpoint = ?, auth = ?, exposed_tools = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    next_name,
+                    next_endpoint,
+                    json.dumps(next_auth),
+                    json.dumps(next_exposed_tools),
+                    now,
+                    config_id,
+                ),
+            )
+        updated = self.get_upstream_config(config_id)
+        if updated is None:
+            raise RuntimeError(f"Failed to update upstream config: {config_id}")
+        return updated
+
+    def delete_upstream_config(self, config_id: str) -> bool:
+        with self._connect() as conn:
+            result = conn.execute(
+                "DELETE FROM upstream_mcp_server_configs WHERE id = ?",
+                (config_id,),
             )
         return result.rowcount > 0
