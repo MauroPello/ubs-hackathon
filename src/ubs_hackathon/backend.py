@@ -19,7 +19,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .builder import _apply_schema_docs
 from .catalog import SchemaCatalog
-from .config import load_config, get_registry_entry, list_registry_entries
+from .config import (
+    get_metadata_tool_specs,
+    get_registry_entry,
+    load_config,
+    list_registry_entries,
+)
 from .datasource import build_data_source
 from .meta_store import MetaStore, _UNSET
 from .source_runtime import RuntimeResolutionError, build_runtime_source_config
@@ -141,7 +146,7 @@ class UpstreamMCPServerConfigUpdate(BaseModel):
 
 
 class DocCreate(BaseModel):
-    doc_type: str
+    doc_type: str | None = None
     target: str | None = None
     content: str
 
@@ -167,36 +172,15 @@ def _docs_to_schema_map(data_source: str, docs: list[dict]) -> dict[str, dict]:
     """Map stored doc entries to the schema-doc structure consumed by catalog enrichment."""
     source_payload: dict = {"tables": {}, "graph_entities": {}}
     for doc in docs:
-        doc_type = doc.get("doc_type", "").lower()
         target = doc.get("target")
         content = doc.get("content")
         if not content:
             continue
-        if doc_type == "graph_entity" and target:
-            graph_meta = source_payload["graph_entities"].setdefault(target, {})
-            graph_meta["description"] = content
+        if target:
+            source_payload["tables"].setdefault(target, {})["description"] = content
+            source_payload["graph_entities"].setdefault(target, {})["description"] = content
             continue
-        graph_target = _split_dotted_target(target)
-        if doc_type == "graph_property" and graph_target is not None:
-            entity_name, property_name = graph_target
-            graph_meta = source_payload["graph_entities"].setdefault(entity_name, {})
-            property_meta = graph_meta.setdefault("columns", {})
-            property_meta[property_name] = content
-            continue
-        if doc_type == "table" and target:
-            table_meta = source_payload["tables"].setdefault(target, {})
-            table_meta["description"] = content
-            continue
-        if doc_type == "table" and not target:
-            # Fallback description for non-graph tables without explicit docs.
-            source_payload["default_table_description"] = content
-            continue
-        table_target = _split_dotted_target(target)
-        if doc_type == "column" and table_target is not None:
-            table_name, column_name = table_target
-            table_meta = source_payload["tables"].setdefault(table_name, {})
-            column_meta = table_meta.setdefault("columns", {})
-            column_meta[column_name] = content
+        source_payload["default_table_description"] = content
     return {data_source: source_payload}
 
 
@@ -248,6 +232,19 @@ def _rebuild_catalog_for_data_source(
         catalog.upsert_table_doc(doc)
         total_tables += 1
     return total_tables
+
+
+def _default_doc_type_for_source(
+    store: MetaStore, name: str, registry: list[dict]
+) -> str:
+    registration = store.get_data_source(name)
+    if not registration or not registration.upstream_mcp_server_config_id:
+        return "entity"
+    connector = store.get_upstream_config(registration.upstream_mcp_server_config_id)
+    if not connector:
+        return "entity"
+    entry = get_registry_entry(registry, connector.server_id)
+    return str((entry or {}).get("entity_name") or "entity").strip() or "entity"
 
 
 def create_app(
@@ -334,6 +331,13 @@ def create_app(
         reg = get_registry_entry(connectors_registry, cfg.server_id)
         if reg and "data_type" in reg:
             d["data_type"] = reg["data_type"]
+        if reg and "has_metadata" in reg:
+            d["has_metadata"] = reg["has_metadata"]
+        if reg and "entity_name" in reg:
+            d["entity_name"] = reg["entity_name"]
+        metadata_tools = get_metadata_tool_specs(reg)
+        if metadata_tools:
+            d["metadata_tools"] = [name for name, _ in metadata_tools]
         return d
 
     def _enrich_data_source(ds) -> dict:
@@ -557,8 +561,11 @@ def create_app(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
             )
+        doc_type = payload.doc_type or _default_doc_type_for_source(
+            store, name, connectors_registry
+        )
         created = store.create_doc(
-            name, payload.doc_type, payload.target, payload.content
+            name, doc_type, payload.target, payload.content
         )
         _rebuild_catalog_for_data_source(store, catalog, name, connectors_registry)
         return created.to_dict()
@@ -579,6 +586,9 @@ def create_app(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Data source not found"
             )
         updates = payload.model_dump(exclude_unset=True)
+        updates["doc_type"] = updates.get("doc_type") or _default_doc_type_for_source(
+            store, name, connectors_registry
+        )
         try:
             updated = store.update_doc(name, doc_id, **updates)
         except ValueError as exc:

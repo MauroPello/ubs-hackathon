@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 import yaml
@@ -45,7 +46,7 @@ def load_config(
                 f"Data source '{source.get('name', '<unnamed>')}' must set upstream_mcp_server_config_id"
             )
         ds = DataSourceConfig(
-            name=source["name"],
+            name=source["name"].strip(),
             type=(source.get("type") or "").strip().lower(),
             description=source.get("description"),
             adapter=(source.get("adapter") or "").strip().lower() or None,
@@ -76,6 +77,33 @@ def get_registry_entry(registry: list[dict], server_id: str) -> dict | None:
         if entry.get("id") == server_id:
             return entry
     return None
+
+
+def _normalize_tool_fragment(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "_", str(value).strip().lower())
+    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
+    return cleaned
+
+
+def get_metadata_tool_specs(entry: dict | None) -> list[tuple[str, str]]:
+    """Return metadata-backed tool specs derived from a registry entry."""
+    if not entry or not entry.get("has_metadata"):
+        return []
+
+    entity_name = _normalize_tool_fragment(entry.get("entity_name") or "")
+    if not entity_name:
+        return []
+
+    return [
+        (
+            f"search_{entity_name}",
+            f"Search {entity_name} metadata in the catalog.",
+        ),
+        (
+            f"describe_{entity_name}",
+            f"Describe {entity_name} metadata in the catalog.",
+        ),
+    ]
 
 
 def list_registry_entries(

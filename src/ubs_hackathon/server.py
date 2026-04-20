@@ -11,7 +11,7 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 
 from .catalog import SchemaCatalog
-from .config import load_config
+from .config import get_metadata_tool_specs, get_registry_entry, load_config
 from .datasource import DataSource, build_data_source, UpstreamMCPDataSource
 from .meta_store import MetaStore
 from .models import DataSourceConfig
@@ -80,14 +80,14 @@ class SourceRegistry:
         self._last_refresh = 0.0
         self._ttl = 24 * 3600.0
 
-    def _refresh_if_needed(self) -> None:
+    def refresh(self) -> None:
         now = time.time()
         if self._configs and (now - self._last_refresh) < self._ttl:
             return
 
         # Start with YAML sources as base
         new_configs: dict[str, DataSourceConfig] = {
-            c.name: c for c in self.yaml_sources
+            c.name.strip(): c for c in self.yaml_sources
         }
 
         if self.meta_db_path:
@@ -100,13 +100,21 @@ class SourceRegistry:
 
             for upstream_cfg in store.list_upstream_configs():
                 self._connector_configs[upstream_cfg.id] = upstream_cfg
-                if not upstream_cfg.exposed_tools:
-                    continue
                 tool_specs = _extract_exposed_tool_specs(upstream_cfg.exposed_tools)
-                if not tool_specs:
+                metadata_specs = get_metadata_tool_specs(
+                    get_registry_entry(self.registry, upstream_cfg.server_id)
+                )
+                combined_specs: list[tuple[str, str | None]] = []
+                seen_names: set[str] = set()
+                for name, description in tool_specs + metadata_specs:
+                    if name in seen_names:
+                        continue
+                    seen_names.add(name)
+                    combined_specs.append((name, description))
+                if not combined_specs:
                     continue
 
-                self._upstream_tool_specs[upstream_cfg.id] = tool_specs
+                self._upstream_tool_specs[upstream_cfg.id] = combined_specs
 
                 # Build an UpstreamMCPDataSource proxy for non-SQL connectors
                 try:
@@ -122,7 +130,7 @@ class SourceRegistry:
                     upstream_mcp_server_config_id=upstream_cfg.id,
                     options={
                         "endpoint": upstream_cfg.endpoint or "",
-                        "exposed_tools": [name for name, _ in tool_specs],
+                        "exposed_tools": [name for name, _ in combined_specs],
                     },
                 )
                 self._upstream_sources[upstream_cfg.id] = UpstreamMCPDataSource(
@@ -141,21 +149,25 @@ class SourceRegistry:
                     cfg = build_runtime_source_config(reg, connector, self.registry)
                 except RuntimeResolutionError:
                     continue
-                new_configs[reg.name] = cfg
+                new_configs[reg.name.strip()] = cfg
 
+        # Debug logging to track config state
+        print(f"DEBUG: YAML sources: {[c.name for c in self.yaml_sources]}", file=sys.stderr)
+        print(f"DEBUG: Registry config keys: {list(new_configs.keys())}", file=sys.stderr)
+        
         self._configs = new_configs
         self._last_refresh = time.time()
 
     def get_all_configs(self) -> list[DataSourceConfig]:
-        self._refresh_if_needed()
+        self.refresh()
         return list(self._configs.values())
 
     def get_source(self, name: str) -> DataSource | None:
         if name in self._ds_cache:
             return self._ds_cache[name]
 
-        self._refresh_if_needed()
-        cfg = self._configs.get(name)
+        self.refresh()
+        cfg = self._configs.get(name.strip())
 
         # Cache miss - look in DB if possible
         if not cfg and self.meta_db_path:
@@ -187,8 +199,8 @@ class SourceRegistry:
 
     def get_allowed_tools(self, source_name: str) -> list[str]:
         """Return the list of allowed tool names for a given data source."""
-        self._refresh_if_needed()
-        cfg = self._configs.get(source_name)
+        self.refresh()
+        cfg = self._configs.get(source_name.strip())
         if not cfg:
             return []
 
@@ -207,7 +219,7 @@ class SourceRegistry:
         return tool_name in self.get_allowed_tools(source_name)
 
     def get_upstream_tool_descriptions(self) -> dict[str, str]:
-        self._refresh_if_needed()
+        self.refresh()
         descriptions: dict[str, str] = {}
         for config_id, specs in self._upstream_tool_specs.items():
             for tool_name, desc in specs:
@@ -216,7 +228,7 @@ class SourceRegistry:
         return descriptions
 
     def get_upstream_tool_names(self) -> set[str]:
-        self._refresh_if_needed()
+        self.refresh()
         names: set[str] = set()
         for specs in self._upstream_tool_specs.values():
             for name, _ in specs:
@@ -231,7 +243,7 @@ def _make_upstream_proxy(
 ):
     """Return a callable that proxies a tool to the correct upstream by data source."""
 
-    def proxy_tool(data_source: str, arguments: dict[str, Any] | None = None) -> dict:
+    async def proxy_tool(data_source: str, arguments: dict[str, Any] | None = None) -> dict:
         """Proxy tool forwarding requests to an upstream MCP server."""
         source = registry.get_source(data_source)
         if not isinstance(source, UpstreamMCPDataSource):
@@ -239,7 +251,7 @@ def _make_upstream_proxy(
                 f"Tool '{tool_name}' is not available for data_source '{data_source}'. "
                 f"Source is not an upstream MCP server."
             )
-        return source.call_upstream_tool(tool_name, arguments or {})
+        return await source.call_upstream_tool(tool_name, arguments or {})
 
     proxy_tool.__name__ = tool_name
     proxy_tool.__doc__ = description or (
@@ -268,6 +280,35 @@ def create_server(
 
     mcp = FastMCP("ubs-hackathon-assistant", host=host, port=port)
 
+    def _make_catalog_search_tool(tool_name: str):
+        async def search_tool(
+            query: str, top_k: int = 5, data_source: str | None = None
+        ) -> list[dict]:
+            if data_source and not registry.is_tool_allowed(data_source, tool_name):
+                raise ValueError(
+                    f"Tool '{tool_name}' is disabled for source '{data_source}'"
+                )
+            return catalog.search(query=query, top_k=top_k, data_source=data_source)
+
+        search_tool.__name__ = tool_name
+        search_tool.__doc__ = (
+            f"Semantic search over indexed metadata via '{tool_name}'. "
+            "Optionally filter by data_source."
+        )
+        return search_tool
+
+    def _make_catalog_describe_tool(tool_name: str):
+        async def describe_tool(data_source: str, target: str) -> dict:
+            if not registry.is_tool_allowed(data_source, tool_name):
+                raise ValueError(
+                    f"Tool '{tool_name}' is disabled for source '{data_source}'"
+                )
+            return catalog.describe_table(data_source=data_source, table=target)
+
+        describe_tool.__name__ = tool_name
+        describe_tool.__doc__ = f"Return complete metadata via '{tool_name}'."
+        return describe_tool
+
     @mcp.tool()
     def list_data_sources() -> list[dict]:
         """Enumerate configured data sources and supported type."""
@@ -284,26 +325,10 @@ def create_server(
             )
         return results
 
-    def search_schema(
-        query: str, top_k: int = 5, data_source: str | None = None
-    ) -> list[dict]:
-        """Semantic search over indexed schema docs. Optionally filter by data_source."""
-        if data_source:
-            if not registry.is_tool_allowed(data_source, "search_schema"):
-                raise ValueError(
-                    f"Tool 'search_schema' is disabled for source '{data_source}'"
-                )
-        return catalog.search(query=query, top_k=top_k, data_source=data_source)
+    search_schema = _make_catalog_search_tool("search_schema")
+    describe_table = _make_catalog_describe_tool("describe_table")
 
-    def describe_table(data_source: str, table: str) -> dict:
-        """Return complete table metadata from the schema catalog."""
-        if not registry.is_tool_allowed(data_source, "describe_table"):
-            raise ValueError(
-                f"Tool 'describe_table' is disabled for source '{data_source}'"
-            )
-        return catalog.describe_table(data_source=data_source, table=table)
-
-    def execute_query(
+    async def execute_query(
         data_source: str,
         sql: str,
         limit: int = 200,
@@ -319,7 +344,7 @@ def create_server(
             raise ValueError(f"Unknown data source: {data_source}")
         return source.execute_read_only(sql=sql, limit=limit, session_id=session_id)
 
-    def list_temporary_views(
+    async def list_temporary_views(
         data_source: str, session_id: str | None = None
     ) -> list[dict]:
         """List temporary views created in the current server session."""
@@ -332,7 +357,7 @@ def create_server(
             raise ValueError(f"Unknown data source: {data_source}")
         return source.list_temporary_views(session_id=session_id)
 
-    def create_temporary_view(
+    async def create_temporary_view(
         data_source: str,
         sql: str,
         view_name: str | None = None,
@@ -351,7 +376,7 @@ def create_server(
             sql=sql, view_name=view_name, ttl_seconds=ttl_seconds, session_id=session_id
         )
 
-    def drop_temporary_view(
+    async def drop_temporary_view(
         data_source: str, view_name: str, session_id: str | None = None
     ) -> dict:
         """Drop a temporary view created by this server session."""
@@ -400,6 +425,14 @@ def create_server(
         "create_temporary_view": create_temporary_view,
         "drop_temporary_view": drop_temporary_view,
     }
+
+    for _tool_name in registry.get_upstream_tool_names():
+        if _tool_name in internal_sql_tools:
+            continue
+        if _tool_name.startswith("search_"):
+            internal_sql_tools[_tool_name] = _make_catalog_search_tool(_tool_name)
+        elif _tool_name.startswith("describe_"):
+            internal_sql_tools[_tool_name] = _make_catalog_describe_tool(_tool_name)
 
     # Register one proxy tool per upstream tool name.
     # If multiple upstream servers expose the same tool name, route by data_source.

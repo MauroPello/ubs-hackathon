@@ -71,10 +71,6 @@ const timeAgo = (iso) => {
             <UIcon :name="kpi.icon" :class="`w-6 h-6 text-${kpi.color}-600`" />
           </div>
         </div>
-        <div class="mt-4 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-600">
-          <UIcon name="i-heroicons-arrow-trending-up" />
-          <span>Optimal Performance</span>
-        </div>
       </UCard>
     </div>
 

@@ -22,16 +22,18 @@ connectors_registry:
   - id: neo4j
     name: Neo4j
     data_type: graph
+    has_metadata: true
+    entity_name: entity
     description: >
       Neo4j graph database MCP server for executing Cypher queries
       and exploring graph schema.
     tools:
-      - name: execute_cypher
+      - name: get_neo4j_schema
+        description: Retrieve the graph schema including node labels, relationship types, and property keys.
+      - name: read_neo4j_cypher
         description: Execute a read-only Cypher query against the Neo4j database.
-      - name: list_labels
-        description: List all node labels present in the graph database.
-      - name: describe_node_type
-        description: Describe the properties and relationships of a node label.
+      - name: write_neo4j_cypher
+        description: Execute a Cypher query that can modify the graph (CREATE, MERGE, etc.).
     requires_auth: true
     auth_schema:
       url:
@@ -75,14 +77,12 @@ connectors_registry:
   - id: sql-like
     name: SQL-like DBs
     data_type: sql
+    has_metadata: true
+    entity_name: table
     description: >
       Internal SQL connector for relational databases (SQLite, PostgreSQL, etc.).
       Allows enabling/disabling SQL analysis tools.
     tools:
-      - name: search_schema
-        description: Semantic search over indexed schema docs.
-      - name: describe_table
-        description: Return complete table metadata from the schema catalog.
       - name: execute_query
         description: Execute a read-only query against a configured source.
       - name: list_temporary_views
@@ -118,8 +118,6 @@ upstream_mcp_server_configs:
       dialect: sqlite
       connection: data/big_demo.db
     exposed_tools:
-      - search_schema
-      - describe_table
       - execute_query
       - list_temporary_views
       - create_temporary_view
@@ -127,15 +125,14 @@ upstream_mcp_server_configs:
   - id: local_neo4j_connector
     server_id: neo4j
     name: Local Neo4j Connector
-    endpoint: http://127.0.0.1:8001/sse
+    endpoint: http://127.0.0.1:8001/mcp/
     auth:
       url: bolt://localhost:7687
       username: neo4j
       password: ChangeMe123!
     exposed_tools:
-      - execute_cypher
-      - list_labels
-      - describe_node_type
+      - get_neo4j_schema
+      - read_neo4j_cypher
 
 # ---------------------------------------------------------------------------
 # Data sources

@@ -4,7 +4,9 @@ from typing import Any
 
 import pytest
 
+from ubs_hackathon.meta_store import MetaStore
 from ubs_hackathon.server import _extract_exposed_tool_specs, _make_upstream_proxy
+from ubs_hackathon.server import SourceRegistry
 
 
 class _FakeConfig:
@@ -67,3 +69,57 @@ def test_upstream_proxy_rejects_unknown_data_source_for_tool() -> None:
     )
     with pytest.raises(ValueError, match="not available for data_source"):
         proxy(data_source="unknown_source", arguments={"q": "x"})
+
+
+def test_metadata_backed_connectors_gain_entity_specific_tools(tmp_path) -> None:
+    meta_db_path = tmp_path / "meta.db"
+    store = MetaStore(meta_db_path)
+    store.create_upstream_config(
+        config_id="sql_cfg",
+        server_id="sql-like",
+        name="SQL Connector",
+        endpoint=None,
+        auth={},
+        exposed_tools=["search_schema", "describe_table"],
+    )
+    store.create_data_source(
+        "sql_source",
+        upstream_mcp_server_config_id="sql_cfg",
+        databases=["main"],
+        sensitive_columns=[],
+    )
+    store.create_upstream_config(
+        config_id="graph_cfg",
+        server_id="neo4j",
+        name="Graph Connector",
+        endpoint=None,
+        auth={},
+        exposed_tools=["list_labels", "describe_node_type"],
+    )
+    store.create_data_source(
+        "graph_source",
+        upstream_mcp_server_config_id="graph_cfg",
+        databases=["neo4j"],
+        sensitive_columns=[],
+    )
+
+    registry = SourceRegistry(
+        meta_db_path=meta_db_path,
+        catalog_path=tmp_path / "catalog.db",
+        yaml_sources=[],
+        registry=[
+            {"id": "sql-like", "data_type": "sql", "has_metadata": True, "entity_name": "table"},
+            {"id": "neo4j", "data_type": "graph", "has_metadata": True, "entity_name": "entity"},
+        ],
+    )
+
+    sql_tools = registry.get_allowed_tools("sql_source")
+    graph_tools = registry.get_allowed_tools("graph_source")
+
+    assert "search_table" in sql_tools
+    assert "describe_table" in sql_tools
+    assert "search_entity" in graph_tools
+    assert "describe_entity" in graph_tools
+    assert "search_table" in registry.get_upstream_tool_names()
+    assert "search_entity" in registry.get_upstream_tool_names()
+    assert "describe_entity" in registry.get_upstream_tool_names()

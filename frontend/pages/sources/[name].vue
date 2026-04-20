@@ -22,7 +22,6 @@ const form = reactive({
 const showDocModal = ref(false)
 const editingDocId = ref(null)
 const docForm = reactive({
-  doc_type: 'table',
   target: '',
   content: ''
 })
@@ -36,6 +35,10 @@ const selectedServerSpec = computed(() => {
   if (!config) return null
   return (upstreamServers.value || []).find(s => s.id === config.server_id)
 })
+
+const hasMetadata = computed(() => !!selectedServerSpec.value?.has_metadata)
+const entityName = computed(() => selectedServerSpec.value?.entity_name || (category.value === 'graph' ? 'entity' : 'table'))
+const entityLabel = computed(() => entityName.value.charAt(0).toUpperCase() + entityName.value.slice(1))
 
 const hiddenFields = computed(() => {
   if (!selectedServerSpec.value) return []
@@ -108,16 +111,21 @@ async function deleteSource() {
 
 async function addDoc() {
   try {
+    const payload = {
+      target: docForm.target,
+      content: docForm.content
+    }
+
     if (editingDocId.value) {
       await $fetch(`/api/data-sources/${name}/docs/${editingDocId.value}`, {
         method: 'PUT',
-        body: docForm
+        body: payload
       })
       toast.add({ title: 'Documentation updated', color: 'green' })
     } else {
       await $fetch(`/api/data-sources/${name}/docs`, {
         method: 'POST',
-        body: docForm
+        body: payload
       })
       toast.add({ title: 'Documentation added', color: 'green' })
     }
@@ -131,7 +139,6 @@ async function addDoc() {
 
 function resetDocForm() {
   editingDocId.value = null
-  docForm.doc_type = 'table'
   docForm.target = ''
   docForm.content = ''
 }
@@ -143,7 +150,6 @@ function openAddDocModal() {
 
 function openEditDocModal(doc) {
   editingDocId.value = doc.id
-  docForm.doc_type = doc.doc_type
   docForm.target = doc.target || ''
   docForm.content = doc.content
   showDocModal.value = true
@@ -170,13 +176,6 @@ const categories = [
   { label: 'Graph', value: 'graph' },
   { label: 'Documents', value: 'documents' }
 ]
-
-const docTypes = [
-  { label: 'Table', value: 'table' },
-  { label: 'Column', value: 'column' },
-  { label: 'Graph Entity', value: 'graph_entity' },
-  { label: 'Graph Property', value: 'graph_property' }
-]
 </script>
 
 <template>
@@ -186,7 +185,7 @@ const docTypes = [
         <UButton icon="i-heroicons-arrow-left" variant="ghost" color="gray" to="/sources" />
         <div>
           <h2 class="text-2xl font-bold text-gray-900">{{ name }}</h2>
-          <p class="text-gray-500">Manage source details and documentation.</p>
+          <p class="text-gray-500">Manage source details and entity-level documentation.</p>
         </div>
       </div>
       <UButton color="red" variant="soft" icon="i-heroicons-trash" label="Delete Source" @click="deleteSource" />
@@ -248,10 +247,10 @@ const docTypes = [
         </form>
       </UCard>
 
-      <UCard>
+      <UCard v-if="hasMetadata">
         <template #header>
           <div class="flex items-center justify-between">
-            <h3 class="font-bold">Documentation</h3>
+            <h3 class="font-bold">{{ entityLabel }} Documentation</h3>
             <UButton label="Add" size="sm" variant="ghost" icon="i-heroicons-plus" @click="openAddDocModal" />
           </div>
         </template>
@@ -270,7 +269,7 @@ const docTypes = [
             @click="openEditDocModal(doc)"
           >
             <div class="flex items-center gap-2 mb-2">
-              <UBadge size="xs" variant="solid" color="gray">{{ doc.doc_type }}</UBadge>
+              <UBadge size="xs" variant="solid" color="gray">{{ entityLabel }}</UBadge>
               <span v-if="doc.target" class="text-[10px] font-bold text-gray-400 truncate">{{ doc.target }}</span>
             </div>
             <p class="text-sm text-gray-700">{{ doc.content }}</p>
@@ -288,7 +287,7 @@ const docTypes = [
     </div>
 
     <!-- Add Doc Modal -->
-    <UModal v-model="showDocModal">
+    <UModal v-if="hasMetadata" v-model="showDocModal">
       <UCard>
         <template #header>
           <div class="flex items-center justify-between">
@@ -298,17 +297,13 @@ const docTypes = [
         </template>
 
         <form @submit.prevent="addDoc" class="space-y-4">
-          <UFormGroup label="Type">
-            <USelectMenu v-model="docForm.doc_type" :options="docTypes" value-attribute="value" option-attribute="label" />
-          </UFormGroup>
-
-          <UFormGroup label="Target (Table/Column/Entity)">
-            <UInput v-model="docForm.target" placeholder="users.email or customers" />
-            <template #hint>Leave empty for global source docs</template>
+          <UFormGroup :label="`Target (${entityLabel})`" required>
+            <UInput v-model="docForm.target" :placeholder="`customers or person`" />
+            <template #hint>Use the entity name this documentation describes.</template>
           </UFormGroup>
 
           <UFormGroup label="Content" required>
-            <UTextarea v-model="docForm.content" placeholder="Description of the target..." />
+            <UTextarea v-model="docForm.content" placeholder="Description of the entity..." />
           </UFormGroup>
 
           <UButton type="submit" block color="red" :label="editingDocId ? 'Update Documentation' : 'Add Documentation'" />

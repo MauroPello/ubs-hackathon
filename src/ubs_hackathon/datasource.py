@@ -6,8 +6,8 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Sequence
-from urllib import error as urllib_error
-from urllib import request as urllib_request
+from mcp import ClientSession
+from mcp.client.sse import sse_client
 
 from sqlalchemy import create_engine, inspect as sqlalchemy_inspect, text
 from sqlalchemy.engine import Connection, Engine
@@ -611,7 +611,7 @@ class UpstreamMCPDataSource(DataSource):
     # Delegation helper
     # ------------------------------------------------------------------
 
-    def _delegate_tool(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    async def _delegate_tool(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if not self._endpoint:
             return {
                 "delegated": False,
@@ -619,25 +619,32 @@ class UpstreamMCPDataSource(DataSource):
                 "tool": tool,
                 "arguments": arguments,
             }
-        payload = json.dumps(
-            {
-                "data_source": self.config.name,
-                "tool": tool,
-                "arguments": arguments,
-            }
-        ).encode("utf-8")
-        req = urllib_request.Request(
-            self._endpoint,
-            data=payload,
-            method="POST",
-            headers={"Content-Type": "application/json"},
-        )
+
         try:
-            with urllib_request.urlopen(req, timeout=30) as resp:
-                body = resp.read().decode("utf-8")
-            data = json.loads(body) if body else {}
-            return {"delegated": True, "tool": tool, "result": data}
-        except (urllib_error.URLError, json.JSONDecodeError) as exc:
+            async with sse_client(self._endpoint) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    result = await session.call_tool(tool, arguments)
+
+                    # Convert CallToolResult to a plain dict for the assistant
+                    # FastMCP result often has a 'content' list
+                    data = []
+                    for item in result.content:
+                        if hasattr(item, "text"):
+                            try:
+                                # Many Neo4j tools return JSON strings
+                                data.append(json.loads(item.text))
+                            except (json.JSONDecodeError, TypeError):
+                                data.append(item.text)
+                        else:
+                            data.append(str(item))
+
+                    # If there's only one item and it's a dict, return it directly
+                    if len(data) == 1:
+                        return data[0] if isinstance(data[0], dict) else {"result": data[0]}
+
+                    return {"results": data}
+        except Exception as exc:
             raise ValueError(f"Upstream MCP call failed for '{tool}': {exc}") from exc
 
     # ------------------------------------------------------------------
@@ -690,7 +697,7 @@ class UpstreamMCPDataSource(DataSource):
         """Return the list of tool names exposed by this data source."""
         return list(self._exposed_tools)
 
-    def call_upstream_tool(
+    async def call_upstream_tool(
         self, tool_name: str, arguments: dict[str, Any]
     ) -> dict[str, Any]:
         """Forward a tool call to the upstream MCP server."""
@@ -699,7 +706,7 @@ class UpstreamMCPDataSource(DataSource):
                 f"Tool '{tool_name}' is not exposed by data source '{self.config.name}'. "
                 f"Available: {self._exposed_tools}"
             )
-        return self._delegate_tool(tool_name, arguments)
+        return await self._delegate_tool(tool_name, arguments)
 
     def capabilities(self) -> list[str]:
         return list(self._exposed_tools)

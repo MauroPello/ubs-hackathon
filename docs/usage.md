@@ -37,10 +37,11 @@ npx @modelcontextprotocol/inspector -- ubs-mcp-server --config config/config.yam
 ## Available MCP Tools
 
 1. `list_data_sources()`: Lists configured data sources and capabilities.
-2. `search_schema(query, top_k=5)`: Returns relevant tables for a natural-language question.
-3. `describe_table(data_source, table)`: Returns complete table metadata.
-4. `execute_query(data_source, sql, limit=200)`: Executes read-only SQL queries.
-5. `list_upstream_mcp_sources()`: Lists configured upstream MCP servers.
+2. `describe_table(data_source, table)`: Returns complete table metadata.
+3. `execute_query(data_source, sql, limit=200)`: Executes read-only SQL queries.
+4. `list_upstream_mcp_sources()`: Lists configured upstream MCP servers.
+5. Metadata-backed connectors expose entity-level aliases using `entity_name`, such as `search_table` / `describe_table` for SQL-like sources and `search_entity` / `describe_entity` for graph sources.
+6. Entity documentation is stored at the entity level only, not per column.
 
 ## Testing with Copilot Chat
 
