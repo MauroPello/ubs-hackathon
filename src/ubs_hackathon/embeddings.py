@@ -133,7 +133,7 @@ class HuggingFaceEmbeddingModel:
         model_path = parse.quote(self.model, safe="")
         headers = {"Content-Type": "application/json"}
         if self.api_token:
-            headers["Authorization"] = f"******"
+            headers["Authorization"] = f"Bearer {self.api_token}"
         req = request.Request(
             f"{self.base_url}/pipeline/feature-extraction/{model_path}",
             data=payload,
