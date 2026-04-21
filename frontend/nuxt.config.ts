@@ -3,7 +3,19 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: false,
   modules: ["@nuxt/ui"],
-  
+
+  app: {
+    head: {
+      link: [
+        { rel: 'icon', type: 'image/avif', href: '/icon-192x192.20260313.avif', sizes: '192x192' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon-180x180.20260313.webp', sizes: '180x180' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon-167x167.20260313.webp', sizes: '167x167' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon-152x152.20260313.png', sizes: '152x152' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon-120x120.20260313.png', sizes: '120x120' },
+      ],
+    },
+  },
+
   // Nuxt 4 compatibility
   future: {
     compatibilityVersion: 4,
