@@ -8,6 +8,10 @@ const config = ref(null)
 const registryEntry = ref(null)
 const pending = ref(true)
 
+useHead(() => ({
+  title: config.value ? `Connector: ${config.value.name}` : 'Connector Details',
+}))
+
 const form = reactive({
   name: '',
   endpoint: '',

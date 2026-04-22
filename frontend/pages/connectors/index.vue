@@ -1,4 +1,8 @@
 <script setup>
+useHead({
+  title: 'Connectors',
+})
+
 const toast = useToast()
 
 // Data

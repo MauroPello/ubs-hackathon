@@ -1,4 +1,8 @@
 <script setup>
+useHead({
+  title: 'Overview',
+})
+
 const stats = [
   { label: 'Total Sources', value: '12', icon: 'i-heroicons-circle-stack', color: 'blue' },
   { label: 'Active Documentation', value: '48', icon: 'i-heroicons-document-text', color: 'green' },

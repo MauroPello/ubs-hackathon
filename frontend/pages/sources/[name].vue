@@ -8,6 +8,10 @@ const source = ref(null)
 const docs = ref([])
 const pending = ref(true)
 
+useHead(() => ({
+  title: source.value ? `Source: ${source.value.name}` : `Source: ${name}`,
+}))
+
 // Form state
 const category = ref('sql')
 const form = reactive({

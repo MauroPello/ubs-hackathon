@@ -1,4 +1,8 @@
 <script setup>
+useHead({
+  title: 'Sources & Documentation',
+})
+
 const toast = useToast()
 
 // State

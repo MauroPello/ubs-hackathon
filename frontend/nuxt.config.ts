@@ -6,6 +6,8 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      title: 'Data Source Manager',
+      titleTemplate: '%s · Data Source Manager',
       link: [
         { rel: 'icon', type: 'image/avif', href: '/icon-192x192.20260313.avif', sizes: '192x192' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon-180x180.20260313.webp', sizes: '180x180' },

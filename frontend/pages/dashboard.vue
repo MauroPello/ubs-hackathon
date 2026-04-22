@@ -1,4 +1,8 @@
 <script setup>
+useHead({
+  title: 'Usage Dashboard',
+})
+
 const { data: usage, refresh: refreshUsage } = await useFetch('/api/mcp-usage')
 const { data: activity, refresh: refreshActivity } = await useFetch('/api/recent-activity')
 

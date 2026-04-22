@@ -24,8 +24,12 @@ const links = [{
     <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-xl">U</span>
+          <div class="w-9 h-9 rounded-lg overflow-hidden bg-white ring-1 ring-gray-200 flex items-center justify-center">
+            <img
+              src="/icon-192x192.20260313.avif"
+              alt="UBS Hackathon logo"
+              class="w-full h-full object-cover"
+            >
           </div>
           <h1 class="text-xl font-bold text-gray-900 tracking-tight">
             Data Source Manager <span class="text-gray-400 font-normal ml-1">| UBS Hackathon</span>
