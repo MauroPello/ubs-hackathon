@@ -6,6 +6,7 @@ import math
 import os
 import re
 import logging
+import functools
 from typing import Protocol
 from urllib import error as urlerror
 from urllib import parse
@@ -216,7 +217,23 @@ class FallbackEmbeddingModel:
             return self._fallback.embed(text)
 
 
-def create_embedding_model(
+class CachedEmbeddingModel:
+    """Wraps an EmbeddingModel with an LRU cache to reduce duplicate API calls."""
+
+    def __init__(self, primary: EmbeddingModel, maxsize: int = 1000) -> None:
+        self._primary = primary
+        
+        @functools.lru_cache(maxsize=maxsize)
+        def _embed(text: str) -> list[float]:
+            return self._primary.embed(text)
+            
+        self._cached_embed = _embed
+
+    def embed(self, text: str) -> list[float]:
+        return self._cached_embed(text)
+
+
+def _create_raw_embedding_model(
     provider: str | None = None,
     *,
     api_key: str | None = None,
@@ -313,6 +330,24 @@ def create_embedding_model(
         local_dims,
     )
     return SimpleEmbeddingModel(dims=local_dims)
+
+
+def create_embedding_model(
+    provider: str | None = None,
+    *,
+    api_key: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
+    local_dims: int = 256,
+) -> EmbeddingModel:
+    raw_model = _create_raw_embedding_model(
+        provider=provider,
+        api_key=api_key,
+        model=model,
+        base_url=base_url,
+        local_dims=local_dims,
+    )
+    return CachedEmbeddingModel(raw_model)
 
 
 def cosine_similarity(v1: list[float], v2: list[float]) -> float:
