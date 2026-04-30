@@ -6,7 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
-data/
+data/*.cypher
+data/*.pid
+data/*.db
+data/*.sqlite
 
 # Distribution / packaging
 .Python

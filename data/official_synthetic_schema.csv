@@ -1,0 +1,439 @@
+Table Name,Column Name,Data Type,Key,References,Nullable,Column Description,Synthetic Example Value
+jurisdiction_catalog,jurisdiction_id,STRING,PK,,N,Simple jurisdiction identifier.,CTY_CH
+jurisdiction_catalog,iso2_code,STRING,,,N,Two-letter ISO jurisdiction code.,CH
+jurisdiction_catalog,iso3_code,STRING,,,N,Three-letter ISO jurisdiction code.,CHE
+jurisdiction_catalog,jurisdiction_name,STRING,,,N,Jurisdiction display name.,Switzerland
+jurisdiction_catalog,region_name,STRING,,,N,Geographic region.,Western Europe
+jurisdiction_catalog,sub_region_name,STRING,,,Y,More detailed geographic area.,Alpine
+jurisdiction_catalog,currency_code,STRING,,,Y,Common domestic currency.,CHF
+jurisdiction_catalog,is_eu_member_flag,BOOLEAN,,,N,Whether jurisdiction belongs to EU in the synthetic universe.,FALSE
+jurisdiction_catalog,is_sanctioned_flag,BOOLEAN,,,N,Synthetic sanctions jurisdiction indicator.,FALSE
+jurisdiction_catalog,fatf_status,STRING,,,Y,Synthetic FATF classification.,standard
+jurisdiction_catalog,risk_band,STRING,,,N,"Low, Medium, High or Severe jurisdiction risk band.",Low
+jurisdiction_catalog,notes,STRING,,,Y,Synthetic jurisdiction note.,Stable regulatory environment
+jurisdiction_catalog,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+jurisdiction_catalog,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+jurisdiction_risk_scores,jurisdiction_risk_id,STRING,PK,,N,Simple risk record identifier.,CRISK_0001
+jurisdiction_risk_scores,jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,N,Jurisdiction being scored.,CTY_CH
+jurisdiction_risk_scores,risk_as_of_date,DATE,,,N,Date of risk score.,46053
+jurisdiction_risk_scores,overall_risk_score,INTEGER,,,N,Composite jurisdiction risk score from 1 to 100.,18
+jurisdiction_risk_scores,aml_risk_score,INTEGER,,,N,AML-specific risk score.,22
+jurisdiction_risk_scores,sanctions_risk_score,INTEGER,,,N,Sanctions risk score.,10
+jurisdiction_risk_scores,corruption_risk_score,INTEGER,,,N,Corruption risk score.,15
+jurisdiction_risk_scores,tax_transparency_score,INTEGER,,,Y,Synthetic tax transparency risk score.,12
+jurisdiction_risk_scores,risk_band,STRING,,,N,Risk category derived from score.,Low
+jurisdiction_risk_scores,review_frequency_months,INTEGER,,,N,Recommended review frequency.,24
+jurisdiction_risk_scores,source_label,STRING,,,Y,Synthetic source label for students.,Open risk benchmark
+jurisdiction_risk_scores,rationale,STRING,,,Y,Narrative explaining the score.,Low sanctions exposure and high transparency
+jurisdiction_risk_scores,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+jurisdiction_risk_scores,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+moral_entities,moral_entity_id,STRING,PK,,N,Simple moral entity identifier.,LE_CH_BANK_01
+moral_entities,jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,N,Jurisdiction where the moral entity is incorporated.,CTY_CH
+moral_entities,legal_entity_name,STRING,,,N,Moral entity display name.,Helvetia Private Bank AG
+moral_entities,legal_entity_type,STRING,,,N,"Bank, broker, asset manager or service company.",Bank
+moral_entities,booking_center_code,STRING,,,N,Booking center code used in synthetic data.,CH01
+moral_entities,regulator_name,STRING,,,Y,Primary regulator.,FINMA
+moral_entities,business_line,STRING,,,Y,Primary business line.,Wealth Management
+moral_entities,local_currency_code,STRING,,,N,Local reporting currency.,CHF
+moral_entities,operational_status,STRING,,,N,"Open, closed, merging or suspended.",open
+moral_entities,opening_date,DATE,,,Y,Synthetic opening date.,35916
+moral_entities,closure_date,DATE,,,Y,Synthetic closure date if any.,
+moral_entities,legal_entity_risk_band,STRING,,,Y,Risk band of moral entity.,Low
+moral_entities,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+moral_entities,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+bank_departments,department_id,STRING,PK,,N,Simple organization unit identifier.,OU_PRIVATE_BANKING_CH
+bank_departments,parent_department_id,STRING,FK,bank_departments.department_id,Y,Parent organization unit for hierarchy exercises.,OU_WEALTH_EUROPE
+bank_departments,moral_entity_id,STRING,FK,moral_entities.moral_entity_id,Y,Owning moral entity.,LE_CH_BANK_01
+bank_departments,org_unit_name,STRING,,,N,Organization unit name.,Private Banking Switzerland
+bank_departments,org_unit_type,STRING,,,N,"Branch, desk, region, compliance team or investigation team.",Branch
+bank_departments,jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,N,Jurisdiction of the unit.,CTY_CH
+bank_departments,manager_staff_id,STRING,FK,bank_people.staff_id,Y,Manager of the unit.,EMP_0007
+bank_departments,cost_center_code,STRING,,,Y,Synthetic cost center.,CC1007
+bank_departments,is_client_facing_flag,BOOLEAN,,,N,Whether the unit faces clients.,TRUE
+bank_departments,status,STRING,,,N,Lifecycle status.,active
+bank_departments,created_date,DATE,,,Y,Synthetic creation date.,43466
+bank_departments,notes,STRING,,,Y,Operational note.,Covers Lake Geneva region
+bank_departments,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+bank_departments,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+bank_people,staff_id,STRING,PK,,N,Simple staff identifier.,EMP_0001
+bank_people,department_id,STRING,FK,bank_departments.department_id,N,Staff's organization unit.,OU_PRIVATE_BANKING_CH
+bank_people,jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,Y,Primary work jurisdiction.,CTY_CH
+bank_people,first_name,STRING,,,N,Synthetic first name.,Maya
+bank_people,last_name,STRING,,,N,Synthetic last name.,Keller
+bank_people,role_title,STRING,,,N,Staff role.,Relationship Manager
+bank_people,email,STRING,,,Y,Synthetic email address.,maya.keller@example.edu
+bank_people,hire_date,DATE,,,Y,Staff hire date.,44089
+bank_people,employment_status,STRING,,,N,"Active, leave, exited.",active
+bank_people,manager_staff_id,STRING,FK,bank_people.staff_id,Y,Line manager.,EMP_0007
+bank_people,language_code,STRING,,,Y,Preferred language.,en
+bank_people,certification_level,STRING,,,Y,Compliance or advisory certification level.,advanced
+bank_people,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+bank_people,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+clients,client_id,STRING,PK,,N,Simple client identifier for people and organizations.,PTY_100001
+clients,client_type,STRING,,,N,"Individual, company, trust, foundation or external counterparty.",Individual
+clients,display_name,STRING,,,N,Synthetic client display name.,Alex Morgan
+clients,first_name,STRING,,,Y,First name for individual clients.,Alex
+clients,last_name,STRING,,,Y,Last name for individual clients.,Morgan
+clients,date_of_birth,DATE,,,Y,Date of birth for individuals.,30790
+clients,incorporation_date,DATE,,,Y,Incorporation date for organizations.,42412
+clients,industry_code,STRING,,,Y,Synthetic industry code.,CONSULTING
+clients,occupation_text,STRING,,,Y,Occupation or business activity.,Technology consultant
+clients,primary_jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,Y,Primary jurisdiction of client.,CTY_CH
+clients,tax_jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,Y,Primary tax jurisdiction.,CTY_CH
+clients,risk_score,INTEGER,,,Y,Current client risk score.,32
+clients,risk_band,STRING,,,Y,"Low, Medium, High, Severe.",Medium
+clients,pep_status,STRING,,,N,"Not PEP, domestic PEP, foreign PEP, close associate.",Not PEP
+clients,client_segment,STRING,,,Y,"Retail, affluent, private, corporate or institutional.",Private
+clients,onboarding_date,DATE,,,Y,Date client was onboarded.,44351
+clients,status,STRING,,,N,Lifecycle status.,active
+clients,preferred_language,STRING,,,Y,Preferred communication language.,en
+clients,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+clients,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+client_locations,client_location_id,STRING,PK,,N,Simple address identifier.,ADR_000001
+client_locations,client_id,STRING,FK,clients.client_id,N,Client owning the address.,PTY_100001
+client_locations,jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,N,Jurisdiction of the address.,CTY_CH
+client_locations,address_type,STRING,,,N,"Home, mailing, registered, business or tax.",Home
+client_locations,street_line_1,STRING,,,Y,Street and number.,12 Lake View Road
+client_locations,street_line_2,STRING,,,Y,Additional address information.,Apt 4B
+client_locations,postal_code,STRING,,,Y,Postal code.,1003
+client_locations,city_name,STRING,,,Y,City name.,Lausanne
+client_locations,state_region,STRING,,,Y,"State, canton or province.",Vaud
+client_locations,latitude,DOUBLE,,,Y,Synthetic latitude for geospatial exercises.,46.5197
+client_locations,longitude,DOUBLE,,,Y,Synthetic longitude for geospatial exercises.,6.6323
+client_locations,is_primary_flag,BOOLEAN,,,N,Whether it is the primary address.,TRUE
+client_locations,valid_from_date,DATE,,,Y,Start date for the address.,44351
+client_locations,valid_to_date,DATE,,,Y,End date if historical.,
+client_locations,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+client_locations,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+client_jurisdictions,client_jurisdiction_id,STRING,PK,,N,Simple client-jurisdiction link identifier.,PCN_000001
+client_jurisdictions,client_id,STRING,FK,clients.client_id,N,Client linked to jurisdiction.,PTY_100001
+client_jurisdictions,jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,N,Related jurisdiction.,CTY_CH
+client_jurisdictions,jurisdiction_relation_type,STRING,,,N,"Residence, nationality, birth, tax, incorporation or citizenship.",Residence
+client_jurisdictions,is_primary_flag,BOOLEAN,,,N,Primary relation indicator.,TRUE
+client_jurisdictions,verification_status,STRING,,,Y,"Unverified, self-declared, documentary or external.",documentary
+client_jurisdictions,source_note,STRING,,,Y,Synthetic source note.,passport and utility bill
+client_jurisdictions,risk_override_flag,BOOLEAN,,,N,Whether jurisdiction link caused risk override.,FALSE
+client_jurisdictions,start_date,DATE,,,Y,Start date.,44351
+client_jurisdictions,end_date,DATE,,,Y,End date.,
+client_documents,document_id,STRING,PK,,N,Simple document identifier.,DOC_000001
+client_documents,client_id,STRING,FK,clients.client_id,N,Client owning the document.,PTY_100001
+client_documents,jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,Y,Issuing jurisdiction.,CTY_CH
+client_documents,document_type,STRING,,,N,"Passport, national ID, company registry, tax form, proof of address.",Passport
+client_documents,document_number,STRING,,,Y,Synthetic document number.,P1234567
+client_documents,issue_date,DATE,,,Y,Issue date.,43845
+client_documents,expiry_date,DATE,,,Y,Expiry date.,47497
+client_documents,verification_status,STRING,,,N,"Pending, verified, expired, rejected.",verified
+client_documents,verified_by_staff_id,STRING,FK,bank_people.staff_id,Y,Staff that verified the document.,EMP_0012
+client_documents,verified_date,DATE,,,Y,Verification date.,44352
+client_documents,document_language,STRING,,,Y,Language of document.,en
+client_documents,redaction_required_flag,BOOLEAN,,,N,Whether document needs redaction for student use.,FALSE
+client_documents,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+client_documents,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+client_markers,client_marker_id,STRING,PK,,N,Simple client flag identifier.,PFLG_000001
+client_markers,client_id,STRING,FK,clients.client_id,N,Flagged client.,PTY_100001
+client_markers,flag_type,STRING,,,N,"PEP, sanctions, adverse media, vulnerable client, high cash activity, tax concern.",adverse_media
+client_markers,flag_severity,STRING,,,N,"Low, medium, high, critical.",medium
+client_markers,flag_status,STRING,,,N,"Open, mitigated, closed, false positive.",open
+client_markers,detected_date,DATE,,,N,Date flag was created.,46068
+client_markers,resolved_date,DATE,,,Y,Date flag was closed.,
+client_markers,source_system,STRING,,,Y,Synthetic source of flag.,media_screening
+client_markers,assigned_staff_id,STRING,FK,bank_people.staff_id,Y,Owner of flag review.,EMP_0021
+client_markers,mitigation_note,STRING,,,Y,Short mitigation note.,Reviewed and pending client clarification
+client_markers,requires_review_flag,BOOLEAN,,,N,Whether manual review is needed.,TRUE
+client_markers,next_review_date,DATE,,,Y,Scheduled review date.,46157
+bank_relations,bank_relation_id,STRING,PK,,N,Simple bank relation identifier.,BR_200001
+bank_relations,primary_client_id,STRING,FK,clients.client_id,N,Main client for the relationship.,PTY_100001
+bank_relations,moral_entity_id,STRING,FK,moral_entities.moral_entity_id,N,Booking or servicing moral entity.,LE_CH_BANK_01
+bank_relations,relationship_manager_staff_id,STRING,FK,bank_people.staff_id,Y,Relationship manager.,EMP_0001
+bank_relations,business_unit_id,STRING,FK,bank_departments.department_id,Y,Servicing organization unit.,OU_PRIVATE_BANKING_CH
+bank_relations,relationship_type,STRING,,,N,"Individual, joint, corporate, trust, foundation, advisory or custody.",Individual
+bank_relations,client_segment,STRING,,,Y,Client segment.,Private
+bank_relations,opening_date,DATE,,,Y,Relationship opening date.,44351
+bank_relations,closing_date,DATE,,,Y,Relationship closing date.,
+bank_relations,kyc_status,STRING,,,N,"Complete, due, overdue, blocked or exit.",complete
+bank_relations,risk_score,INTEGER,,,Y,Current BR risk score.,35
+bank_relations,risk_band,STRING,,,Y,Current BR risk band.,Medium
+bank_relations,source_of_wealth_text,STRING,,,Y,Declared source of wealth.,Sale of consulting company
+bank_relations,expected_annual_turnover_amount,"DECIMAL(18,2)",,,Y,Expected annual account turnover.,750000
+bank_relations,expected_assets_amount,"DECIMAL(18,2)",,,Y,Expected assets under management.,2400000
+bank_relations,status,STRING,,,N,Lifecycle status.,active
+bank_relations,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+bank_relations,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+client_relation_roles,client_relation_role_id,STRING,PK,,N,Simple client role identifier.,PROLE_000001
+client_relation_roles,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,N,Relationship being served.,BR_200001
+client_relation_roles,client_id,STRING,FK,clients.client_id,N,Client playing the role.,PTY_100001
+client_relation_roles,role_type,STRING,,,N,"Account holder, beneficial owner, authorized signatory, power of attorney, guardian, advisor.",Account holder
+client_relation_roles,ownership_percentage,"DECIMAL(5,2)",,,Y,Ownership or control percentage.,100
+client_relation_roles,role_start_date,DATE,,,Y,Start of role.,44351
+client_relation_roles,role_end_date,DATE,,,Y,End of role.,
+client_relation_roles,is_controlling_person_flag,BOOLEAN,,,N,Whether role has control rights.,TRUE
+client_relation_roles,signature_authority_level,STRING,,,Y,"None, view, limited, full.",full
+client_relation_roles,verification_status,STRING,,,Y,Verification status of role.,verified
+client_relation_roles,approval_staff_id,STRING,FK,bank_people.staff_id,Y,Staff who approved role.,EMP_0012
+client_relation_roles,comments,STRING,,,Y,Role comments.,Sole beneficial owner
+client_relation_roles,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+client_relation_roles,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+relation_markers,relation_marker_id,STRING,PK,,N,Simple BR flag identifier.,BFLG_000001
+relation_markers,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,N,Flagged bank relation.,BR_200001
+relation_markers,flag_type,STRING,,,N,"Enhanced monitoring, SAR, unusual transaction, sanctions, tax, exit restriction.",unusual_transaction
+relation_markers,flag_severity,STRING,,,N,"Low, medium, high, critical.",high
+relation_markers,flag_status,STRING,,,N,"Open, mitigated, closed, false positive.",open
+relation_markers,detected_date,DATE,,,N,Date flag was created.,46093
+relation_markers,resolved_date,DATE,,,Y,Date flag was resolved.,
+relation_markers,source_event_type,STRING,,,Y,"Alert, manual review, KYC review, screening hit.",alert
+relation_markers,source_event_id,STRING,,,Y,Identifier of triggering event.,ALERT_900001
+relation_markers,assigned_staff_id,STRING,FK,bank_people.staff_id,Y,Owner.,EMP_0021
+relation_markers,mitigation_note,STRING,,,Y,Short mitigation note.,Pending escalation committee
+relation_markers,next_review_date,DATE,,,Y,Next review date.,46124
+bank_accounts,account_id,STRING,PK,,N,Simple account identifier.,ACC_300001
+bank_accounts,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,N,Owning bank relation.,BR_200001
+bank_accounts,moral_entity_id,STRING,FK,moral_entities.moral_entity_id,N,Booking moral entity.,LE_CH_BANK_01
+bank_accounts,service_product_id,STRING,FK,service_products.service_product_id,Y,Product classification.,PROD_CURRENT_ACCOUNT
+bank_accounts,account_number,STRING,,,N,Synthetic account number.,CH-000-300001
+bank_accounts,iban,STRING,,,Y,Synthetic IBAN-like value.,CH9300762011623852957
+bank_accounts,account_name,STRING,,,Y,Display account name.,Alex Morgan CHF account
+bank_accounts,account_type,STRING,,,N,"Current, savings, custody, card, loan, nostro, margin.",current
+bank_accounts,currency_code,STRING,,,N,Account currency.,CHF
+bank_accounts,open_date,DATE,,,Y,Account opening date.,44357
+bank_accounts,close_date,DATE,,,Y,Account closing date.,
+bank_accounts,account_status,STRING,,,N,"Open, dormant, blocked, closed.",open
+bank_accounts,statement_frequency,STRING,,,Y,"Daily, monthly, quarterly, annual.",monthly
+bank_accounts,overdraft_limit_amount,"DECIMAL(18,2)",,,Y,Allowed overdraft limit.,10000
+bank_accounts,risk_score,INTEGER,,,Y,Account risk score.,28
+bank_accounts,last_activity_date,DATE,,,Y,Last transaction date.,46127
+bank_accounts,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+bank_accounts,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+bank_account_balance_snapshots,balance_snapshot_id,STRING,PK,,N,Simple balance record identifier.,BAL_000001
+bank_account_balance_snapshots,account_id,STRING,FK,bank_accounts.account_id,N,Account being valued.,ACC_300001
+bank_account_balance_snapshots,balance_date,DATE,,,N,Balance snapshot date.,46113
+bank_account_balance_snapshots,currency_code,STRING,,,N,Balance currency.,CHF
+bank_account_balance_snapshots,opening_balance_amount,"DECIMAL(18,2)",,,Y,Opening balance amount.,12500
+bank_account_balance_snapshots,closing_balance_amount,"DECIMAL(18,2)",,,N,Closing balance amount.,18450.25
+bank_account_balance_snapshots,available_balance_amount,"DECIMAL(18,2)",,,Y,Available balance after holds.,18250.25
+bank_account_balance_snapshots,book_balance_amount,"DECIMAL(18,2)",,,Y,Book balance.,18450.25
+bank_account_balance_snapshots,blocked_balance_amount,"DECIMAL(18,2)",,,Y,Blocked or reserved balance.,200
+bank_account_balance_snapshots,credit_turnover_amount,"DECIMAL(18,2)",,,Y,Credits in period.,6500
+bank_account_balance_snapshots,debit_turnover_amount,"DECIMAL(18,2)",,,Y,Debits in period.,550
+bank_account_balance_snapshots,average_30d_balance_amount,"DECIMAL(18,2)",,,Y,30-day average balance.,17230.4
+bank_account_balance_snapshots,balance_source,STRING,,,Y,Synthetic balance source.,core_banking
+bank_account_balance_snapshots,is_month_end_flag,BOOLEAN,,,N,Month-end balance indicator.,FALSE
+service_products,service_product_id,STRING,PK,,N,Simple product identifier.,PROD_CURRENT_ACCOUNT
+service_products,product_family,STRING,,,N,"Accounts, cards, loans, investments, FX, derivatives.",Accounts
+service_products,product_name,STRING,,,N,Product name.,Current account
+service_products,product_type,STRING,,,Y,Detailed product type.,cash account
+service_products,default_currency_code,STRING,,,Y,Default product currency.,CHF
+service_products,risk_weight,"DECIMAL(5,2)",,,Y,Product risk weight for scoring exercises.,1
+service_products,is_cash_like_flag,BOOLEAN,,,N,Whether product is cash-like.,TRUE
+service_products,is_tradeable_flag,BOOLEAN,,,N,Whether product supports investment_orders.,FALSE
+service_products,requires_suitability_flag,BOOLEAN,,,N,Whether product requires suitability check.,FALSE
+service_products,status,STRING,,,N,Product status.,active
+service_products,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+service_products,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+money_movements,movement_id,STRING,PK,,N,Simple transaction identifier.,TXN_500001
+money_movements,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,Y,Related bank relation.,BR_200001
+money_movements,account_id,STRING,FK,bank_accounts.account_id,N,Primary account involved.,ACC_300001
+money_movements,service_product_id,STRING,FK,service_products.service_product_id,Y,Product classification.,PROD_CURRENT_ACCOUNT
+money_movements,transaction_date,DATE,,,N,Date transaction was executed.,46127
+money_movements,booking_date,DATE,,,Y,Date transaction was booked.,46128
+money_movements,value_date,DATE,,,Y,Value date.,46127
+money_movements,transaction_type,STRING,,,N,"Wire, card, cash, transfer, fee, security settlement, FX.",wire_transfer
+money_movements,direction,STRING,,,N,Incoming or outgoing.,outgoing
+money_movements,amount,"DECIMAL(18,2)",,,N,Original transaction amount.,15000
+money_movements,currency_code,STRING,,,N,Original transaction currency.,CHF
+money_movements,amount_usd,"DECIMAL(18,2)",,,Y,USD equivalent for analytics.,16450
+money_movements,counterparty_name,STRING,,,Y,Displayed counterparty name.,Blue Harbor Ltd
+money_movements,counterparty_jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,Y,Counterparty jurisdiction.,CTY_GB
+money_movements,payment_channel,STRING,,,Y,"Online, branch, card, swift, internal, mobile.",swift
+money_movements,payment_purpose,STRING,,,Y,Purpose text.,consulting invoice
+money_movements,transaction_status,STRING,,,N,"Posted, pending, rejected, reversed.",posted
+money_movements,is_cash_flag,BOOLEAN,,,N,Cash transaction indicator.,FALSE
+money_movements,is_cross_border_flag,BOOLEAN,,,N,Cross-border transaction indicator.,TRUE
+money_movements,risk_score,INTEGER,,,Y,Transaction risk score.,61
+money_movements,narrative_text,STRING,,,Y,Free-text narrative for NLP.,Invoice April consulting services
+ledger_entries,ledger_entry_id,STRING,PK,,N,Simple ledger booking identifier.,BOOK_000001
+ledger_entries,movement_id,STRING,FK,money_movements.movement_id,N,Transaction that generated this booking.,TXN_500001
+ledger_entries,account_id,STRING,FK,bank_accounts.account_id,N,Booked account.,ACC_300001
+ledger_entries,booking_date,DATE,,,N,Date of booking line.,46128
+ledger_entries,value_date,DATE,,,Y,Value date of booking line.,46127
+ledger_entries,debit_credit_indicator,STRING,,,N,Debit or credit.,debit
+ledger_entries,booking_amount,"DECIMAL(18,2)",,,N,Booking line amount.,15000
+ledger_entries,booking_currency_code,STRING,,,N,Booking currency.,CHF
+ledger_entries,balance_after_booking_amount,"DECIMAL(18,2)",,,Y,Balance after booking.,18450.25
+ledger_entries,booking_type,STRING,,,Y,"Principal, fee, tax, interest, reversal, correction.",principal
+ledger_entries,fee_amount,"DECIMAL(18,2)",,,Y,Fee amount associated with booking.,25
+ledger_entries,tax_amount,"DECIMAL(18,2)",,,Y,Tax amount associated with booking.,0
+ledger_entries,booking_status,STRING,,,N,"Posted, pending, reversed.",posted
+ledger_entries,reversal_ledger_entry_id,STRING,FK,ledger_entries.ledger_entry_id,Y,Original booking if this is a reversal.,
+ledger_entries,booking_description,STRING,,,Y,Booking narrative.,Outgoing payment to Blue Harbor Ltd
+outside_parties,outside_party_id,STRING,PK,,N,Simple external party identifier.,EXT_700001
+outside_parties,movement_id,STRING,FK,money_movements.movement_id,Y,Transaction where the external party appears.,TXN_500001
+outside_parties,jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,Y,Jurisdiction of external party.,CTY_GB
+outside_parties,external_party_role,STRING,,,N,"Originator, beneficiary, intermediary, correspondent, merchant.",beneficiary
+outside_parties,external_party_name,STRING,,,N,Synthetic external party name.,Blue Harbor Ltd
+outside_parties,external_party_type,STRING,,,Y,"Individual, company, bank, merchant, government.",company
+outside_parties,bank_name,STRING,,,Y,Bank name if relevant.,Northshore Bank
+outside_parties,bank_jurisdiction_id,STRING,FK,jurisdiction_catalog.jurisdiction_id,Y,Bank jurisdiction.,CTY_GB
+outside_parties,account_number_masked,STRING,,,Y,Masked external account number.,GB**1234
+outside_parties,address_city,STRING,,,Y,External party city.,London
+outside_parties,is_known_counterparty_flag,BOOLEAN,,,N,Whether counterparty is known from history.,FALSE
+outside_parties,screening_status,STRING,,,Y,"Not screened, clear, potential hit, confirmed hit.",clear
+outside_parties,risk_score,INTEGER,,,Y,External party risk score.,52
+outside_parties,notes,STRING,,,Y,Short note.,First payment to this beneficiary
+outside_parties,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+outside_parties,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
+investment_orders,investment_order_id,STRING,PK,,N,Simple trade identifier.,TRD_600001
+investment_orders,account_id,STRING,FK,bank_accounts.account_id,N,Trading or custody account.,ACC_300001
+investment_orders,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,Y,Related bank relation.,BR_200001
+investment_orders,client_id,STRING,FK,clients.client_id,Y,Client placing or benefiting from trade.,PTY_100001
+investment_orders,service_product_id,STRING,FK,service_products.service_product_id,Y,Product traded.,PROD_EQUITY
+investment_orders,trade_date,DATE,,,N,Trade execution date.,46122
+investment_orders,settlement_date,DATE,,,Y,Settlement date.,46124
+investment_orders,instrument_id,STRING,,,Y,Synthetic instrument identifier.,ISIN_ABC123
+investment_orders,instrument_name,STRING,,,Y,Instrument display name.,Global Tech ETF
+investment_orders,instrument_type,STRING,,,N,"Equity, bond, fund, FX, option, future, structured product.",ETF
+investment_orders,buy_sell_indicator,STRING,,,N,Buy or sell.,buy
+investment_orders,quantity,"DECIMAL(18,4)",,,Y,Traded quantity.,120
+investment_orders,price_amount,"DECIMAL(18,6)",,,Y,Trade price.,98.45
+investment_orders,trade_amount,"DECIMAL(18,2)",,,N,Gross trade amount.,11814
+investment_orders,currency_code,STRING,,,N,Trade currency.,USD
+investment_orders,broker_name,STRING,,,Y,Executing broker.,Alpine Markets
+investment_orders,trade_status,STRING,,,N,"Booked, settled, cancelled, failed.",settled
+investment_orders,suitability_result,STRING,,,Y,"Suitable, not suitable, not assessed.",suitable
+monitoring_alerts,monitoring_alert_id,STRING,PK,,N,Simple AML alert identifier.,ALERT_900001
+monitoring_alerts,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,Y,Related bank relation.,BR_200001
+monitoring_alerts,client_id,STRING,FK,clients.client_id,Y,Related client.,PTY_100001
+monitoring_alerts,account_id,STRING,FK,bank_accounts.account_id,Y,Related account.,ACC_300001
+monitoring_alerts,movement_id,STRING,FK,money_movements.movement_id,Y,Triggered transaction if applicable.,TXN_500001
+monitoring_alerts,alert_date,DATE,,,N,Date alert was generated.,46128
+monitoring_alerts,scenario_code,STRING,,,N,Monitoring scenario code.,WIRE_HIGH_RISK_COUNTRY
+monitoring_alerts,scenario_name,STRING,,,Y,Scenario description.,Wire to higher risk jurisdiction
+monitoring_alerts,alert_score,INTEGER,,,Y,Alert score.,82
+monitoring_alerts,alert_severity,STRING,,,N,"Low, medium, high, critical.",high
+monitoring_alerts,alert_status,STRING,,,N,"New, assigned, investigation, closed, escalated.",assigned
+monitoring_alerts,assigned_staff_id,STRING,FK,bank_people.staff_id,Y,Alert owner.,EMP_0021
+monitoring_alerts,closed_date,DATE,,,Y,Closure date.,
+monitoring_alerts,closure_reason,STRING,,,Y,Reason for closure.,
+monitoring_alerts,typology,STRING,,,Y,Synthetic typology label.,layering
+monitoring_alerts,narrative_summary,STRING,,,Y,Short alert narrative.,High value cross-border transfer to new beneficiary
+monitoring_signals,monitoring_signal_id,STRING,PK,,N,Simple signal identifier.,ASIG_000001
+monitoring_signals,monitoring_alert_id,STRING,FK,monitoring_alerts.monitoring_alert_id,N,Alert explained by this signal.,ALERT_900001
+monitoring_signals,movement_id,STRING,FK,money_movements.movement_id,Y,Transaction contributing to the signal.,TXN_500001
+monitoring_signals,signal_name,STRING,,,N,Signal name.,new_counterparty
+monitoring_signals,signal_value,STRING,,,Y,Observed value.,first payment to beneficiary
+monitoring_signals,threshold_value,STRING,,,Y,Threshold used by scenario.,no activity in prior 180 days
+monitoring_signals,score_contribution,INTEGER,,,Y,Points contributed to alert score.,25
+monitoring_signals,signal_date,DATE,,,N,Date signal was evaluated.,46128
+monitoring_signals,is_rule_breached_flag,BOOLEAN,,,N,Whether signal breached the threshold.,TRUE
+monitoring_signals,explanation_text,STRING,,,Y,Human-readable explanation.,Beneficiary had no prior transaction history
+review_cases,review_case_id,STRING,PK,,N,Simple investigation case identifier.,CASE_800001
+review_cases,monitoring_alert_id,STRING,FK,monitoring_alerts.monitoring_alert_id,Y,Source alert if opened from alert.,ALERT_900001
+review_cases,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,Y,Case relationship.,BR_200001
+review_cases,client_id,STRING,FK,clients.client_id,Y,Main client in case.,PTY_100001
+review_cases,case_open_date,DATE,,,N,Date case was opened.,46129
+review_cases,case_due_date,DATE,,,Y,Target completion date.,46159
+review_cases,case_close_date,DATE,,,Y,Date case was closed.,
+review_cases,case_type,STRING,,,N,"AML, sanctions, fraud, tax, KYC, referral.",AML
+review_cases,case_priority,STRING,,,N,"Low, medium, high, urgent.",high
+review_cases,case_status,STRING,,,N,"Open, pending info, escalated, closed.",open
+review_cases,assigned_investigator_staff_id,STRING,FK,bank_people.staff_id,Y,Assigned investigator.,EMP_0035
+review_cases,decision,STRING,,,Y,"No issue, monitor, escalate, file report, exit.",monitor
+review_cases,decision_reason,STRING,,,Y,Reason for decision.,Insufficient economic rationale pending clarification
+review_cases,reported_to_authority_flag,BOOLEAN,,,N,Whether case resulted in regulatory report.,FALSE
+review_cases,quality_review_status,STRING,,,Y,"Not required, pending, passed, failed.",pending
+review_cases,case_summary,STRING,,,Y,Investigation summary.,Review of high-value wire transfer to new counterparty
+review_evidence,review_evidence_id,STRING,PK,,N,Simple evidence identifier.,EVID_000001
+review_evidence,review_case_id,STRING,FK,review_cases.review_case_id,N,Investigation case.,CASE_800001
+review_evidence,related_movement_id,STRING,FK,money_movements.movement_id,Y,Transaction evidence if applicable.,TXN_500001
+review_evidence,related_document_id,STRING,FK,client_documents.document_id,Y,Document evidence if applicable.,DOC_000001
+review_evidence,evidence_type,STRING,,,N,"Transaction, document, note, external search, screenshot, communication.",transaction
+review_evidence,evidence_title,STRING,,,N,Short title.,Outgoing wire transfer details
+review_evidence,evidence_date,DATE,,,Y,Date evidence was captured.,46129
+review_evidence,collected_by_staff_id,STRING,FK,bank_people.staff_id,Y,Staff who collected evidence.,EMP_0035
+review_evidence,source_channel,STRING,,,Y,"System, email, client call, branch, open web.",system
+review_evidence,evidence_summary,STRING,,,Y,Short evidence summary.,Transaction is first payment to beneficiary and exceeds expected monthly turnover
+review_evidence,confidentiality_level,STRING,,,N,"Public, internal, restricted, confidential.",restricted
+review_evidence,is_key_evidence_flag,BOOLEAN,,,N,Whether evidence is key to decision.,TRUE
+interaction_notes,interaction_note_id,STRING,PK,,N,Simple note identifier.,NOTE_000001
+interaction_notes,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,Y,Related bank relation.,BR_200001
+interaction_notes,client_id,STRING,FK,clients.client_id,Y,Related client.,PTY_100001
+interaction_notes,account_id,STRING,FK,bank_accounts.account_id,Y,Related account.,ACC_300001
+interaction_notes,review_case_id,STRING,FK,review_cases.review_case_id,Y,Related investigation case.,CASE_800001
+interaction_notes,created_by_staff_id,STRING,FK,bank_people.staff_id,N,Author of the note.,EMP_0001
+interaction_notes,note_date,DATE,,,N,Date note was written.,46130
+interaction_notes,note_type,STRING,,,N,"Call, meeting, KYC, investigation, service, complaint.",call
+interaction_notes,note_text,STRING,,,N,Synthetic free-text note for NLP exercises.,Client explained transfer relates to consulting project milestone.
+interaction_notes,sentiment_label,STRING,,,Y,"Positive, neutral, negative or mixed.",neutral
+interaction_notes,contains_sensitive_info_flag,BOOLEAN,,,N,Synthetic sensitive information indicator.,FALSE
+interaction_notes,follow_up_required_flag,BOOLEAN,,,N,Whether a follow-up is needed.,TRUE
+interaction_notes,follow_up_due_date,DATE,,,Y,Due date for follow-up.,46137
+interaction_notes,visibility_level,STRING,,,N,"Team, relationship, compliance, restricted.",compliance
+due_diligence_reviews,due_diligence_review_id,STRING,PK,,N,Simple KYC review identifier.,KYC_000001
+due_diligence_reviews,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,N,Bank relation under review.,BR_200001
+due_diligence_reviews,lead_client_id,STRING,FK,clients.client_id,Y,Lead client for review.,PTY_100001
+due_diligence_reviews,review_type,STRING,,,N,"Periodic, event-driven, onboarding, remediation.",periodic
+due_diligence_reviews,review_start_date,DATE,,,N,Review start date.,46082
+due_diligence_reviews,review_due_date,DATE,,,N,Review due date.,46142
+due_diligence_reviews,review_completion_date,DATE,,,Y,Completion date.,
+due_diligence_reviews,review_status,STRING,,,N,"Not started, in progress, pending client, complete, overdue.",in progress
+due_diligence_reviews,reviewer_staff_id,STRING,FK,bank_people.staff_id,Y,Reviewer assigned.,EMP_0012
+due_diligence_reviews,old_risk_band,STRING,,,Y,Risk band before review.,Medium
+due_diligence_reviews,new_risk_band,STRING,,,Y,Risk band after review.,High
+due_diligence_reviews,risk_change_reason,STRING,,,Y,Reason for risk change.,New high-value cross-border activity
+due_diligence_reviews,documents_missing_count,INTEGER,,,Y,Number of missing documents.,2
+due_diligence_reviews,client_contacted_flag,BOOLEAN,,,N,Whether client was contacted.,TRUE
+due_diligence_reviews,decision,STRING,,,Y,"Continue, restrict, exit, enhanced monitoring.",enhanced monitoring
+fx_rates,fx_rate_id,STRING,PK,,N,Simple FX rate identifier.,FX_20260415_CHF_USD
+fx_rates,rate_date,DATE,,,N,Rate date.,46127
+fx_rates,base_currency_code,STRING,,,N,Base currency.,CHF
+fx_rates,quote_currency_code,STRING,,,N,Quote currency.,USD
+fx_rates,spot_rate,"DECIMAL(18,8)",,,N,Spot FX rate.,1.0967
+fx_rates,average_rate,"DECIMAL(18,8)",,,Y,Average rate for reporting.,1.0942
+fx_rates,rate_source,STRING,,,Y,Synthetic source label.,central_bank
+fx_rates,is_month_end_rate_flag,BOOLEAN,,,N,Month-end rate indicator.,FALSE
+screening_matches,screening_match_id,STRING,PK,,N,Simple sanctions hit identifier.,SHIT_000001
+screening_matches,client_id,STRING,FK,clients.client_id,Y,Matched client if applicable.,PTY_100001
+screening_matches,outside_party_id,STRING,FK,outside_parties.outside_party_id,Y,Matched external party if applicable.,EXT_700001
+screening_matches,monitoring_alert_id,STRING,FK,monitoring_alerts.monitoring_alert_id,Y,Related alert if generated.,ALERT_900001
+screening_matches,screening_date,DATE,,,N,Date screened.,46128
+screening_matches,watchlist_name,STRING,,,N,Synthetic list name.,Global sanctions list
+screening_matches,matched_name,STRING,,,N,Matched name.,Alex M.
+screening_matches,match_score,INTEGER,,,N,Fuzzy match score 0-100.,72
+screening_matches,hit_status,STRING,,,N,"Open, false positive, true match, escalated.",false positive
+screening_matches,reviewed_by_staff_id,STRING,FK,bank_people.staff_id,Y,Reviewer.,EMP_0021
+screening_matches,review_date,DATE,,,Y,Review date.,46129
+screening_matches,resolution_note,STRING,,,Y,Resolution narrative.,Date of birth and jurisdiction do not match
+risk_timeline,risk_timeline_id,STRING,PK,,N,Simple risk score history identifier.,RSK_000001
+risk_timeline,client_id,STRING,FK,clients.client_id,Y,Client scored.,PTY_100001
+risk_timeline,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,Y,Bank relation scored.,BR_200001
+risk_timeline,score_date,DATE,,,N,Score date.,46113
+risk_timeline,score_type,STRING,,,N,"Onboarding, periodic, transaction, model, override.",model
+risk_timeline,risk_score,INTEGER,,,N,Risk score.,35
+risk_timeline,risk_band,STRING,,,N,Risk band.,Medium
+risk_timeline,risk_driver_1,STRING,,,Y,Top driver.,cross_border_activity
+risk_timeline,risk_driver_2,STRING,,,Y,Second driver.,jurisdiction_exposure
+risk_timeline,risk_driver_3,STRING,,,Y,Third driver.,transaction_volume
+risk_timeline,model_version,STRING,,,Y,Synthetic model version.,risk_model_v2
+risk_timeline,override_reason,STRING,,,Y,Manual override reason if any.,
+outreach_events,communication_id,STRING,PK,,N,Simple communication identifier.,COMM_000001
+outreach_events,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,Y,Related bank relation.,BR_200001
+outreach_events,client_id,STRING,FK,clients.client_id,Y,Related client.,PTY_100001
+outreach_events,staff_id,STRING,FK,bank_people.staff_id,N,Staff involved.,EMP_0001
+outreach_events,communication_date,DATE,,,N,Date of communication.,46130
+outreach_events,communication_channel,STRING,,,N,"Phone, email, meeting, secure message, letter.",phone
+outreach_events,communication_topic,STRING,,,Y,Topic label.,transaction clarification
+outreach_events,communication_outcome,STRING,,,Y,Outcome.,client explained payment
+outreach_events,duration_minutes,INTEGER,,,Y,Duration.,18
+outreach_events,follow_up_required_flag,BOOLEAN,,,N,Follow-up needed.,TRUE
+outreach_events,related_interaction_note_id,STRING,FK,interaction_notes.interaction_note_id,Y,Linked note.,NOTE_000001
+client_permissions,client_permission_id,STRING,PK,,N,Simple consent identifier.,CONS_000001
+client_permissions,client_id,STRING,FK,clients.client_id,N,Client granting consent.,PTY_100001
+client_permissions,bank_relation_id,STRING,FK,bank_relations.bank_relation_id,Y,Related relationship.,BR_200001
+client_permissions,consent_type,STRING,,,N,"Marketing, data sharing, digital communication, profiling, research.",digital_communication
+client_permissions,consent_status,STRING,,,N,"Granted, withdrawn, expired, pending.",granted
+client_permissions,consent_start_date,DATE,,,N,Start date.,44351
+client_permissions,consent_end_date,DATE,,,Y,End date.,
+client_permissions,capture_channel,STRING,,,Y,"Branch, online, call center, paper.",online
+client_permissions,captured_by_staff_id,STRING,FK,bank_people.staff_id,Y,Staff who captured consent.,EMP_0001
+client_permissions,evidence_reference,STRING,,,Y,Synthetic evidence reference.,portal click log 98765
+client_permissions,start_date,DATE,,,N,SCD2 validity start date for this dimensional record.,46023
+client_permissions,end_date,DATE,,,Y,SCD2 validity end date; blank means current record.,
