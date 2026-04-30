@@ -64,12 +64,12 @@ echo "✅ Neo4j is ready!"
 
 # 1. Start Backend
 echo "📡 Starting Backend (REST API) on port 8080..."
-python3 -m ubs_hackathon.backend --meta-db data/meta.db --catalog data/catalog.db --host 127.0.0.1 --port 8080 > backend.log 2>&1 &
+.venv/bin/python -m ubs_hackathon.backend --meta-db data/meta.db --catalog data/catalog.db --host 127.0.0.1 --port 8080 > backend.log 2>&1 &
 BACKEND_PID=$!
 
 # 2. Start MCP Server (SSE)
 echo "🔌 Starting MCP Server (SSE) on port 8000..."
-python3 -m ubs_hackathon.server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000 > mcp.log 2>&1 &
+.venv/bin/python -m ubs_hackathon.server --config config/config.yaml --transport sse --host 0.0.0.0 --port 8000 > mcp.log 2>&1 &
 MCP_PID=$!
 
 # 3. Start Neo4j MCP (SSE)

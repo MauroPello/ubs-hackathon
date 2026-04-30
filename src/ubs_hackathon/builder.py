@@ -121,7 +121,41 @@ def sync_meta_from_config(
                 )
 
 
+def _ensure_neo4j_running() -> None:
+    import subprocess
+    import time
+    container_name = "ubs-neo4j"
+    print(f"Ensuring Neo4j container '{container_name}' is running...")
+    try:
+        # Check if container exists and is running
+        status = subprocess.check_output(
+            ["docker", "ps", "--filter", f"name={container_name}", "--format", "{{.Status}}"],
+            text=True
+        ).strip()
+
+        if not status:
+            # Check if it exists but is stopped
+            exists = subprocess.call(
+                ["docker", "inspect", container_name],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            ) == 0
+
+            if exists:
+                print(f"Starting existing container '{container_name}'...")
+                subprocess.check_call(["docker", "start", container_name])
+            else:
+                print(f"Container '{container_name}' not found. Please follow docs/neo4j.md to create it.")
+                return
+
+        # Simple wait for Bolt port
+        print("Waiting for Neo4j to be ready...")
+        time.sleep(5)
+    except Exception as e:
+        logging.warning("Could not automatically start Neo4j: %s", e)
+
+
 def build_catalog(config_path: str | None = None) -> int:
+    _ensure_neo4j_running()
     (
         sources,
         catalog_path,

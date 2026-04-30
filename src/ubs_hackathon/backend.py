@@ -85,9 +85,12 @@ def _collect_mcp_usage_snapshot(store: MetaStore, catalog_path: Path) -> dict:
     source_count = len(sources)
     docs_count = sum(len(store.list_docs(source.name)) for source in sources)
 
-    with sqlite3.connect(catalog_path) as conn:
-        row = conn.execute("SELECT COUNT(*) FROM table_docs").fetchone()
-    catalog_tables = int(row[0]) if row else 0
+    # Use SchemaCatalog to count tables from Neo4j
+    catalog = SchemaCatalog()
+    with catalog.driver.session() as session:
+        result = session.run("MATCH (t:Table) RETURN count(t) AS c")
+        row = result.single()
+        catalog_tables = int(row["c"]) if row else 0
 
     # Get real metrics from audit log
     metrics = store.get_usage_metrics()
