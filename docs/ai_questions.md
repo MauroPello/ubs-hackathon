@@ -5,7 +5,7 @@ This document provides a set of questions designed to test and demonstrate the c
 ## 1. Questions for the SQLite Database (Relational Data & Facts)
 These questions require aggregating, grouping, and filtering transactional data, time-series metrics, and relational dimensions. The AI should route these to the SQLite connector.
 
-* **Transaction Aggregation:** "What was the total transaction amount (in USD) for outgoing wire transfers during the month of April 2026?"
+* **Transaction Aggregation:** "What was the total amount of outgoing wire transfers in April 2026?"
 * **Performance Grouping:** "List the top 5 bank staff members (by name) who have resolved the most monitoring alerts, including the total score of those alerts."
 * **Operational Metrics:** "Compare the average review time (difference between case open and close dates) for 'AML' cases versus 'fraud' cases in the `review_cases` table."
 * **Time-Series Analysis:** "Identify all dates where more than 10 'high' severity alerts were generated. On those days, how many total review cases were opened?"
