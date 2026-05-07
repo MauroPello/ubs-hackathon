@@ -4,6 +4,7 @@ import json
 import random
 import sqlite3
 from collections import defaultdict
+from datetime import date, timedelta
 from pathlib import Path
 
 DEFAULT_ROWS_PER_TABLE = 100
@@ -34,9 +35,12 @@ def generate_random_value(col, row_index):
         try: return float(ex) * random.uniform(0.5, 1.5)
         except: return random.uniform(10.0, 1000.0)
     if dt == 'DATE':
-        # Excel date offset? '46127'
-        try: return int(ex) + random.randint(-100, 100)
-        except: return 46000 + random.randint(-100, 100)
+        # Excel date offset -> YYYY-MM-DD
+        try:
+            offset = int(ex) + random.randint(-100, 100)
+        except:
+            offset = 46000 + random.randint(-100, 100)
+        return (date(1899, 12, 30) + timedelta(days=offset)).strftime("%Y-%m-%d")
     # STRING
     if ex: return f"{ex}_{row_index}"
     return f"str_{row_index}"
