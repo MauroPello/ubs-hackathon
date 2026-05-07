@@ -6,10 +6,55 @@ This document provides a set of questions designed to test and demonstrate the c
 These questions require aggregating, grouping, and filtering transactional data, time-series metrics, and relational dimensions. The AI should route these to the SQLite connector.
 
 * **Transaction Aggregation:** "What was the total amount of outgoing wire transfers in April 2026?"
+  ```sql
+  SELECT SUM(amount) AS total_amount
+  FROM money_movements
+  WHERE direction = 'outgoing'
+    AND transaction_type = 'wire_transfer'
+    AND transaction_date >= '2026-04-01'
+    AND transaction_date <= '2026-04-30';
+  ```
+  131267.82
+  134175.03 (in USD)
 * **Performance Grouping:** "List the top 5 bank staff members (by name) who have resolved the most monitoring alerts, including the total score of those alerts."
+  ```sql
+  SELECT p.first_name, p.last_name, COUNT(a.monitoring_alert_id) AS resolved_alerts, SUM(a.alert_score) AS total_score
+  FROM monitoring_alerts a
+  JOIN bank_people p ON a.assigned_staff_id = p.staff_id
+  WHERE a.alert_status = 'closed'
+  GROUP BY p.staff_id, p.first_name, p.last_name
+  ORDER BY resolved_alerts DESC
+  LIMIT 5;
+  ```
 * **Operational Metrics:** "Compare the average review time (difference between case open and close dates) for 'AML' cases versus 'fraud' cases in the `review_cases` table."
+  ```sql
+  SELECT case_type, AVG(case_close_date - case_open_date) AS avg_review_time
+  FROM review_cases
+  WHERE case_type IN ('AML', 'fraud')
+    AND case_close_date IS NOT NULL
+  GROUP BY case_type;
+  ```
 * **Time-Series Analysis:** "Identify all dates where more than 10 'high' severity alerts were generated. On those days, how many total review cases were opened?"
+  ```sql
+  WITH HighAlertDays AS (
+      SELECT alert_date
+      FROM monitoring_alerts
+      WHERE alert_severity = 'high'
+      GROUP BY alert_date
+      HAVING COUNT(monitoring_alert_id) > 10
+  )
+  SELECT h.alert_date, COUNT(r.review_case_id) AS total_cases_opened
+  FROM HighAlertDays h
+  LEFT JOIN review_cases r ON h.alert_date = r.case_open_date
+  GROUP BY h.alert_date;
+  ```
 * **Risk Reporting:** "Calculate the average client risk score grouped by the client segment (e.g., Retail, Private) for all active clients."
+  ```sql
+  SELECT client_segment, AVG(risk_score) AS avg_risk_score
+  FROM clients
+  WHERE status = 'active'
+  GROUP BY client_segment;
+  ```
 
 ## 2. Questions for the Graph Database (Neo4j / Topological Data)
 These questions require traversing relationships, finding paths, and analyzing network structures. The AI should route these to the Neo4j connector.
